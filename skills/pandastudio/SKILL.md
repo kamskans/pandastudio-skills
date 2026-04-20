@@ -3,7 +3,7 @@ name: pandastudio
 description: Drive PandaStudio — a desktop video editor for YouTube creators — from the command line. Use when the user wants to list / read / create / save PandaStudio projects, generate motion-graphic title cards, lower thirds, or FX intros from templates, browse the bundled sound + FX libraries, query the export library, run inference through PandaStudio's local LLM, or open the editor / exports / home windows. Talks to a localhost-only HTTP API the user must enable in Settings → Local automation. Do NOT use this skill for unrelated video tools, cloud video APIs, or for editing arbitrary files in a PandaStudio project (the project file format is owned by the editor; the CLI is the safe interface).
 ---
 
-<!-- version: 2.1.0 -->
+<!-- version: 2.2.0 -->
 
 # PandaStudio
 
@@ -497,6 +497,138 @@ Without `--audioPath`, the rendered MP4 is silent. Use either this (bakes
 audio into the scene MP4) or `project.add-audio` (adds music at the project
 level and exports with everything else). The project-level approach is more
 flexible — the same music plays across all scenes.
+
+### Validate layout with motion.screenshot BEFORE rendering
+
+Full renders take 15–30 seconds. Use `motion.screenshot` to capture a single
+PNG frame in under a second — validate fonts, layout, and element positions
+before committing to a full encode.
+
+```bash
+# Check the first visible frame (t=0)
+pandastudio motion.screenshot \
+  --html='<html>...</html>' \
+  --aspectRatio=16:9 \
+  --outputName=preview-t0 \
+  --json
+
+# Check mid-animation (t=2s) to see the composition in motion
+pandastudio motion.screenshot \
+  --htmlPath=/tmp/product-scene.html \
+  --atMs=2000 \
+  --assets=/Users/me/product.png \
+  --outputName=preview-t2000 \
+  --json
+```
+
+`motion.screenshot` returns `{ outputPath }` directly — no `job.wait` needed.
+Open the PNG, verify, then call `motion.render-html` with the same args.
+
+### Assembling multi-scene promos with motion.concat
+
+Render each scene separately (they're independent, so you can iterate on each
+individually), then join them into one final MP4 with `motion.concat`.
+No re-encode — it's a lossless stream copy that completes in under a second.
+
+```bash
+# 1. Render each scene independently (sequential — job.wait between each)
+INTRO_JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/intro.html --durationMs=3000 \
+  --outputName=scene-intro --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$INTRO_JOB" --json
+
+PRODUCT_JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/product.html --durationMs=5000 \
+  --assets=/Users/me/product1.png,/Users/me/product2.png \
+  --outputName=scene-product --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$PRODUCT_JOB" --json
+
+CTA_JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/cta.html --durationMs=2000 \
+  --outputName=scene-cta --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$CTA_JOB" --json
+
+# 2. Concat into one final MP4 (fast — no re-encode)
+pandastudio motion.concat \
+  --clips='["/path/to/scene-intro.mp4","/path/to/scene-product.mp4","/path/to/scene-cta.mp4"]' \
+  --outputName=final-promo \
+  --json
+```
+
+`motion.concat` returns `{ outputPath, clipCount }` directly — no `job.wait`.
+All clips must have the same resolution and codec — every `motion.render-html`
+and `motion.generate` output is automatically compatible.
+
+### Writing complex multi-overlay HTML for agents
+
+When the user wants product images, text layers, and animated overlays all
+compositing together in one scene, write a single HTML file using absolute
+positioning and `animation-delay` to sequence elements:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1920px; height: 1080px; background: #0a0a0a; overflow: hidden; }
+
+  /* Layer 1 — background image, fades in immediately */
+  .bg { position: absolute; inset: 0; object-fit: cover; opacity: 0;
+        animation: fadeIn 0.8s ease forwards; }
+
+  /* Layer 2 — product shot, slides in from right after 0.5s */
+  .product { position: absolute; right: 80px; top: 50%; transform: translateY(-50%) translateX(200px);
+             width: 700px; opacity: 0;
+             animation: slideIn 0.6s ease 0.5s forwards; }
+
+  /* Layer 3 — headline text, appears at 1s */
+  .headline { position: absolute; left: 80px; top: 280px;
+              font: 900 96px/1 'Inter', sans-serif; color: #fff; opacity: 0;
+              animation: fadeUp 0.5s ease 1s forwards; }
+
+  /* Layer 4 — subline, 1.4s */
+  .subline { position: absolute; left: 80px; top: 410px;
+             font: 400 36px 'Inter', sans-serif; color: rgba(255,255,255,0.7); opacity: 0;
+             animation: fadeUp 0.5s ease 1.4s forwards; }
+
+  /* Layer 5 — CTA badge, 2s */
+  .cta { position: absolute; left: 80px; bottom: 120px;
+         background: #34B27B; color: #fff; padding: 20px 48px;
+         font: 700 28px 'Inter', sans-serif; border-radius: 8px; opacity: 0;
+         animation: fadeIn 0.4s ease 2s forwards; }
+
+  @keyframes fadeIn   { to { opacity: 1; } }
+  @keyframes fadeUp   { from { opacity: 0; transform: translateY(24px); }
+                        to   { opacity: 1; transform: translateY(0); } }
+  @keyframes slideIn  { to   { opacity: 1; transform: translateY(-50%) translateX(0); } }
+</style>
+</head>
+<body>
+  <img class="bg"      src="bg-texture.png" />
+  <img class="product" src="product.png" />
+  <div class="headline">WritePanda AI</div>
+  <div class="subline">Record once. Publish everywhere.</div>
+  <div class="cta">Try free →</div>
+</body>
+</html>
+```
+
+Pass local images via `--assets`:
+
+```bash
+pandastudio motion.screenshot \
+  --html="$(cat /tmp/promo.html)" \
+  --assets=/Users/me/product.png,/Users/me/bg-texture.png \
+  --atMs=2500 --outputName=promo-check --json
+```
+
+Key patterns:
+- All layers are `position: absolute` — the `<body>` is the canvas
+- Use `animation-delay` to sequence elements without JavaScript
+- Fade out at the end? Add a final keyframe: `99% { opacity: 1; } 100% { opacity: 0; }` with `animation-fill-mode: forwards`
+- Loop an element infinitely: `animation-iteration-count: infinite`
+- For smooth scene transitions (fade-to-black between clips), end the HTML with `body { animation: fadeOut 0.5s ease 4.5s forwards; } @keyframes fadeOut { to { opacity: 0; } }` and match `durationMs` to 5000
 
 ### Prepending a title card (or any clip) before the footage
 
