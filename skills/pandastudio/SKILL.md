@@ -3,7 +3,7 @@ name: pandastudio
 description: Drive PandaStudio — a desktop video editor for YouTube creators — from the command line. Use when the user wants to list / read / create / save PandaStudio projects, generate motion-graphic title cards, lower thirds, or FX intros from templates, browse the bundled sound + FX libraries, query the export library, run inference through PandaStudio's local LLM, or open the editor / exports / home windows. Talks to a localhost-only HTTP API the user must enable in Settings → Local automation. Do NOT use this skill for unrelated video tools, cloud video APIs, or for editing arbitrary files in a PandaStudio project (the project file format is owned by the editor; the CLI is the safe interface).
 ---
 
-<!-- version: 1.8.0 -->
+<!-- version: 1.9.0 -->
 
 # PandaStudio
 
@@ -435,6 +435,33 @@ pandastudio project.set-style --id=$ID --padding=40 --shadowIntensity=30 \
 
 # Pick a wallpaper
 pandastudio project.set-wallpaper --id=$ID --wallpaper=gradient-night
+
+# Reframe the main recording (crop, all values normalized 0-1)
+pandastudio project.set-crop --id=$ID --x=0.1 --y=0.05 --width=0.8 --height=0.9
+
+# Webcam overlay — preset or manual position
+pandastudio project.set-webcam-layout --id=$ID --preset=picture-in-picture
+# presets: none | picture-in-picture | vertical-stack | side-by-side
+pandastudio project.set-webcam-layout --id=$ID --cx=0.85 --cy=0.85 --scale=0.35
+pandastudio project.set-webcam-layout --id=$ID \
+  --cropX=0 --cropY=0.1 --cropWidth=1 --cropHeight=0.8  # remove letterbox bars
+
+# Update any placed region in-place (patch only what changes)
+pandastudio project.update-region --id=$ID \
+  --regionType=zoom --regionId=zoom-1 --depth=2 --focusX=0.6
+pandastudio project.update-region --id=$ID \
+  --regionType=lower-third --regionId=lt-1 \
+  --content="Kamal Kannan" --accentColor="#00ff88"
+pandastudio project.update-region --id=$ID \
+  --regionType=annotation --regionId=ann-1 --text="Updated text" --y=20
+pandastudio project.update-region --id=$ID \
+  --regionType=fx --regionId=fx-1 --opacity=0.5 --endMs=5000
+# regionType: zoom | trim | speed | annotation | fx | lower-third | overlay
+
+# Export defaults (pre-fills the Export dialog; CLI export.start uses its own --quality)
+pandastudio project.set-export-settings --id=$ID --quality=source --format=mp4
+pandastudio project.set-export-settings --id=$ID --format=gif \
+  --gifFrameRate=30 --gifLoop=true --gifSizePreset=large
 ```
 
 ## Captions
