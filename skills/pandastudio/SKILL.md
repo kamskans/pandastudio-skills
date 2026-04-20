@@ -3,7 +3,7 @@ name: pandastudio
 description: Drive PandaStudio — a desktop video editor for YouTube creators — from the command line. Use when the user wants to list / read / create / save PandaStudio projects, generate motion-graphic title cards, lower thirds, or FX intros from templates, browse the bundled sound + FX libraries, query the export library, run inference through PandaStudio's local LLM, or open the editor / exports / home windows. Talks to a localhost-only HTTP API the user must enable in Settings → Local automation. Do NOT use this skill for unrelated video tools, cloud video APIs, or for editing arbitrary files in a PandaStudio project (the project file format is owned by the editor; the CLI is the safe interface).
 ---
 
-<!-- version: 1.9.0 -->
+<!-- version: 2.0.0 -->
 
 # PandaStudio
 
@@ -206,6 +206,7 @@ pandastudio project.add-clip --id=<uuid> --media=/path/new-clip.mp4
 pandastudio project.add-clip --id=<uuid> --media=/path/title.mp4 --atIndex=0  # prepend
 pandastudio project.split-clip --id=<uuid> --clipId=clip-1 --atSourceMs=4000
 pandastudio project.remove-clip --id=<uuid> --clipId=clip-2
+pandastudio project.delete --id=<uuid>  # ⚠ permanent, no trash
 
 pandastudio project.add-motion-graphic \
   --id=<uuid> --file=/path/intro.mp4 --durationMs=2500 --atMs=0
@@ -511,7 +512,7 @@ The export honours **everything** in the project: clips, trims (incl. those from
 
 - **Cloud video APIs** (HeyGen, Runway, Sora). PandaStudio is local-only.
 - **Direct edits to `.pandastudio` project JSON.** The format is owned by the editor and changes between versions. Use `project.read` / `project.save` and treat the JSON as opaque between reads.
-- **Triggering exports today.** There is no `export.start` verb yet — the export pipeline is renderer-driven. You can browse and patch existing exports (`export.list`, `export.get`, `export.update`, `export.delete`) but to create one, open the editor (`window.editor`) and let the user click Export.
+- **Cloud video APIs** — PandaStudio is local-only; `export.start` renders on the user's machine.
 
 ## Reference files
 
