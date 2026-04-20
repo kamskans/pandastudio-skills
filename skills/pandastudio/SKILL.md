@@ -3,7 +3,7 @@ name: pandastudio
 description: Drive PandaStudio — a desktop video editor for YouTube creators — from the command line. Use when the user wants to list / read / create / save PandaStudio projects, generate motion-graphic title cards, lower thirds, or FX intros from templates, browse the bundled sound + FX libraries, query the export library, run inference through PandaStudio's local LLM, or open the editor / exports / home windows. Talks to a localhost-only HTTP API the user must enable in Settings → Local automation. Do NOT use this skill for unrelated video tools, cloud video APIs, or for editing arbitrary files in a PandaStudio project (the project file format is owned by the editor; the CLI is the safe interface).
 ---
 
-<!-- version: 2.0.0 -->
+<!-- version: 2.1.0 -->
 
 # PandaStudio
 
@@ -391,6 +391,112 @@ pandastudio job.wait --id=$JOB --timeoutMs=600000 --json
 # → only un-cleaned clips are processed; already-cleaned clips are skipped automatically
 # → each processed clip gets a sibling .cleaned.wav file; export auto-uses it
 ```
+
+### Creating a pure motion-graphics promo (no source footage)
+
+When the user wants a promo video with no recorded footage — only rendered scenes:
+
+```bash
+# STEP 1: Create the project FIRST, before rendering anything.
+# If you render scenes first and the render pipeline fails mid-way,
+# you have no project to attach the completed scenes to.
+P=$(pandastudio project.new --name="WritePanda Promo" --json)
+ID=$(echo "$P" | jq -r '.data.id')
+
+# STEP 2: Render scenes SEQUENTIALLY — one at a time.
+# The render pipeline uses a single Chromium BrowserWindow.
+# Parallel renders will FAIL with RENDER_BUSY — the server rejects
+# concurrent calls loudly. Always job.wait before the next render.
+JOB1=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/scene1.html --durationMs=4000 --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$JOB1" --json   # WAIT — do not fire scene2 yet
+SCENE1=$(pandastudio job.wait --id="$JOB1" --json | jq -r '.data.job.result.outputPath')
+
+JOB2=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/scene2.html --durationMs=3000 --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$JOB2" --json
+SCENE2=$(pandastudio job.wait --id="$JOB2" --json | jq -r '.data.job.result.outputPath')
+
+# STEP 3: Add scenes as clips (each rendered MP4 becomes a clip on the main track)
+pandastudio project.add-clip --id=$ID --media="$SCENE1" --json
+pandastudio project.add-clip --id=$ID --media="$SCENE2" --json
+
+# STEP 4: Add background music (optional)
+pandastudio project.add-audio --id=$ID --audioPath=/path/to/music.mp3 \
+  --volume=0.6 --json
+
+# STEP 5: Preview, then export
+pandastudio preview.show --id=$ID
+pandastudio export.start --id=$ID --quality=high --json
+```
+
+### Local images in rendered HTML — use `--assets`, not base64
+
+When your HTML references local images, pass them via `--assets` instead of
+base64-encoding them inline. The renderer stages the files alongside the HTML
+so `<img src="logo.png">` works directly:
+
+```bash
+pandastudio motion.render-html \
+  --html='<html>...<img src="logo.png">...</html>' \
+  --assets='["/Users/me/logo.png","/Users/me/bg.jpg"]' \
+  --durationMs=3000 --json
+```
+
+Without `--assets`, you'd need to base64-encode each image inline — the
+resulting HTML can be 3-5 MB per scene, which is slow to parse and hits
+Chromium's data-URL limits.
+
+### Quick layout sanity check before committing to a full render
+
+A full 5-second scene at 30fps takes ~60s to render. To verify the layout
+before committing, do a fast 1-frame check:
+
+```bash
+pandastudio motion.render-html \
+  --htmlPath=/tmp/scene.html \
+  --durationMs=100 --frameRate=1 \
+  --outputName=preview-check --json
+```
+
+This captures a single frame in ~2s. Open the output MP4 (or screenshot it)
+to verify positioning before launching the full render.
+
+### Adding background audio to any project
+
+```bash
+# Add music (plays from the start, volume 60%)
+pandastudio project.add-audio --id=$ID \
+  --audioPath=/path/to/music.mp3 --volume=0.6 --json
+# → returns { overlayId: "audio-1" }
+
+# Add a VO track starting at 2s
+pandastudio project.add-audio --id=$ID \
+  --audioPath=/path/to/vo.wav --startMs=2000 --volume=1.0 --json
+
+# Remove it later
+pandastudio project.remove-audio --id=$ID --overlayId=audio-1 --json
+```
+
+Audio overlays are exported automatically — you don't need to do anything
+extra in `export.start`.
+
+### motion.render-html with audio
+
+```bash
+# Render a scene with background music baked in
+pandastudio motion.render-html \
+  --htmlPath=/tmp/intro.html \
+  --durationMs=5000 \
+  --audioPath=/path/to/music.mp3 \
+  --audioVolume=0.8 \
+  --json
+```
+
+Without `--audioPath`, the rendered MP4 is silent. Use either this (bakes
+audio into the scene MP4) or `project.add-audio` (adds music at the project
+level and exports with everything else). The project-level approach is more
+flexible — the same music plays across all scenes.
 
 ### Prepending a title card (or any clip) before the footage
 
