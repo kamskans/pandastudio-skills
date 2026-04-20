@@ -3,7 +3,7 @@ name: pandastudio
 description: Drive PandaStudio — a desktop video editor for YouTube creators — from the command line. Use when the user wants to list / read / create / save PandaStudio projects, generate motion-graphic title cards, lower thirds, or FX intros from templates, browse the bundled sound + FX libraries, query the export library, run inference through PandaStudio's local LLM, or open the editor / exports / home windows. Talks to a localhost-only HTTP API the user must enable in Settings → Local automation. Do NOT use this skill for unrelated video tools, cloud video APIs, or for editing arbitrary files in a PandaStudio project (the project file format is owned by the editor; the CLI is the safe interface).
 ---
 
-<!-- version: 1.6.0 -->
+<!-- version: 1.7.0 -->
 
 # PandaStudio
 
@@ -96,6 +96,7 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 |---|---|
 | `transcript.transcribe` | Run only on clips where `clipStates[i].transcribed === false`. Skip the rest. |
 | `transcript.remove-fillers` | Auto-remove "um/uh/like/you know/i mean" + immediately-repeated words. Trim regions; fully reversible. |
+| `transcript.remove-silences` | Run after remove-fillers. Default threshold 700ms. Trims leading, between-word, and trailing silence per clip. |
 | `audio.clean` | Denoise only clips where `clipStates[i].audioCleaned === false`. Writes a sibling `.cleaned.wav`; original audio untouched. |
 | `caption.set-template` (when user said "add captions" without naming a style) | Default to `bold`. Tell user 7 other templates exist (`classic, modern, minimal, spotlight, boxed, neon, colored`). |
 | `llm.generate-title` / `llm.generate-description` / `llm.generate-timestamps` | Generate after the edit pass. Show the user; let them say "regenerate" or "use this exact title" or edit inline. |
@@ -326,17 +327,31 @@ pandastudio transcript.get --id=$ID --json | jq '.data.words[0:20]'
 
 # 3a. AUTO: drop every "um" / "uh" / "you know" + immediate repeats
 pandastudio transcript.remove-fillers --id=$ID --json
+# → returns { removedCount, fillersRemoved, repeatsRemoved, trimsAdded }
 
-# 3b. SURGICAL: delete specific words by ID
+# 3b. Remove long silences (default ≥700ms; covers leading/trailing/between-word)
+pandastudio transcript.remove-silences --id=$ID --thresholdMs=700 --json
+# → returns { removedCount, totalTrimmedMs }
+
+# 3c. Fix STT errors — NEVER use project.read → JSON mutation → project.save for this.
+#     find-replace patches the word text in-place and preserves timing.
+pandastudio transcript.find-replace --id=$ID --find="RightPanda" --replace="WritePanda" --json
+# → returns { replacedCount, wordsPatched }
+
+# 3d. SURGICAL: delete specific words by ID
 pandastudio transcript.delete-words --id=$ID --wordIds='["clip-1:w-42","clip-1:w-43"]' --json
 
-# 3c. PHRASE search → bulk delete
+# 3e. PHRASE search → bulk delete
 WORDS=$(pandastudio transcript.search --id=$ID --query="this is a test" --json \
   | jq -c '[.data.matches[].wordIds | .[]]')
 pandastudio transcript.delete-words --id=$ID --wordIds="$WORDS" --json
 ```
 
 Every deletion translates internally into a **trim region** the export pipeline skips. It's identical to clicking the word in the editor's transcript pane and hitting delete.
+
+**`transcript.get` shows ALL words, including ones you've deleted.** Deleted words become trim regions — they're gone from the audio export — but they still appear in the raw word list. If you need to verify a deletion happened, check `trimsAdded` in the response rather than calling `transcript.get` afterwards and looking for missing words.
+
+**STT coherence with motion graphics**: Fix all transcript errors with `transcript.find-replace` BEFORE calling `motion.generate` or `llm.generate-title`. The local LLM and motion-graphic slot values are derived from the transcript text — a "RightPanda" in the transcript will propagate into the title card if you generate it first.
 
 ### Audio cleanup (DeepFilter)
 
@@ -347,6 +362,24 @@ pandastudio job.wait --id=$JOB --timeoutMs=600000 --json
 # → only un-cleaned clips are processed; already-cleaned clips are skipped automatically
 # → each processed clip gets a sibling .cleaned.wav file; export auto-uses it
 ```
+
+### Prepending a title card (or any clip) before the footage
+
+`add-motion-graphic` places an overlay on top of the canvas — it doesn't insert a discrete clip with its own audio. To make a title card that **plays before the footage** (no video beneath it), insert the motion-graphic MP4 as a clip at index 0:
+
+```bash
+TITLE=$(pandastudio motion.generate \
+  --templateId=title-card-vox \
+  --slots='{"title":"How I Built This","subtitle":"in 24 hours"}' \
+  --aspectRatio=16:9 --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$TITLE" --json
+TITLE_PATH=$(pandastudio job.wait --id="$TITLE" --json | jq -r '.data.job.result.outputPath')
+
+# Insert as clip-0 so it plays first, then the footage
+pandastudio project.add-clip --id=$ID --media="$TITLE_PATH" --atIndex=0 --json
+```
+
+Omit `--atIndex` (or use a high number) to append at the end instead.
 
 ## Visual edits — zooms, trims, speed, annotations, style
 
