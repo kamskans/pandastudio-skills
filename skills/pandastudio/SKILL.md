@@ -3,15 +3,15 @@ name: pandastudio
 description: Drive PandaStudio — a desktop video editor for YouTube creators — from the command line. Use when the user wants to list / read / create / save PandaStudio projects, generate motion-graphic title cards, lower thirds, or FX intros from templates, browse the bundled sound + FX libraries, query the export library, run inference through PandaStudio's local LLM, or open the editor / exports / home windows. Talks to a localhost-only HTTP API the user must enable in Settings → Local automation. Do NOT use this skill for unrelated video tools, cloud video APIs, or for editing arbitrary files in a PandaStudio project (the project file format is owned by the editor; the CLI is the safe interface).
 ---
 
-<!-- version: 2.4.0 -->
+<!-- version: 2.5.0 -->
 
 # PandaStudio
 
-> **Version check — do this first.** This skill requires `@writepanda/cli` ≥ 1.14.0.
-> Run `pandastudio --version` before starting any task. If it reports < 1.14.0,
+> **Version check — do this first.** This skill requires `@writepanda/cli` ≥ 1.15.0.
+> Run `pandastudio --version` before starting any task. If it reports < 1.15.0,
 > tell the user to update their MCP config to use `npx @writepanda/mcp@latest`
 > (note the `@latest` tag) and restart Claude Desktop. Commands like
-> `motion.screenshot`, `motion.concat`, and `project.add-audio` do not exist
+> `asset.list-music`, `asset.list-luts`, and `project.set-clip-lut` do not exist
 > in older versions.
 
 PandaStudio is a desktop video editor. You drive it through `pandastudio`, a CLI that talks to a localhost HTTP server living inside the running app. Every command is shaped `verb.noun` and accepts JSON-shaped flags.
@@ -488,6 +488,121 @@ pandastudio project.remove-audio --id=$ID --overlayId=audio-1 --json
 
 Audio overlays are exported automatically — you don't need to do anything
 extra in `export.start`.
+
+### Bundled background music — browse and add in one step
+
+PandaStudio ships with royalty-free background music tracks you can drop into
+any project without sourcing external files.
+
+```bash
+# 1. List all bundled tracks (id, title, category, mood, durationMs, absolutePath)
+pandastudio asset.list-music --json | jq '.data.tracks'
+
+# Example output:
+# [
+#   { "id": "chill-vlog-ambience", "title": "Chill Vlog Ambience",
+#     "category": "lofi", "mood": "calm", "durationMs": 30000,
+#     "absolutePath": "/Applications/PandaStudio.app/.../music/chill-vlog-ambience.wav" },
+#   { "id": "tech-review-background", "title": "Tech Review Background",
+#     "category": "corporate", "mood": "energetic", "durationMs": 30000,
+#     "absolutePath": "/Applications/PandaStudio.app/.../music/tech-review-background.wav" }
+# ]
+
+# 2. Pick a track and add it to the project (use absolutePath directly)
+MUSIC=$(pandastudio asset.list-music --json \
+  | jq -r '.data.tracks[] | select(.mood == "calm") | .absolutePath' | head -1)
+
+pandastudio project.add-audio --id=$ID \
+  --audioPath="$MUSIC" --volume=0.5 --json
+```
+
+**Mood → track selection heuristic** (use unless user specifies):
+- Tutorial / explainer → `energetic` (corporate)
+- Vlog / day-in-life → `calm` (lofi)
+- Product showcase → pick by category (`corporate` for tech, `lofi` for lifestyle)
+
+### Color grading clips (LUT presets)
+
+Every clip can have a non-destructive cinematic color grade applied. Grades are
+applied both in the preview (CSS filter) and baked into the final export (FFmpeg).
+
+```bash
+# 1. List available LUT presets
+pandastudio asset.list-luts --json | jq '.data.presets'
+
+# Available presets:
+# none | cinematicTealOrange | cinematicShadowBlue | filmNoir | vintageKodak
+# modernVibrant | moodyDark | warmSunset | coolNordic | bleachBypass
+# vintagePolaroid | naturalEnhanced
+
+# 2. Read the project to get clip IDs
+CLIP_ID=$(pandastudio project.read --id=$ID --json \
+  | jq -r '.data.project.clips[0].id')
+
+# 3. Apply a LUT to a clip
+pandastudio project.set-clip-lut \
+  --id=$ID \
+  --clipId="$CLIP_ID" \
+  --lutPreset=cinematicTealOrange \
+  --json
+# → { path, revision, clipId, lutPreset, lutIntensity }
+
+# 4. Optional: dial in intensity (0.0 = no grade, 1.0 = full, default 1.0)
+pandastudio project.set-clip-lut \
+  --id=$ID \
+  --clipId="$CLIP_ID" \
+  --lutPreset=filmNoir \
+  --lutIntensity=0.7 \
+  --json
+
+# 5. Remove the grade (reset to none)
+pandastudio project.set-clip-lut \
+  --id=$ID \
+  --clipId="$CLIP_ID" \
+  --lutPreset=none \
+  --json
+```
+
+**LUT preset → style heuristic** (apply by default for relevant briefs):
+
+| Style brief | Preset |
+|---|---|
+| "Cinematic" / "YouTube cinematic look" | `cinematicTealOrange` |
+| "Dark / moody" | `moodyDark` or `cinematicShadowBlue` |
+| "Vintage / retro / film" | `vintageKodak` or `vintagePolaroid` |
+| "Black and white / noir" | `filmNoir` |
+| "Vibrant / punchy" | `modernVibrant` |
+| "Warm / golden hour" | `warmSunset` |
+| "Cool / Nordic / clean" | `coolNordic` |
+| "Faded / film" | `bleachBypass` |
+| "Natural / subtle enhancement" | `naturalEnhanced` |
+
+LUT is applied **per clip** — multi-clip projects can have different grades per
+clip. The grade is non-destructive: `lutPreset=none` removes it instantly with
+no re-encode needed.
+
+**Full cinematic workflow:**
+
+```bash
+# Create project, add clip, grade it, add music, preview
+P=$(pandastudio project.new --name="Cinematic Short" \
+  --withMedia='["/path/footage.mp4"]' --json)
+ID=$(echo "$P" | jq -r '.data.id')
+CLIP=$(echo "$P" | jq -r '.data.project.clips[0].id')
+
+# Apply cinematic teal-orange grade
+pandastudio project.set-clip-lut \
+  --id=$ID --clipId="$CLIP" \
+  --lutPreset=cinematicTealOrange --lutIntensity=0.85 --json
+
+# Add bundled lofi music
+MUSIC=$(pandastudio asset.list-music --json \
+  | jq -r '.data.tracks[] | select(.mood == "calm") | .absolutePath' | head -1)
+pandastudio project.add-audio --id=$ID --audioPath="$MUSIC" --volume=0.5 --json
+
+# Preview before export
+pandastudio preview.show --id=$ID
+```
 
 ### motion.render-html with audio
 
