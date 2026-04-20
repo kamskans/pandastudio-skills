@@ -3,7 +3,7 @@ name: pandastudio
 description: Drive PandaStudio — a desktop video editor for YouTube creators — from the command line. Use when the user wants to list / read / create / save PandaStudio projects, generate motion-graphic title cards, lower thirds, or FX intros from templates, browse the bundled sound + FX libraries, query the export library, run inference through PandaStudio's local LLM, or open the editor / exports / home windows. Talks to a localhost-only HTTP API the user must enable in Settings → Local automation. Do NOT use this skill for unrelated video tools, cloud video APIs, or for editing arbitrary files in a PandaStudio project (the project file format is owned by the editor; the CLI is the safe interface).
 ---
 
-<!-- version: 2.2.0 -->
+<!-- version: 2.3.0 -->
 
 # PandaStudio
 
@@ -308,7 +308,8 @@ The contract is loose:
 - Animations should auto-start on `DOMContentLoaded` (CSS keyframes, GSAP, Lottie, anything Chromium renders). No `body.go` ceremony — capture begins after first paint.
 - The window honours the dimensions you ask for (`aspectRatio` 16:9 / 9:16 / 1:1 OR explicit `width`+`height`).
 - Capture runs for `durationMs` (default 2500, range 100–60000) at `frameRate` FPS (default 30, range 1–60).
-- The HTML loads with `webSecurity: true` and `sandbox: true`. Inline external CDNs (Google Fonts, GSAP, Lottie via unpkg) work; local file fetches outside the temp HTML don't.
+- `requestAnimationFrame` fires correctly at the configured frame rate — `backgroundThrottling` is disabled and `setFrameRate(fps)` is applied to the offscreen window. JS-driven animation libraries (GSAP, Anime.js, etc.), canvas animations, and WebGL all tick at the right cadence.
+- External resources load freely: Google Fonts, CDN scripts, `https://` images. Pass local files via `--assets` instead of embedding base64.
 
 ```bash
 cat > /tmp/intro.html <<'HTML'
