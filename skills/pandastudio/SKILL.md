@@ -3,9 +3,16 @@ name: pandastudio
 description: Drive PandaStudio — a desktop video editor for YouTube creators — from the command line. Use when the user wants to list / read / create / save PandaStudio projects, generate motion-graphic title cards, lower thirds, or FX intros from templates, browse the bundled sound + FX libraries, query the export library, run inference through PandaStudio's local LLM, or open the editor / exports / home windows. Talks to a localhost-only HTTP API the user must enable in Settings → Local automation. Do NOT use this skill for unrelated video tools, cloud video APIs, or for editing arbitrary files in a PandaStudio project (the project file format is owned by the editor; the CLI is the safe interface).
 ---
 
-<!-- version: 2.3.0 -->
+<!-- version: 2.4.0 -->
 
 # PandaStudio
+
+> **Version check — do this first.** This skill requires `@writepanda/cli` ≥ 1.14.0.
+> Run `pandastudio --version` before starting any task. If it reports < 1.14.0,
+> tell the user to update their MCP config to use `npx @writepanda/mcp@latest`
+> (note the `@latest` tag) and restart Claude Desktop. Commands like
+> `motion.screenshot`, `motion.concat`, and `project.add-audio` do not exist
+> in older versions.
 
 PandaStudio is a desktop video editor. You drive it through `pandastudio`, a CLI that talks to a localhost HTTP server living inside the running app. Every command is shaped `verb.noun` and accepts JSON-shaped flags.
 
