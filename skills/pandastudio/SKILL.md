@@ -402,6 +402,23 @@ pandastudio job.wait --id=$JOB --timeoutMs=600000 --json
 
 ### Creating a pure motion-graphics promo (no source footage)
 
+<HARD-RULE>
+**Always concat before placing on the timeline.**
+When you render multiple scenes (intro, body, CTA, …), you MUST join them with
+`motion.concat` into a single MP4 **before** calling `project.add-clip`.
+Never place individual scene segments as separate timeline clips.
+
+Why: PandaStudio's timeline treats each clip as an independent source with its
+own audio decode context. Multiple motion-graphic clips therefore play as
+separate back-to-back sources — no cross-clip transitions, no unified audio,
+and any background music starts again between clips. A single concatenated MP4
+plays as one seamless piece with one audio decode pass.
+
+The only exception: if the user explicitly says "I want each scene as its own
+clip so I can trim them independently" — even then, add clips individually only
+after asking to confirm.
+</HARD-RULE>
+
 When the user wants a promo video with no recorded footage — only rendered scenes:
 
 ```bash
@@ -425,15 +442,21 @@ JOB2=$(pandastudio motion.render-html \
 pandastudio job.wait --id="$JOB2" --json
 SCENE2=$(pandastudio job.wait --id="$JOB2" --json | jq -r '.data.job.result.outputPath')
 
-# STEP 3: Add scenes as clips (each rendered MP4 becomes a clip on the main track)
-pandastudio project.add-clip --id=$ID --media="$SCENE1" --json
-pandastudio project.add-clip --id=$ID --media="$SCENE2" --json
+# STEP 3: ALWAYS concat first — ONE clip on the timeline.
+# motion.concat is a lossless stream copy; completes in < 1 s.
+FINAL=$(pandastudio motion.concat \
+  --clips="[$SCENE1,$SCENE2]" \
+  --outputName=promo-final \
+  --json | jq -r '.data.outputPath')
 
-# STEP 4: Add background music (optional)
+# STEP 4: Add the single merged MP4 as one clip.
+pandastudio project.add-clip --id=$ID --media="$FINAL" --json
+
+# STEP 5: Add background music (optional)
 pandastudio project.add-audio --id=$ID --audioPath=/path/to/music.mp3 \
   --volume=0.6 --json
 
-# STEP 5: Preview, then export
+# STEP 6: Preview, then export
 pandastudio preview.show --id=$ID
 pandastudio export.start --id=$ID --quality=high --json
 ```
@@ -647,40 +670,58 @@ pandastudio motion.screenshot \
 `motion.screenshot` returns `{ outputPath }` directly — no `job.wait` needed.
 Open the PNG, verify, then call `motion.render-html` with the same args.
 
-### Assembling multi-scene promos with motion.concat
+### Assembling multi-scene motion graphics — always use motion.concat
 
-Render each scene separately (they're independent, so you can iterate on each
-individually), then join them into one final MP4 with `motion.concat`.
-No re-encode — it's a lossless stream copy that completes in under a second.
+**This is the mandatory last step whenever you render more than one scene.**
+Render each scene independently (sequential renders — the Chromium pipeline is
+single-flight), then join them into one final MP4 with `motion.concat` before
+touching the project timeline. The concat is a lossless stream copy — no
+re-encode, completes in < 1 second.
 
 ```bash
-# 1. Render each scene independently (sequential — job.wait between each)
+# 1. Render each scene independently (sequential — job.wait between each).
+#    Capture the outputPath from each job.wait result.
 INTRO_JOB=$(pandastudio motion.render-html \
   --htmlPath=/tmp/intro.html --durationMs=3000 \
   --outputName=scene-intro --json | jq -r '.data.jobId')
-pandastudio job.wait --id="$INTRO_JOB" --json
+INTRO_PATH=$(pandastudio job.wait --id="$INTRO_JOB" --json \
+  | jq -r '.data.job.result.outputPath')
 
 PRODUCT_JOB=$(pandastudio motion.render-html \
   --htmlPath=/tmp/product.html --durationMs=5000 \
   --assets=/Users/me/product1.png,/Users/me/product2.png \
   --outputName=scene-product --json | jq -r '.data.jobId')
-pandastudio job.wait --id="$PRODUCT_JOB" --json
+PRODUCT_PATH=$(pandastudio job.wait --id="$PRODUCT_JOB" --json \
+  | jq -r '.data.job.result.outputPath')
 
 CTA_JOB=$(pandastudio motion.render-html \
   --htmlPath=/tmp/cta.html --durationMs=2000 \
   --outputName=scene-cta --json | jq -r '.data.jobId')
-pandastudio job.wait --id="$CTA_JOB" --json
+CTA_PATH=$(pandastudio job.wait --id="$CTA_JOB" --json \
+  | jq -r '.data.job.result.outputPath')
 
-# 2. Concat into one final MP4 (fast — no re-encode)
-pandastudio motion.concat \
-  --clips='["/path/to/scene-intro.mp4","/path/to/scene-product.mp4","/path/to/scene-cta.mp4"]' \
+# 2. Merge into ONE MP4 — then add that single file to the project.
+#    Never add individual scene files as separate project.add-clip calls.
+FINAL=$(pandastudio motion.concat \
+  --clips="[\"$INTRO_PATH\",\"$PRODUCT_PATH\",\"$CTA_PATH\"]" \
   --outputName=final-promo \
-  --json
+  --json | jq -r '.data.outputPath')
+
+# 3. One clip on the timeline.
+pandastudio project.add-clip --id=$ID --media="$FINAL" --json
 ```
 
 `motion.concat` returns `{ outputPath, clipCount }` directly — no `job.wait`.
-All clips must have the same resolution and codec — every `motion.render-html`
-and `motion.generate` output is automatically compatible.
+All input clips must have the same resolution and frame rate — every
+`motion.render-html` and `motion.generate` output from the same session is
+automatically compatible (same render pipeline, same defaults).
+
+**Why one clip matters:**
+- Seamless playback — no gap or decode stall between segments
+- Unified audio — background music or VO doesn't restart between segments
+- Cleaner timeline — the user sees one drag-handle, not N unrelated clips
+- `project.add-motion-graphic` is for overlays *on top of* existing footage,
+  not for main-track clips — use `project.add-clip` with the concat output
 
 ### Writing complex multi-overlay HTML for agents
 
@@ -753,20 +794,32 @@ Key patterns:
 - Loop an element infinitely: `animation-iteration-count: infinite`
 - For smooth scene transitions (fade-to-black between clips), end the HTML with `body { animation: fadeOut 0.5s ease 4.5s forwards; } @keyframes fadeOut { to { opacity: 0; } }` and match `durationMs` to 5000
 
-### Prepending a title card (or any clip) before the footage
+### Prepending a title card (or any single clip) before the footage
 
-`add-motion-graphic` places an overlay on top of the canvas — it doesn't insert a discrete clip with its own audio. To make a title card that **plays before the footage** (no video beneath it), insert the motion-graphic MP4 as a clip at index 0:
+`add-motion-graphic` places an overlay on top of the canvas — it doesn't insert a discrete clip with its own audio. To make a title card that **plays before the footage** (no video beneath it), insert the motion-graphic MP4 as a clip at index 0.
+
+**Single rendered scene → add directly. Multiple scenes → concat first, then add.**
 
 ```bash
+# Single title card — add directly (no concat needed for one scene)
 TITLE=$(pandastudio motion.generate \
   --templateId=title-card-vox \
   --slots='{"title":"How I Built This","subtitle":"in 24 hours"}' \
   --aspectRatio=16:9 --json | jq -r '.data.jobId')
-pandastudio job.wait --id="$TITLE" --json
 TITLE_PATH=$(pandastudio job.wait --id="$TITLE" --json | jq -r '.data.job.result.outputPath')
 
-# Insert as clip-0 so it plays first, then the footage
 pandastudio project.add-clip --id=$ID --media="$TITLE_PATH" --atIndex=0 --json
+
+# Multiple motion-graphic scenes (intro + outro) → concat first
+OUTRO_JOB=$(pandastudio motion.render-html --htmlPath=/tmp/outro.html --durationMs=2000 \
+  --outputName=scene-outro --json | jq -r '.data.jobId')
+OUTRO_PATH=$(pandastudio job.wait --id="$OUTRO_JOB" --json | jq -r '.data.job.result.outputPath')
+
+MERGED=$(pandastudio motion.concat \
+  --clips="[\"$TITLE_PATH\",\"$OUTRO_PATH\"]" \
+  --outputName=bookend-merged --json | jq -r '.data.outputPath')
+
+pandastudio project.add-clip --id=$ID --media="$MERGED" --atIndex=0 --json
 ```
 
 Omit `--atIndex` (or use a high number) to append at the end instead.
