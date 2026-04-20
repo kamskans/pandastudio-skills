@@ -3,7 +3,7 @@ name: pandastudio
 description: Drive PandaStudio — a desktop video editor for YouTube creators — from the command line. Use when the user wants to list / read / create / save PandaStudio projects, generate motion-graphic title cards, lower thirds, or FX intros from templates, browse the bundled sound + FX libraries, query the export library, run inference through PandaStudio's local LLM, or open the editor / exports / home windows. Talks to a localhost-only HTTP API the user must enable in Settings → Local automation. Do NOT use this skill for unrelated video tools, cloud video APIs, or for editing arbitrary files in a PandaStudio project (the project file format is owned by the editor; the CLI is the safe interface).
 ---
 
-<!-- version: 1.7.0 -->
+<!-- version: 1.8.0 -->
 
 # PandaStudio
 
@@ -203,6 +203,7 @@ pandastudio project.read --id=<uuid> --json
 
 ```bash
 pandastudio project.add-clip --id=<uuid> --media=/path/new-clip.mp4
+pandastudio project.add-clip --id=<uuid> --media=/path/title.mp4 --atIndex=0  # prepend
 pandastudio project.split-clip --id=<uuid> --clipId=clip-1 --atSourceMs=4000
 pandastudio project.remove-clip --id=<uuid> --clipId=clip-2
 
@@ -212,8 +213,19 @@ pandastudio project.add-motion-graphic \
 pandastudio project.add-fx \
   --id=<uuid> --fxId=film-burn --atMs=5000
 
+# Lower third — full style control
 pandastudio project.add-lower-third \
-  --id=<uuid> --content="Kamal" --subtitle="Founder" --atMs=2000
+  --id=<uuid> --content="Kamal" --subtitle="Founder" --atMs=2000 \
+  --accentColor="#34B27B" --textColor="#ffffff" \
+  --backgroundColor="rgba(0,0,0,0.85)" --backgroundRadius=12 \
+  --fontSize=32 --fontFamily="Inter"
+
+# Remove any region by type + id (use project.read to find region ids)
+pandastudio project.remove-region \
+  --id=<uuid> --regionType=lower-third --regionId=lt-1
+pandastudio project.remove-region \
+  --id=<uuid> --regionType=zoom --regionId=zoom-2
+# regionType: zoom | trim | speed | annotation | fx | lower-third | overlay
 ```
 
 ### Conflict-safe save
@@ -270,9 +282,25 @@ pandastudio project.open --id=$ID
 pandastudio window.editor          # = project.open with no args
 ```
 
-## Custom motion graphics — beyond the templates
+## Motion graphics — templates vs. custom HTML
 
-The 19 bundled `motion.list` templates exist to make small models (like the in-app Gemma 4 E2B) usable for motion-graphic generation: pick a `templateId`, fill some slots, ship. **You're not a small model.** When the brief doesn't fit a template — or you want a one-off animation that's nothing like the bundled set — author the HTML/CSS/JS yourself and let `motion.render-html` render it through the same Chromium → capturePage → FFmpeg pipeline.
+**Decision table — read this before calling either verb:**
+
+| Brief | Use |
+|---|---|
+| User said "add a title card" / "add an intro" / "add a lower third" with no design detail | `motion.generate` with closest template from `motion.list` |
+| User named a creator style ("MrBeast", "MKBHD", "Kurzgesagt", "Vox", "Veritasium") | `motion.generate` with matching theme from `motion.themes`, OR author HTML to nail the specific look |
+| User described a specific animation ("text types in letter by letter", "logo slides from left with a blur") | **`motion.render-html`** — author the HTML/CSS/JS yourself |
+| Template library doesn't have anything close | **`motion.render-html`** |
+| User wants a one-off animation for a specific moment | **`motion.render-html`** |
+
+The 19 bundled templates exist to make the **in-app Gemma E2B** (a small local model) useful — it can't write code, so it needs pre-built slots. **You can write code.** `motion.render-html` runs your HTML through the same Chromium → capturePage → FFmpeg pipeline and produces the same MP4 format. There is no quality difference — the render pipeline is identical.
+
+**When in doubt, write the HTML.** A custom animation that matches the user's vision is always better than the closest template that doesn't quite fit. Templates are a ceiling; HTML is not.
+
+## Custom motion graphics — HTML authoring
+
+When the brief doesn't fit a template — or you want a one-off animation — author the HTML/CSS/JS yourself and let `motion.render-html` render it through the Chromium → capturePage → FFmpeg pipeline.
 
 The contract is loose:
 
