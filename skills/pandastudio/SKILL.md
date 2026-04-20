@@ -3,7 +3,7 @@ name: pandastudio
 description: Drive PandaStudio — a desktop video editor for YouTube creators — from the command line. Use when the user wants to list / read / create / save PandaStudio projects, generate motion-graphic title cards, lower thirds, or FX intros from templates, browse the bundled sound + FX libraries, query the export library, run inference through PandaStudio's local LLM, or open the editor / exports / home windows. Talks to a localhost-only HTTP API the user must enable in Settings → Local automation. Do NOT use this skill for unrelated video tools, cloud video APIs, or for editing arbitrary files in a PandaStudio project (the project file format is owned by the editor; the CLI is the safe interface).
 ---
 
-<!-- version: 1.5.0 -->
+<!-- version: 1.6.0 -->
 
 # PandaStudio
 
@@ -79,11 +79,24 @@ If all three are clear (or already specified), proceed without asking.
 
 For these operations, run them without asking and tell the user what you did in the same message. Every one is reversible (trims are spans, cleaned audio is a sibling file, generated text is just text — nothing is destructive).
 
+**Before running `transcript.transcribe` or `audio.clean`, always call `project.read` and inspect the `clipStates` array in the response.** Each entry looks like:
+
+```json
+{ "clipId": "clip-1", "mediaPath": "...", "durationMs": 62400,
+  "transcribed": true, "wordCount": 312,
+  "audioCleaned": false }
+```
+
+- `transcribed: true` → skip `transcript.transcribe` for that clip — it already has a transcript. Running it again would overwrite any manual word edits the user made in the app.
+- `audioCleaned: true` → skip `audio.clean` for that clip — the `.cleaned.wav` already exists.
+
+Only pass un-processed clips to each operation. If every clip is already transcribed, go straight to `transcript.get`.
+
 | Operation | Default behaviour |
 |---|---|
-| `transcript.transcribe` | Run on every clip without an existing transcript. |
+| `transcript.transcribe` | Run only on clips where `clipStates[i].transcribed === false`. Skip the rest. |
 | `transcript.remove-fillers` | Auto-remove "um/uh/like/you know/i mean" + immediately-repeated words. Trim regions; fully reversible. |
-| `audio.clean` | Denoise every clip via DeepFilter. Writes a sibling `.cleaned.wav`; original audio untouched. |
+| `audio.clean` | Denoise only clips where `clipStates[i].audioCleaned === false`. Writes a sibling `.cleaned.wav`; original audio untouched. |
 | `caption.set-template` (when user said "add captions" without naming a style) | Default to `bold`. Tell user 7 other templates exist (`classic, modern, minimal, spotlight, boxed, neon, colored`). |
 | `llm.generate-title` / `llm.generate-description` / `llm.generate-timestamps` | Generate after the edit pass. Show the user; let them say "regenerate" or "use this exact title" or edit inline. |
 | Specific zoom moments | Heuristically pick from the transcript ("you said 'click here' at 12.4s — adding a zoom"). Don't pre-ask. Iterate via preview. |
@@ -299,7 +312,12 @@ The reason humans pick PandaStudio over Premiere is that you edit by **deleting 
 ### The full edit loop
 
 ```bash
-# 1. Transcribe every clip (Parakeet TDT, async, runs locally)
+# 0. Check which clips still need processing (avoids clobbering in-app edits)
+STATE=$(pandastudio project.read --id=$ID --json | jq '.data.clipStates')
+# clipStates: [{ clipId, transcribed, wordCount, audioCleaned }, ...]
+
+# 1. Transcribe only clips that don't already have a transcript
+#    (if all are transcribed, skip this step entirely)
 JOB=$(pandastudio transcript.transcribe --id=$ID --json | jq -r '.data.jobId')
 pandastudio job.wait --id=$JOB --timeoutMs=300000 --json
 
@@ -323,9 +341,11 @@ Every deletion translates internally into a **trim region** the export pipeline 
 ### Audio cleanup (DeepFilter)
 
 ```bash
+# Check clipStates first — skip if all clips are already cleaned
 JOB=$(pandastudio audio.clean --id=$ID --json | jq -r '.data.jobId')
 pandastudio job.wait --id=$JOB --timeoutMs=600000 --json
-# → each clip gets a sibling .cleaned.wav file; export auto-uses it
+# → only un-cleaned clips are processed; already-cleaned clips are skipped automatically
+# → each processed clip gets a sibling .cleaned.wav file; export auto-uses it
 ```
 
 ## Visual edits — zooms, trims, speed, annotations, style
