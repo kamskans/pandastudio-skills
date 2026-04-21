@@ -1,20 +1,22 @@
 ---
 name: pandastudio
-description: Drive PandaStudio — a desktop video editor for YouTube creators — from the command line. Use when the user wants to list / read / create / save PandaStudio projects, generate motion-graphic title cards, lower thirds, or FX intros from templates, browse the bundled sound + FX libraries, query the export library, run inference through PandaStudio's local LLM, or open the editor / exports / home windows. Talks to a localhost-only HTTP API the user must enable in Settings → Local automation. Do NOT use this skill for unrelated video tools, cloud video APIs, or for editing arbitrary files in a PandaStudio project (the project file format is owned by the editor; the CLI is the safe interface).
+description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.12.0 -->
+<!-- version: 2.13.0 -->
 
 # PandaStudio
 
-> **Version check — do this first.** This skill requires `@writepanda/cli` ≥ 1.15.0.
-> Run `pandastudio --version` before starting any task. If it reports < 1.15.0,
+> **Version check — do this first.** This skill requires `@writepanda/cli` ≥ 1.15.0 (or `@writepanda/mcp` ≥ 1.15.0).
+> Run `pandastudio --version` via the CLI, or call `system_status` via the MCP. If < 1.15.0,
 > tell the user to update their MCP config to use `npx @writepanda/mcp@latest`
-> (note the `@latest` tag) and restart Claude Desktop. Commands like
+> (note the `@latest` tag) and restart their agent host. Commands like
 > `asset.list-music`, `asset.list-luts`, and `project.set-clip-lut` do not exist
 > in older versions.
 
-PandaStudio is a desktop video editor. You drive it through `pandastudio`, a CLI that talks to a localhost HTTP server living inside the running app. Every command is shaped `verb.noun` and accepts JSON-shaped flags.
+PandaStudio is a desktop video editor. You drive it either through the `pandastudio` CLI (localhost HTTP) **or** through the `writepanda` MCP server (same verbs, exposed as `project_list`, `project_add_zoom`, `motion_generate`, `export_start`, etc.). **The verbs, argument names, and behaviors are identical across both interfaces** — every example in this skill that shows a CLI call like `pandastudio project.add-zoom` maps 1:1 to the MCP tool `project_add_zoom` with the same args. Use whichever is available; don't switch mid-task.
+
+> Like HyperFrames is HTML+CSS for video composition, PandaStudio is a ready-made template + project surface — you don't author scenes, you fill slots in pre-built motion-graphic templates and arrange them on the editor's timeline.
 
 > Like HyperFrames is HTML+CSS for video composition, PandaStudio is a ready-made template + project surface — you don't author scenes, you fill slots in pre-built motion-graphic templates and arrange them on the editor's timeline.
 
