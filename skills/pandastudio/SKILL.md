@@ -3,7 +3,7 @@ name: pandastudio
 description: Drive PandaStudio — a desktop video editor for YouTube creators — from the command line. Use when the user wants to list / read / create / save PandaStudio projects, generate motion-graphic title cards, lower thirds, or FX intros from templates, browse the bundled sound + FX libraries, query the export library, run inference through PandaStudio's local LLM, or open the editor / exports / home windows. Talks to a localhost-only HTTP API the user must enable in Settings → Local automation. Do NOT use this skill for unrelated video tools, cloud video APIs, or for editing arbitrary files in a PandaStudio project (the project file format is owned by the editor; the CLI is the safe interface).
 ---
 
-<!-- version: 2.11.0 -->
+<!-- version: 2.12.0 -->
 
 # PandaStudio
 
@@ -62,24 +62,31 @@ Video editing is a creative task with hundreds of small decisions. Asking the us
 <HARD-GATE>
 Before issuing `project.new`, `project.add-*`, `motion.generate`, or `motion.render-html` calls that depend on user-specific information, you MUST have:
 
-**1. Aspect ratio.** Try to infer first:
-   - Source clip is portrait (height > width)? → 9:16 (Shorts/Reels/TikTok)
-   - Source clip is landscape? → 16:9 (YouTube)
-   - Source clip is square? → 1:1
-   - User mentioned "Shorts" / "TikTok" / "Reels" / "vertical" / "phone"? → 9:16
-   - User mentioned "YouTube" / "long-form" / "horizontal" / "presentation"? → 16:9
-   - **Mixed orientations OR no clips yet OR truly ambiguous?** → ASK ONE QUESTION:
-     > "Which aspect — 16:9 (YouTube), 9:16 (Shorts/Reels), or 1:1?"
+**1. Destination profile.** This single answer drives aspect ratio, pacing, zoom cadence, caption template, music volume, and whether to add intros/lower-thirds. Try to infer first, then fall back to asking:
+
+Inference rules (in order — first match wins):
+   - User mentioned "Shorts" / "TikTok" / "Reels" / "Instagram story" / "vertical" / "phone"? → **`shorts`** profile (9:16, punchy)
+   - User mentioned "LinkedIn" / "client pitch" / "professional" / "corporate"? → **`linkedin`** profile (16:9 or 1:1, restrained)
+   - User mentioned "Loom" / "internal" / "async update" / "for the team" / "quick video"? → **`loom`** profile (minimal editing)
+   - User mentioned "YouTube" / "long-form" / "tutorial" / "vlog" / "channel"? → **`youtube-long`** profile (16:9, full pipeline)
+   - Source clip is portrait (height > width), no other signal? → **`shorts`**
+   - Source clip is landscape, no other signal? → **`youtube-long`** (safe default — most common)
+   - **Ambiguous or no clips yet?** → ASK ONE QUESTION:
+     > "Where is this going — YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/async (Loom-style)?"
+
+When the user says "just go" / "use defaults" / "I don't care" → `youtube-long`.
+
+The profile is the source of truth for every default below. See the [Video editing playbook](#video-editing-playbook--end-to-end-recipe-per-destination) section for the full profile table.
 
 **2. Lower-third content.** If the user said "add a name plate" / "introduce me" / "add a lower-third" but didn't give the actual text, ASK both fields in one message:
    > "What's the name and the subtitle (e.g. role / company)?"
 
-   Don't fabricate a name. Don't invent a job title.
+   Don't fabricate a name. Don't invent a job title. Skip this question entirely for the `shorts` and `loom` profiles — they don't use lower thirds.
 
 **3. Brand / style direction.** If the user named a style ("MrBeast" / "MKBHD" / "Vox" / "Kurzgesagt" / "Veritasium"), apply the matching `motion.themes` theme. If they gave none AND there are multiple source clips that suggest a brand context, ASK ONE QUESTION:
    > "Any brand colors, fonts, or visual references — or default look?"
 
-If all three are clear (or already specified), proceed without asking.
+If all three are clear (or already specified), proceed without asking. Combine multiple asks into a single message when possible.
 </HARD-GATE>
 
 ### DO BY DEFAULT, narrate transparently
@@ -1041,102 +1048,148 @@ The export honours **everything** in the project: clips, trims (incl. those from
 
 **Video overlays (motion graphics) are fully composited in the export** — both opaque MP4 (`motion.generate`, `motion.render-html`) and transparent WebM (`motion.render-html --transparent`) are layered onto the main video via a post-process FFmpeg pass after the Skia render. Alpha channels from VP9/WebM sources are preserved exactly. There is nothing extra you need to call — `export.start` handles it automatically once overlays are on the timeline via `project.add-motion-graphic`.
 
-## YouTube editing playbook — end-to-end recipe
+## Video editing playbook — end-to-end recipe (per destination)
 
-When the user says *"edit this for YouTube"* / *"make this YouTube-ready"* / *"polish this video"*, follow this runbook. It turns a raw recording into a high-retention polished video using the foundational verbs above. Every step is either always-safe or uses conservative defaults — no content judgment beyond what the transcript tells you.
+When the user says *"edit this"* / *"polish this"* / *"make this ready for <X>"* / *"YouTube-ready"*, follow this runbook. It turns a raw recording into a polished, destination-appropriate video using the foundational verbs above. Different destinations (YouTube long-form, Shorts/TikTok, LinkedIn, Loom) need different defaults — the table below is the source of truth.
 
-**Philosophy:** a high-retention YouTube video is a series of pattern interrupts. Our job is to add one every 7 seconds or so — cuts, zooms, sounds, captions, LUT — so the viewer never gets bored enough to click away. PandaStudio's features map to four levers: **pacing**, **emphasis**, **polish**, **accessibility**.
+**Philosophy:** good video editing is a series of pattern interrupts that match the platform's viewing context. A YouTube long-form viewer has settled in — cuts every 5–8s and a cinematic LUT feel right. A TikTok viewer is scrolling — you have 3 seconds to hook them and every second after needs a visible change. A LinkedIn viewer is at work — an aggressive soundscape is wrong. A Loom viewer doesn't want any editing at all beyond "cut the fluff". Same tools, very different dials.
+
+### Destination profiles (the source of truth)
+
+Resolve the destination first (see [HARD-GATE](#editorial-decisions--what-to-ask-what-to-assume-what-never-to-ask) step 1). Then apply every default below from the matching row — don't mix.
+
+| Parameter | `youtube-long` | `shorts` (Shorts/TikTok/Reels) | `linkedin` | `loom` (internal/async) |
+|---|---|---|---|---|
+| Aspect | 16:9 | **9:16** | 16:9 or 1:1 | 16:9 |
+| Hook deadline | 10 s | **3 s** | 10 s | — (none) |
+| Intro card | 2–4 s | **0–1 s or none** | 2–3 s | none |
+| Lower thirds | yes, at first mentions | **no** (too small vertically) | yes | no |
+| Zoom cadence | 3–6 / min | **6–12 / min** | 1–2 / min | 0–1 / min |
+| Default zoom duration | 1.5 s | **1.0 s** | 2.0 s | 2.0 s |
+| Zoom SFX volume | 1.0 (swoosh-fast) | **1.0 (swoosh-fast)** | 0.5 (or `none`) | `none` |
+| Filler/silence removal | yes | yes | yes | **yes (aggressive — minSilenceMs 300)** |
+| Speed regions (B-roll) | 1.5–2× | **2–3×** or cut entirely | 1.25–1.5× | none |
+| LUT preset | by content type @ 0.5–0.8 | **`modernVibrant` @ 1.0** | `naturalEnhanced` @ 0.3 | none |
+| Background music vol | 0.15 | **0.30** | 0.0 (none) | 0.0 |
+| Captions enabled | yes | **yes (required)** | yes | optional |
+| Caption template | `panda-pop` (tutorial) · `panda-clean` (pro) | **`panda-neon`** + positionY 0.65 | `panda-clean` | `panda-clean` (if any) |
+| Export quality | `high` | `high` | `high` | `standard` (faster) |
+
+**LUT by content type** (only for `youtube-long` — other profiles use their fixed preset above):
+
+| Content type | Preset | Intensity |
+|---|---|---|
+| Tech tutorial / SaaS demo | `modernVibrant` | 0.7 |
+| Cinematic vlog | `cinematicTealOrange` | 0.9 |
+| Educational / neutral | `naturalEnhanced` | 0.5 |
+| Moody storytelling | `moodyDark` | 0.7 |
+| Travel / lifestyle | `warmSunset` | 0.7 |
 
 ### The runbook (ordered — do not rearrange)
 
 ```bash
-# 0. Always start with the current project (or ask which one)
+# 0. Resolve the project + destination profile
 ID=$(pandastudio project.current --json | jq -r '.data.project.id // empty')
 [ -z "$ID" ] && ID=$(pandastudio project.list --json | jq -r '.data.projects[0].id')
 
-# 1. PACING — cut dead weight (10-40% length reduction typical)
-pandastudio project.read --id=$ID --json           # inspect clipStates
-pandastudio transcript.transcribe --id=$ID          # skip if already transcribed
-pandastudio audio.clean --id=$ID                    # skip if already cleaned
-pandastudio transcript.remove-fillers --id=$ID
-pandastudio transcript.remove-silences --id=$ID --minSilenceMs=500
+# $PROFILE is set from HARD-GATE step 1: youtube-long | shorts | linkedin | loom
+# $ASPECT is derived from the profile:
+#   youtube-long | linkedin | loom → 16:9
+#   shorts                         → 9:16
+pandastudio project.set-aspect-ratio --id=$ID --aspect=$ASPECT
 
-# 2. EMPHASIS — zoom at every UI/reveal moment (default swoosh SFX attached)
-#    Read transcript, scan for phrases: "click", "here", "this", "select",
-#    "look at", "and now", "finally", "boom". For each hit, drop a zoom
-#    at that word's startMs. 3-6 zooms per minute for tutorials; 1-2 for
-#    vlogs. Never stack within 2s of each other.
-pandastudio project.add-zoom --id=$ID --atMs=<wordStartMs> --durationMs=1500 --depth=3
-# Big reveal moments (after "and now" / "finally") → depth 5, dramatic whoosh
+# 1. PACING — always run. Loom uses aggressive silence removal.
+pandastudio project.read --id=$ID --json
+pandastudio transcript.transcribe --id=$ID               # skip if transcribed
+pandastudio audio.clean --id=$ID                         # skip if cleaned
+pandastudio transcript.remove-fillers --id=$ID
+SILENCE_MS=$([ "$PROFILE" = "loom" ] && echo 300 || echo 500)
+pandastudio transcript.remove-silences --id=$ID --minSilenceMs=$SILENCE_MS
+
+# 2. EMPHASIS — zooms (skip for `loom`). Cadence comes from the profile table.
+#    Read transcript; scan for "click", "here", "this", "select", "look at",
+#    "and now", "finally", "boom". For each hit, drop a zoom at that word's
+#    startMs. Cadence cap: profile-specific (see table).
+#    Default swoosh SFX is auto-attached; for `linkedin` pass --soundVolume=0.5
+#    or --soundUrl=none. For `loom`, skip zooms entirely unless a UI
+#    moment is absolutely critical.
+pandastudio project.add-zoom --id=$ID --atMs=<wordStartMs> --durationMs=<profileDur> --depth=3
+
+# Reveal moments (after "and now" / "finally") in youtube-long / shorts:
 pandastudio project.add-zoom --id=$ID --atMs=<ms> --durationMs=2500 --depth=5 \
   --soundUrl=bundled:sound/dramatic-whoosh --soundVolume=0.7
 
-# 3. POLISH — intro hook + lower thirds + color + music
-# 3a. Intro title card (2-4s, never >10s)
-JOB=$(pandastudio motion.generate --templateId=youtube-lower-third \
-  --slots='{"channelName":"<name>","handle":"@<handle>"}' --json | jq -r '.data.jobId')
-FILE=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.outputPath')
-pandastudio project.add-motion-graphic --id=$ID --file=$FILE --durationMs=3000 --atMs=0
+# 3. POLISH — skip sections by profile:
+#    - `shorts`: no intro card, no lower thirds (tight vertical frame)
+#    - `loom`:   skip 3a, 3b, 3c, 3d entirely
+#    - `linkedin`: skip 3d (no music)
 
-# 3b. Lower third at first mention of a person or product
-pandastudio project.add-lower-third --id=$ID --atMs=<ms> \
-  --content="<name>" --subtitle="<role>" --designType=slash-reveal
+# 3a. Intro title card (youtube-long: 2-4s, linkedin: 2-3s)
+if [ "$PROFILE" = "youtube-long" ] || [ "$PROFILE" = "linkedin" ]; then
+  JOB=$(pandastudio motion.generate --templateId=youtube-lower-third \
+    --slots='{"channelName":"<name>","handle":"@<handle>"}' --json | jq -r '.data.jobId')
+  FILE=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.outputPath')
+  pandastudio project.add-motion-graphic --id=$ID --file=$FILE --durationMs=3000 --atMs=0
+fi
 
-# 3c. LUT (one preset, applied to every clip). Pick by content type:
-#     tech tutorial / SaaS demo   → modernVibrant @ 0.7
-#     cinematic vlog              → cinematicTealOrange @ 0.9
-#     educational / neutral       → naturalEnhanced @ 0.5
-#     moody storytelling          → moodyDark @ 0.7
-#     travel / lifestyle          → warmSunset @ 0.7
-#     Read the project's clips and set-clip-lut on each.
-#     (Use project_read → project_save round-trip if the CLI verb lacks a direct setter.)
+# 3b. Lower third at first mention of a person/product (NOT shorts/loom)
+if [ "$PROFILE" = "youtube-long" ] || [ "$PROFILE" = "linkedin" ]; then
+  pandastudio project.add-lower-third --id=$ID --atMs=<ms> \
+    --content="<name>" --subtitle="<role>" --designType=slash-reveal
+fi
 
-# 3d. Background music at 15%
-pandastudio project.add-audio --id=$ID \
-  --path=bundled:music/tech-review-background --volume=0.15 --fadeIn=2000 --fadeOut=3000
+# 3c. LUT (use the profile table. For youtube-long, use content-type sub-table.)
+#     Apply to every clip via project.set-clip-lut.
+#     Skip entirely for `loom`.
 
-# 4. ACCESSIBILITY — animated captions (85% of viewers start muted)
-pandastudio caption.toggle --id=$ID --enabled=true
-pandastudio caption.set-template --id=$ID --templateId=panda-pop
-#   panda-pop  = tutorials (bright, per-word highlight)
-#   panda-clean = professional / corporate
-#   panda-neon = high-impact shorts (tech / gaming)
+# 3d. Background music (youtube-long: 0.15, shorts: 0.30, NOT linkedin/loom)
+if [ "$PROFILE" = "youtube-long" ]; then
+  pandastudio project.add-audio --id=$ID \
+    --path=bundled:music/tech-review-background --volume=0.15 --fadeIn=2000 --fadeOut=3000
+elif [ "$PROFILE" = "shorts" ]; then
+  pandastudio project.add-audio --id=$ID \
+    --path=bundled:music/tech-review-background --volume=0.30 --fadeIn=500 --fadeOut=500
+fi
 
-# 5. EXPORT — one call, everything composited (zooms+SFX, LUT, captions, overlays)
-pandastudio export.start --id=$ID --quality=high --json | jq -r '.data.jobId' | \
+# 4. ACCESSIBILITY — captions per profile
+if [ "$PROFILE" != "loom" ]; then
+  pandastudio caption.toggle --id=$ID --enabled=true
+  TEMPLATE=$(case "$PROFILE" in
+    shorts)       echo "panda-neon";;
+    linkedin)     echo "panda-clean";;
+    youtube-long) echo "panda-pop";;
+  esac)
+  pandastudio caption.set-template --id=$ID --templateId=$TEMPLATE
+fi
+
+# 5. EXPORT — quality per profile
+QUALITY=$([ "$PROFILE" = "loom" ] && echo "standard" || echo "high")
+pandastudio export.start --id=$ID --quality=$QUALITY --json | jq -r '.data.jobId' | \
   xargs -I {} pandastudio job.wait --id={}
 ```
 
-### Defaults this runbook encodes
+### Anti-patterns (do NOT do these — all profiles)
 
-| Lever | Feature | Default |
-|---|---|---|
-| Pacing | Filler + silence removal | Always run |
-| Pacing | Speed region | Only over setup/B-roll (not voice), 1.5–2× |
-| Emphasis | Zoom SFX | `swoosh-fast` (already attached by add-zoom) |
-| Emphasis | Zoom cadence | 3–6/min tutorials, 1–2/min vlogs |
-| Emphasis | Zoom depth | 3 for clicks, 4–5 for reveals |
-| Polish | Intro duration | 2–4s (never >10s — retention cliff) |
-| Polish | Lower third SFX | Default mouse-click at 0.8 |
-| Polish | Music volume | 0.15 |
-| Accessibility | Caption template | `panda-pop` (tutorials), `panda-clean` (pro) |
-
-### Anti-patterns (do NOT do these)
-
-- **3 effects on the same moment** (zoom + lower-third + motion graphic at the same t) — visual noise
-- **Multiple LUTs per project** — pick one
-- **SFX on every cut** — 1 meaningful SFX per 15–30s is the cap
-- **Speed regions over voice** — only for setup / B-roll / scrolling
-- **Logo intro >10s** — retention graph always shows a cliff there
+- **3 effects on the same moment** (zoom + lower-third + motion graphic at same t) — visual noise
+- **Multiple LUTs per project** — pick one from the profile table
+- **SFX on every cut** — cap at 1 meaningful SFX per 15–30s (except `shorts`, where 1 per 5–10s is fine)
+- **Speed regions over voice** — always for setup / B-roll / scrolling only
+- **Logo intro >5s** (any profile) — retention cliff
 - **Asking the user which filler words to remove** — always-safe op, just do it
+- **Applying `youtube-long` defaults to a `shorts` project** — wrong aspect, music too quiet, captions too subtle, pacing too slow
+- **Motion graphics in `loom`** — kills the "this is a quick update" vibe
 
-### Pattern: "edit this for YouTube" one-shot
+### Pattern: "edit this for <destination>" one-shot
 
-When the user gives a prompt like *"make this video YouTube-ready"*, run the full runbook in order, reporting progress after each phase:
+After HARD-GATE resolves the profile, announce the plan in one sentence and execute without further questions:
 
-> I'll edit this for YouTube — pacing first (trim fillers + silences), then emphasis (zooms + sounds at each click), then polish (intro card, lower thirds, color grade, music), then captions. Should take ~3 minutes.
+> I'll edit this as a **YouTube long-form** video — pacing first (trim fillers + silences), then zooms with swoosh SFX at UI moments, intro title card + lower third, `modernVibrant` LUT, background music at 15%, and `panda-pop` captions. Should take ~3 minutes.
 
-Don't ask the user to micro-manage step choices — the defaults above are what every good YouTube editor does by hand. Do ask once, up front, for the three hard-gated editorial decisions (title card text, lower-third names, brand style) if they weren't supplied in the initial prompt.
+Or for Shorts:
+
+> I'll edit this as a **Short** — aggressive pacing (hook in 3s, 6–12 zooms/min), `modernVibrant` LUT at full intensity, `panda-neon` captions positioned higher, and music at 30%. No intro card or lower thirds — they don't fit the vertical frame. ~2 minutes.
+
+Don't ask the user to micro-manage step choices. The profile table is the answer.
 
 ## What this skill is NOT for
 
