@@ -3,7 +3,7 @@ name: pandastudio
 description: Drive PandaStudio — a desktop video editor for YouTube creators — from the command line. Use when the user wants to list / read / create / save PandaStudio projects, generate motion-graphic title cards, lower thirds, or FX intros from templates, browse the bundled sound + FX libraries, query the export library, run inference through PandaStudio's local LLM, or open the editor / exports / home windows. Talks to a localhost-only HTTP API the user must enable in Settings → Local automation. Do NOT use this skill for unrelated video tools, cloud video APIs, or for editing arbitrary files in a PandaStudio project (the project file format is owned by the editor; the CLI is the safe interface).
 ---
 
-<!-- version: 2.10.0 -->
+<!-- version: 2.11.0 -->
 
 # PandaStudio
 
@@ -1040,6 +1040,103 @@ Quality presets: `draft` (1280×720), `standard` / `high` (1920×1080), `ultra` 
 The export honours **everything** in the project: clips, trims (incl. those from transcript word deletes), speed regions, zooms, captions, FX, lower-thirds with sound, motion graphics, annotations, cleaned audio, wallpaper, padding/shadow/radius/blur. One verb, full pipeline.
 
 **Video overlays (motion graphics) are fully composited in the export** — both opaque MP4 (`motion.generate`, `motion.render-html`) and transparent WebM (`motion.render-html --transparent`) are layered onto the main video via a post-process FFmpeg pass after the Skia render. Alpha channels from VP9/WebM sources are preserved exactly. There is nothing extra you need to call — `export.start` handles it automatically once overlays are on the timeline via `project.add-motion-graphic`.
+
+## YouTube editing playbook — end-to-end recipe
+
+When the user says *"edit this for YouTube"* / *"make this YouTube-ready"* / *"polish this video"*, follow this runbook. It turns a raw recording into a high-retention polished video using the foundational verbs above. Every step is either always-safe or uses conservative defaults — no content judgment beyond what the transcript tells you.
+
+**Philosophy:** a high-retention YouTube video is a series of pattern interrupts. Our job is to add one every 7 seconds or so — cuts, zooms, sounds, captions, LUT — so the viewer never gets bored enough to click away. PandaStudio's features map to four levers: **pacing**, **emphasis**, **polish**, **accessibility**.
+
+### The runbook (ordered — do not rearrange)
+
+```bash
+# 0. Always start with the current project (or ask which one)
+ID=$(pandastudio project.current --json | jq -r '.data.project.id // empty')
+[ -z "$ID" ] && ID=$(pandastudio project.list --json | jq -r '.data.projects[0].id')
+
+# 1. PACING — cut dead weight (10-40% length reduction typical)
+pandastudio project.read --id=$ID --json           # inspect clipStates
+pandastudio transcript.transcribe --id=$ID          # skip if already transcribed
+pandastudio audio.clean --id=$ID                    # skip if already cleaned
+pandastudio transcript.remove-fillers --id=$ID
+pandastudio transcript.remove-silences --id=$ID --minSilenceMs=500
+
+# 2. EMPHASIS — zoom at every UI/reveal moment (default swoosh SFX attached)
+#    Read transcript, scan for phrases: "click", "here", "this", "select",
+#    "look at", "and now", "finally", "boom". For each hit, drop a zoom
+#    at that word's startMs. 3-6 zooms per minute for tutorials; 1-2 for
+#    vlogs. Never stack within 2s of each other.
+pandastudio project.add-zoom --id=$ID --atMs=<wordStartMs> --durationMs=1500 --depth=3
+# Big reveal moments (after "and now" / "finally") → depth 5, dramatic whoosh
+pandastudio project.add-zoom --id=$ID --atMs=<ms> --durationMs=2500 --depth=5 \
+  --soundUrl=bundled:sound/dramatic-whoosh --soundVolume=0.7
+
+# 3. POLISH — intro hook + lower thirds + color + music
+# 3a. Intro title card (2-4s, never >10s)
+JOB=$(pandastudio motion.generate --templateId=youtube-lower-third \
+  --slots='{"channelName":"<name>","handle":"@<handle>"}' --json | jq -r '.data.jobId')
+FILE=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.outputPath')
+pandastudio project.add-motion-graphic --id=$ID --file=$FILE --durationMs=3000 --atMs=0
+
+# 3b. Lower third at first mention of a person or product
+pandastudio project.add-lower-third --id=$ID --atMs=<ms> \
+  --content="<name>" --subtitle="<role>" --designType=slash-reveal
+
+# 3c. LUT (one preset, applied to every clip). Pick by content type:
+#     tech tutorial / SaaS demo   → modernVibrant @ 0.7
+#     cinematic vlog              → cinematicTealOrange @ 0.9
+#     educational / neutral       → naturalEnhanced @ 0.5
+#     moody storytelling          → moodyDark @ 0.7
+#     travel / lifestyle          → warmSunset @ 0.7
+#     Read the project's clips and set-clip-lut on each.
+#     (Use project_read → project_save round-trip if the CLI verb lacks a direct setter.)
+
+# 3d. Background music at 15%
+pandastudio project.add-audio --id=$ID \
+  --path=bundled:music/tech-review-background --volume=0.15 --fadeIn=2000 --fadeOut=3000
+
+# 4. ACCESSIBILITY — animated captions (85% of viewers start muted)
+pandastudio caption.toggle --id=$ID --enabled=true
+pandastudio caption.set-template --id=$ID --templateId=panda-pop
+#   panda-pop  = tutorials (bright, per-word highlight)
+#   panda-clean = professional / corporate
+#   panda-neon = high-impact shorts (tech / gaming)
+
+# 5. EXPORT — one call, everything composited (zooms+SFX, LUT, captions, overlays)
+pandastudio export.start --id=$ID --quality=high --json | jq -r '.data.jobId' | \
+  xargs -I {} pandastudio job.wait --id={}
+```
+
+### Defaults this runbook encodes
+
+| Lever | Feature | Default |
+|---|---|---|
+| Pacing | Filler + silence removal | Always run |
+| Pacing | Speed region | Only over setup/B-roll (not voice), 1.5–2× |
+| Emphasis | Zoom SFX | `swoosh-fast` (already attached by add-zoom) |
+| Emphasis | Zoom cadence | 3–6/min tutorials, 1–2/min vlogs |
+| Emphasis | Zoom depth | 3 for clicks, 4–5 for reveals |
+| Polish | Intro duration | 2–4s (never >10s — retention cliff) |
+| Polish | Lower third SFX | Default mouse-click at 0.8 |
+| Polish | Music volume | 0.15 |
+| Accessibility | Caption template | `panda-pop` (tutorials), `panda-clean` (pro) |
+
+### Anti-patterns (do NOT do these)
+
+- **3 effects on the same moment** (zoom + lower-third + motion graphic at the same t) — visual noise
+- **Multiple LUTs per project** — pick one
+- **SFX on every cut** — 1 meaningful SFX per 15–30s is the cap
+- **Speed regions over voice** — only for setup / B-roll / scrolling
+- **Logo intro >10s** — retention graph always shows a cliff there
+- **Asking the user which filler words to remove** — always-safe op, just do it
+
+### Pattern: "edit this for YouTube" one-shot
+
+When the user gives a prompt like *"make this video YouTube-ready"*, run the full runbook in order, reporting progress after each phase:
+
+> I'll edit this for YouTube — pacing first (trim fillers + silences), then emphasis (zooms + sounds at each click), then polish (intro card, lower thirds, color grade, music), then captions. Should take ~3 minutes.
+
+Don't ask the user to micro-manage step choices — the defaults above are what every good YouTube editor does by hand. Do ask once, up front, for the three hard-gated editorial decisions (title card text, lower-third names, brand style) if they weren't supplied in the initial prompt.
 
 ## What this skill is NOT for
 
