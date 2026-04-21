@@ -3,7 +3,7 @@ name: pandastudio
 description: Drive PandaStudio — a desktop video editor for YouTube creators — from the command line. Use when the user wants to list / read / create / save PandaStudio projects, generate motion-graphic title cards, lower thirds, or FX intros from templates, browse the bundled sound + FX libraries, query the export library, run inference through PandaStudio's local LLM, or open the editor / exports / home windows. Talks to a localhost-only HTTP API the user must enable in Settings → Local automation. Do NOT use this skill for unrelated video tools, cloud video APIs, or for editing arbitrary files in a PandaStudio project (the project file format is owned by the editor; the CLI is the safe interface).
 ---
 
-<!-- version: 2.5.0 -->
+<!-- version: 2.10.0 -->
 
 # PandaStudio
 
@@ -206,6 +206,28 @@ pandastudio project.show --id=<uuid>
 pandastudio project.read --id=<uuid> --json
 ```
 
+### Target "what the user is working on"
+
+When the user says "edit the project I'm working on" / "what's open right
+now" / "this one", don't ask them for an id — just call `project.current`:
+
+```bash
+# Returns { project: { id, path, name, revision, clipCount } | null }
+pandastudio project.current --json
+
+# Typical pattern in an agent script:
+ID=$(pandastudio project.current --json | jq -r '.data.project.id // empty')
+if [ -z "$ID" ]; then
+  # No editor window open — fall back to the most-recent project
+  ID=$(pandastudio project.list --json | jq -r '.data.projects[0].id')
+fi
+pandastudio project.read --id=$ID --json
+```
+
+`project: null` means no editor window is open yet or the user hasn't
+loaded a project. Never assume that means "no projects exist" — list
+first.
+
 ### Edit primitives (no schema knowledge needed)
 
 ```bash
@@ -217,16 +239,55 @@ pandastudio project.delete --id=<uuid>  # ⚠ permanent, no trash
 
 pandastudio project.add-motion-graphic \
   --id=<uuid> --file=/path/intro.mp4 --durationMs=2500 --atMs=0
+# Optional SFX (no default — motion graphics are silent unless you ask)
+pandastudio project.add-motion-graphic \
+  --id=<uuid> --file=/path/intro.mp4 --durationMs=2500 --atMs=0 \
+  --soundUrl=bundled:sound/message-pop --soundVolume=0.9
 
 pandastudio project.add-fx \
   --id=<uuid> --fxId=film-burn --atMs=5000
 
-# Lower third — full style control
+# Zoom — ships with a default swoosh SFX. Pass --soundUrl=none to silence,
+# or override with any bundled:sound/<id>.
+pandastudio project.add-zoom \
+  --id=<uuid> --atMs=12000 --durationMs=1500 --depth=3
+pandastudio project.add-zoom \
+  --id=<uuid> --atMs=12000 --durationMs=1500 --soundUrl=none
+pandastudio project.add-zoom \
+  --id=<uuid> --atMs=12000 --durationMs=1500 \
+  --soundUrl=bundled:sound/whoosh-transition --soundVolume=0.7
+
+# Lower third — full style control.
+# --designType: slash-reveal | center-stack | split-horizontal | name-bar |
+#               border-frame | minimal-underline | box-reveal | corner-brackets
+#   Default: slash-reveal
+# Ships with a default mouse-click SFX; pass --soundUrl=none to silence.
 pandastudio project.add-lower-third \
   --id=<uuid> --content="Kamal" --subtitle="Founder" --atMs=2000 \
   --accentColor="#34B27B" --textColor="#ffffff" \
   --backgroundColor="rgba(0,0,0,0.85)" --backgroundRadius=12 \
   --fontSize=32 --fontFamily="Inter"
+
+# Swap / clear the SFX on an existing region (any of: zoom, motionGraphic,
+# lowerThird, fx). Use this to retune the default sound after inspecting
+# the project with project.read.
+pandastudio project.set-region-sound \
+  --id=<uuid> --regionType=zoom --regionId=zoom-1 \
+  --soundUrl=bundled:sound/whoosh-transition --soundVolume=0.6
+pandastudio project.set-region-sound \
+  --id=<uuid> --regionType=motionGraphic --regionId=overlay-1 \
+  --soundUrl=bundled:sound/success-chime
+pandastudio project.set-region-sound \
+  --id=<uuid> --regionType=lowerThird --regionId=lt-1 \
+  --soundUrl=none  # mute this one
+
+# YouTube-style lower third — rendered as a motion graphic MP4, then overlaid
+# templateId: youtube-lower-third  slots: channelName, handle, accentColor, bgColor, textColor
+JOB=$(pandastudio motion.generate \
+  --templateId=youtube-lower-third \
+  --slots='{"channelName":"PandaStudio","handle":"@pandastudio","accentColor":"#FF0000"}' \
+  --aspectRatio=16:9 --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$JOB" --json
 
 # Remove any region by type + id (use project.read to find region ids)
 pandastudio project.remove-region \
@@ -297,12 +358,14 @@ pandastudio window.editor          # = project.open with no args
 | Brief | Use |
 |---|---|
 | User said "add a title card" / "add an intro" / "add a lower third" with no design detail | `motion.generate` with closest template from `motion.list` |
+| User said "YouTube lower third" / "YouTube name plate" / "subscribe lower third" | `motion.generate --templateId=youtube-lower-third` — slots: channelName, handle, accentColor, bgColor, textColor |
 | User named a creator style ("MrBeast", "MKBHD", "Kurzgesagt", "Vox", "Veritasium") | `motion.generate` with matching theme from `motion.themes`, OR author HTML to nail the specific look |
 | User described a specific animation ("text types in letter by letter", "logo slides from left with a blur") | **`motion.render-html`** — author the HTML/CSS/JS yourself |
 | Template library doesn't have anything close | **`motion.render-html`** |
 | User wants a one-off animation for a specific moment | **`motion.render-html`** |
+| User wants a custom overlay (watermark, bug logo, name plate, branded lower third) that composites over existing video without a white fill | **`motion.render-html --transparent`** — HTML with `background: transparent`, output is a WebM with alpha channel |
 
-The 19 bundled templates exist to make the **in-app Gemma E2B** (a small local model) useful — it can't write code, so it needs pre-built slots. **You can write code.** `motion.render-html` runs your HTML through the same Chromium → capturePage → FFmpeg pipeline and produces the same MP4 format. There is no quality difference — the render pipeline is identical.
+The 20 bundled templates exist to make the **in-app Gemma E2B** (a small local model) useful — it can't write code, so it needs pre-built slots. **You can write code.** `motion.render-html` runs your HTML through the same Chromium → capturePage → FFmpeg pipeline and produces the same MP4 format. There is no quality difference — the render pipeline is identical.
 
 **When in doubt, write the HTML.** A custom animation that matches the user's vision is always better than the closest template that doesn't quite fit. Templates are a ceiling; HTML is not.
 
@@ -342,6 +405,60 @@ pandastudio job.wait --id="$JOB" --json | jq '.data.job.result.outputPath'
 You can also pass `--html='<!doctype html>...'` inline — the renderer stages it as a temp file under `os.tmpdir()` so file:// loads work normally. Use `htmlPath` when the markup is large or you want to debug it in a browser first.
 
 Result is an MP4 in the recordings dir. Drop it onto a project with `project.add-motion-graphic` exactly like a `motion.generate` output.
+
+### Transparent overlays — `--transparent`
+
+Add `--transparent` to get a **WebM with a VP9/alpha channel** instead of an opaque MP4. Use this for anything that needs to composite on top of existing video: lower thirds, watermarks, bug logos, corner clocks, branded name plates.
+
+**HTML contract for transparent renders:**
+
+```css
+/* Make the page background transparent — the BrowserWindow is already
+   compositing against ARGB, but you must not override it in CSS. */
+html, body {
+  background: transparent;
+}
+```
+
+Everything else is the same as a normal `motion.render-html`. Semi-transparent elements (e.g. `rgba(0,0,0,0.8)` card backgrounds) render correctly — the alpha value is preserved through capturePage() → PNG → VP9/yuva420p.
+
+**Constraint:** `--audioPath` is ignored in transparent mode. VP9+alpha is a video-only stream; mux audio in at composite time.
+
+```bash
+cat > /tmp/lower-third.html <<'HTML'
+<!doctype html>
+<html><head><style>
+  html,body { margin:0; width:100%; height:100%; background:transparent; overflow:hidden;
+    font-family:"Inter",system-ui,sans-serif; }
+  .card {
+    position:absolute; left:5vw; bottom:9vh;
+    background:rgba(0,0,0,0.85); border-radius:10px; padding:14px 22px;
+    color:#fff; opacity:0; transform:translateY(20px);
+    animation:slide-in .5s cubic-bezier(.16,1,.3,1) .2s forwards;
+  }
+  .name  { font-size:26px; font-weight:700; }
+  .title { font-size:15px; opacity:.65; margin-top:3px; }
+  @keyframes slide-in { to { opacity:1; transform:none; } }
+</style></head><body>
+  <div class="card">
+    <div class="name">Alex Rivera</div>
+    <div class="title">Senior Product Designer</div>
+  </div>
+</body></html>
+HTML
+
+JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/lower-third.html \
+  --aspectRatio=16:9 \
+  --durationMs=3500 \
+  --transparent \
+  --json | jq -r '.data.jobId')
+
+# outputPath will end in .webm, not .mp4
+pandastudio job.wait --id="$JOB" --json | jq '.data.job.result.outputPath'
+```
+
+The resulting `.webm` can be added to a project with `project.add-motion-graphic` — the same call as any other motion graphic.
 
 ## Transcript-based editing — PandaStudio's signature feature
 
@@ -921,6 +1038,8 @@ pandastudio job.wait --id=$JOB --timeoutMs=600000 --json | jq '.data.job'
 Quality presets: `draft` (1280×720), `standard` / `high` (1920×1080), `ultra` (3840×2160). Aspect ratio comes from the project (`set-aspect-ratio`). Output lands in the recordings dir by default; pass `--outputPath=/somewhere/file.mp4` to override.
 
 The export honours **everything** in the project: clips, trims (incl. those from transcript word deletes), speed regions, zooms, captions, FX, lower-thirds with sound, motion graphics, annotations, cleaned audio, wallpaper, padding/shadow/radius/blur. One verb, full pipeline.
+
+**Video overlays (motion graphics) are fully composited in the export** — both opaque MP4 (`motion.generate`, `motion.render-html`) and transparent WebM (`motion.render-html --transparent`) are layered onto the main video via a post-process FFmpeg pass after the Skia render. Alpha channels from VP9/WebM sources are preserved exactly. There is nothing extra you need to call — `export.start` handles it automatically once overlays are on the timeline via `project.add-motion-graphic`.
 
 ## What this skill is NOT for
 
