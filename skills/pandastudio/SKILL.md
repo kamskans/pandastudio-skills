@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.14.0 -->
+<!-- version: 2.19.0 -->
 
 # PandaStudio
 
@@ -303,7 +303,9 @@ pandastudio project.remove-region \
   --id=<uuid> --regionType=lower-third --regionId=lt-1
 pandastudio project.remove-region \
   --id=<uuid> --regionType=zoom --regionId=zoom-2
-# regionType: zoom | trim | speed | annotation | fx | lower-third | overlay
+pandastudio project.remove-region \
+  --id=<uuid> --regionType=audio-overlay --regionId=audio-1
+# regionType: zoom | trim | speed | annotation | fx | lower-third | overlay | audio-overlay
 ```
 
 ### Conflict-safe save
@@ -587,6 +589,246 @@ pandastudio preview.show --id=$ID
 pandastudio export.start --id=$ID --quality=high --json
 ```
 
+### Recipe: SaaS product promo / intro video (the "Teamble / Linear / Arc" style)
+
+This is the single most common request ("make me a 60–90s product promo / intro
+video"). It's a **learnable template**, not a freeform creative task — follow
+the structure below and the output will land every time.
+
+**Canonical length:** 60–90s total (Teamble reference is 98s, Linear/Arc promos
+land ~60s). Never longer than 120s for a promo — viewers drop off.
+
+**7-act structure** (timings scale proportionally to total length):
+
+| Act | % of runtime | Purpose | Typical shot |
+|---|---|---|---|
+| 1. Hook | 0–5% | One-line positioning statement | Gradient typography card |
+| 2. Brand | 5–8% | Logo lockup | Logo reveal with glow |
+| 3. Problem | 8–20% | 2–3 giant word callouts | `word-pop` cards on gradient bg |
+| 4. Product snippets | 20–55% | 6–10 UI cutaways, 2–4s each | Zoomed UI fragment + animated cursor + glow accent |
+| 5. Act break | 55–60% | Chapter divider / "and here's how" | `chapter-divider` or pull-quote |
+| 6. Benefit montage | 60–88% | Alternate typography callouts + UI snippets | Mix `word-pop` + `pull-quote` + UI zooms |
+| 7. CTA / Logo | 88–100% | URL, logo return, tagline | `end-screen` or `channel-intro` |
+
+**Pacing rule:** 2–4 seconds per shot. A 90s promo has **25–35 distinct shots**.
+If you're building fewer than 20 shots, it will feel slow and linear. If more
+than 40, it will feel frenetic — that's fine for Shorts, wrong for a 16:9 promo.
+
+**Design language (SaaS-promo aesthetic):**
+- Dark background (near-black) with **purple → magenta → pink gradients** and
+  soft bokeh accents. NOT the default Panda green — pick `mkbhd` theme as the
+  closest out-of-the-box match, OR author custom HTML for the full purple/pink
+  look (example below).
+- Bold sans-serif type (Inter / SF / GT America). White or gradient fill.
+- Every UI shot has: a tilted framing, an animated cursor glyph on the
+  important control, and an accent glow around the element.
+- Sparkle / particle accents on reveal moments.
+- **No voiceover**. Music + typography carry the story. If the user insists on
+  VO, treat it as a different format (explainer, not promo) — the pacing rules
+  change.
+
+**Primitive mapping — which motion template does which job:**
+
+| Shot role | Motion template | Typical duration |
+|---|---|---|
+| Opening tagline | `14-word-pop` or custom HTML | 2500 ms |
+| Logo reveal | `08-channel-intro` or custom HTML | 2000 ms |
+| Single-word callout ("Help", "10x better") | `14-word-pop` | 1500–2000 ms |
+| Benefit statement ("uncovers hidden trends") | `10-pull-quote` | 2500 ms |
+| Metric / score reveal | `09-stat-reveal` | 2000 ms |
+| Act break ("Let's see how easy") | `07-chapter-divider` | 2000 ms |
+| Focused UI element spotlight | `19-spotlight-ring` | 2000 ms |
+| Burst emphasis / sparkle moment | `15-reaction-burst` | 1200 ms |
+| Outro / CTA | `05-end-screen` or `04-subscribe-cta` | 3000 ms |
+| UI fragment (from screen recording) | `project.add-clip` + `project.add-zoom` into the relevant region | 2500–3500 ms |
+
+Run `pandastudio motion.list --json` to see all 20 templates with slots.
+
+**PandaStudio limitation — honest note:** the editor does NOT render 3D
+perspective tilts on screen-recording clips. The Teamble reference achieves
+its "tilted UI card floating in space" via AfterEffects. In PandaStudio, you
+have three workarounds:
+
+1. **Zoom-in on UI (default):** use `project.add-zoom` to push into the
+   relevant UI element. Reads similarly on screen, ships today.
+2. **Custom HTML motion graphic with CSS `transform: rotate3d()`:** wrap a
+   screenshot of the UI element in an HTML scene, apply 3D transform, render
+   as a transparent WebM, overlay with `project.add-motion-graphic`. This
+   genuinely matches the reference but requires authoring custom HTML per shot.
+3. **Record the UI in an AE-style wrapper externally** and bring in as a clip.
+
+If the user wants the 3D-tilted look and accepts longer build time, go with
+(2). Otherwise (1) is the default.
+
+**Default audio + captions for this recipe:**
+
+- **Music:** one of the `kinetic-product-drive-*` tracks (bundled — they were
+  generated specifically for this format). Volume `0.5–0.7` because there's no
+  VO to duck under. Fade in 500 ms, fade out 1000 ms.
+- **Captions:** NONE on a pure promo. Typography motion graphics carry the
+  narrative. If the user wants captions (e.g., for LinkedIn autoplay-muted),
+  use `panda-neon` positioned at `positionY=0.8` so it never overlaps the
+  typography cards.
+- **LUT on source UI clips:** `modernVibrant` at intensity 0.5 to match the
+  saturated gradient aesthetic of the surrounding motion graphics.
+
+**Shot-list executable template** (scale to your runtime):
+
+```bash
+# ── Setup ─────────────────────────────────────────────────────────
+P=$(pandastudio project.new --name="$PRODUCT Promo" --aspectRatio=16:9 --json)
+ID=$(echo "$P" | jq -r '.data.id')
+
+# Pick the kinetic product-drive track with durationMs closest to your target
+MUSIC=$(pandastudio asset.list-music --json \
+  | jq -r '.data.tracks[] | select(.intents | index("product_video")) | .absolutePath' \
+  | head -1)
+
+# ── Act 1: Hook (single-line tagline, 2.5s) ──────────────────────
+JOB=$(pandastudio motion.generate \
+  --templateId=14-word-pop --themeId=mkbhd \
+  --slots='{"word":"The people success platform"}' \
+  --durationMs=2500 --json | jq -r '.data.jobId')
+HOOK=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
+
+# ── Act 2: Brand (logo reveal, 2s) ───────────────────────────────
+JOB=$(pandastudio motion.generate \
+  --templateId=08-channel-intro --themeId=mkbhd \
+  --slots='{"channelName":"teamble","handle":"ai"}' \
+  --durationMs=2000 --json | jq -r '.data.jobId')
+BRAND=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
+
+# ── Act 3: Problem — 3 giant word-pop cards ──────────────────────
+for WORD in "Help" "10x better" "faster feedback"; do
+  JOB=$(pandastudio motion.generate \
+    --templateId=14-word-pop --themeId=mkbhd \
+    --slots="{\"word\":\"$WORD\"}" --durationMs=1800 --json | jq -r '.data.jobId')
+  P3+=("$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')")
+done
+
+# ── Act 4: Product snippets (screen recordings + zooms) ──────────
+# The user provides a full-UI screen recording as $UI_REC.
+# Instead of one long clip, split into 6–10 short 2.5–3.5s beats,
+# zooming into a different UI element on each beat.
+pandastudio project.add-clip --id=$ID --media="$UI_REC" --json
+CLIP_ID=$(pandastudio project.read --id=$ID --json \
+  | jq -r '.data.project.clips[-1].id')
+
+# Apply LUT for the saturated gradient aesthetic
+pandastudio project.set-clip-lut --id=$ID --clipId="$CLIP_ID" \
+  --lutPreset=modernVibrant --lutIntensity=0.5 --json
+
+# Stack zooms on each UI beat (durations match the narrative)
+pandastudio project.add-zoom --id=$ID --clipId="$CLIP_ID" \
+  --startMs=0 --endMs=2500 --targetX=0.45 --targetY=0.50 --zoom=1.8 --json
+pandastudio project.add-zoom --id=$ID --clipId="$CLIP_ID" \
+  --startMs=2500 --endMs=5500 --targetX=0.72 --targetY=0.35 --zoom=2.2 --json
+# ... repeat for 6–10 zooms total, rotating focus across UI regions
+
+# ── Act 5: Act break (chapter divider, 2s) ───────────────────────
+JOB=$(pandastudio motion.generate \
+  --templateId=07-chapter-divider --themeId=mkbhd \
+  --slots='{"chapter":"Let'\''s see how easy"}' \
+  --durationMs=2000 --json | jq -r '.data.jobId')
+ACTBREAK=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
+
+# ── Act 6: Benefit montage — alternate pull-quotes + UI zooms ────
+JOB=$(pandastudio motion.generate \
+  --templateId=10-pull-quote --themeId=mkbhd \
+  --slots='{"quote":"uncovers hidden trends"}' \
+  --durationMs=2500 --json | jq -r '.data.jobId')
+BENEFIT1=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
+
+JOB=$(pandastudio motion.generate \
+  --templateId=09-stat-reveal --themeId=mkbhd \
+  --slots='{"stat":"41","label":"feedback score"}' \
+  --durationMs=2000 --json | jq -r '.data.jobId')
+STAT=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
+
+# ── Act 7: CTA / Logo return ─────────────────────────────────────
+JOB=$(pandastudio motion.generate \
+  --templateId=05-end-screen --themeId=mkbhd \
+  --slots='{"cta":"teamble.ai","tagline":"Make feedback effortless"}' \
+  --durationMs=3000 --json | jq -r '.data.jobId')
+OUTRO=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
+
+# ── Concat the pre-UI segments and the post-UI segments ──────────
+# Rule from the concat hard-rule above: motion segments MUST be merged
+# into single MP4s before hitting the timeline, else audio/transitions break.
+INTRO=$(pandastudio motion.concat \
+  --clips="[$HOOK,$BRAND,${P3[0]},${P3[1]},${P3[2]}]" \
+  --outputName=promo-intro --json | jq -r '.data.outputPath')
+
+OUTRO_BUNDLE=$(pandastudio motion.concat \
+  --clips="[$ACTBREAK,$BENEFIT1,$STAT,$OUTRO]" \
+  --outputName=promo-outro --json | jq -r '.data.outputPath')
+
+# ── Timeline assembly ────────────────────────────────────────────
+# Order: intro motion → UI clip (with zooms) → outro motion.
+# Prepend intro, append outro (project.add-clip in order).
+# Note: this needs a project that currently has ONLY the UI clip —
+# if you're starting fresh, create the project with media=INTRO
+# so it's first on the timeline, then add the UI clip, then the outro.
+pandastudio project.add-clip --id=$ID --media="$OUTRO_BUNDLE" --json
+
+# ── Music ────────────────────────────────────────────────────────
+pandastudio project.add-audio --id=$ID --audioPath="$MUSIC" \
+  --volume=0.6 --fadeIn=500 --fadeOut=1000 --json
+
+# ── Preview, then export ─────────────────────────────────────────
+pandastudio preview.show --id=$ID
+# Watch the full preview. Adjust zoom targets if UI beats feel off.
+pandastudio export.start --id=$ID --quality=high --json
+```
+
+**Common mistakes agents make on promos (avoid these):**
+
+- **One long UI clip with no zooms.** Screen recording for 40s straight reads
+  as "tutorial," not "promo." You MUST break the UI section into 6–10
+  zoom-driven beats of 2–4s each.
+- **Typography cards longer than 3 seconds.** Viewers read a 3-word title in
+  500 ms; anything over 2500 ms feels dead. Keep motion-graphic shots tight.
+- **Voiceover on a promo.** This format is music + typography. If VO is
+  required, change format (explainer ≠ promo — different pacing, different
+  music volume, different caption strategy).
+- **Default Panda green theme on a SaaS product promo.** It reads as tutorial/
+  educational, not product-marketing. Use `mkbhd` or author custom HTML with
+  the product's actual brand palette.
+- **Skipping `motion.concat` between motion-graphic scenes.** Revisit the
+  hard-rule at the top of the promo section — always merge before adding to
+  timeline.
+- **Forgetting the CTA/outro.** A promo without a CTA is a trailer. Always
+  include Act 7 with a URL, brand lockup, or "Try it today" line.
+
+**When the user wants the full Teamble look (custom purple-gradient HTML):**
+
+If the default `mkbhd` theme isn't enough and the user wants the exact
+gradient-bokeh aesthetic, author a reusable HTML template shell:
+
+```html
+<!-- saas-promo-word.html — gradient bg + word-pop, fully themeable via slots -->
+<!DOCTYPE html><html><head><style>
+  body { margin:0; width:1920px; height:1080px;
+    background: radial-gradient(ellipse at 30% 40%, #3b1566 0%, #0a0a14 60%);
+    font-family: 'Inter', sans-serif; color: #fff;
+    display: flex; align-items: center; justify-content: center; }
+  .bokeh { position:absolute; border-radius:50%; filter:blur(80px); opacity:0.6; }
+  .b1 { left:-100px; bottom:-100px; width:500px; height:500px; background:#e53fc5; }
+  .word { font-size:180px; font-weight:800; letter-spacing:-4px;
+    opacity:0; transform:translateY(30px);
+    animation: rise 500ms cubic-bezier(0.16, 1, 0.3, 1) 100ms forwards; }
+  @keyframes rise { to { opacity:1; transform:translateY(0); } }
+</style></head><body>
+  <div class="bokeh b1"></div>
+  <div class="word">{{WORD}}</div>
+</body></html>
+```
+
+Render each word-pop variant with `motion.render-html`, passing a different
+`{{WORD}}` slot substitution per scene, and concat them. This gives the
+authentic SaaS-promo look but costs ~30 min of HTML tuning upfront vs. using
+the stock `14-word-pop` template.
+
 ### Local images in rendered HTML — use `--assets`, not base64
 
 When your HTML references local images, pass them via `--assets` instead of
@@ -603,6 +845,233 @@ pandastudio motion.render-html \
 Without `--assets`, you'd need to base64-encode each image inline — the
 resulting HTML can be 3-5 MB per scene, which is slow to parse and hits
 Chromium's data-URL limits.
+
+### Default image presentation — tilted "floating device" look
+
+<HARD-RULE>
+Any `<img>` inside a `motion.render-html` scene MUST be wrapped in the
+tilted floating-device presentation below by default. Motion-graphic scenes
+are stylized contexts by nature — a flat, axis-aligned image reads as
+unpolished and out of style against the typography scenes around it.
+
+The only exception: if the user explicitly says "flat image" / "no tilt" /
+"axis-aligned," render without the wrapper. Never silently downgrade to flat.
+</HARD-RULE>
+
+The presentation has four ingredients, each doing a specific job:
+
+1. **3D perspective tilt** — makes the image feel like a floating device, not a screenshot
+2. **Soft drop shadow** — anchors it in the gradient background instead of floating flat
+3. **Edge glow** — accent color (pink/purple/brand) around the frame, reinforces the palette
+4. **Optional animated cursor** — purple gradient cursor glyph on the important UI element
+
+Drop this CSS block into every HTML scene that contains an image. The
+`.stage-tilt` class is the only thing you need to apply to the wrapper —
+everything else auto-styles from there.
+
+```html
+<!DOCTYPE html>
+<html><head><style>
+  :root {
+    --tilt-accent: #c44eff;      /* edge glow — override per brand */
+    --tilt-accent-2: #ff4ea3;    /* cursor fill */
+    --tilt-bg-from: #3b1566;     /* radial gradient inner */
+    --tilt-bg-to: #0a0a14;       /* radial gradient outer */
+  }
+  body {
+    margin: 0; width: 1920px; height: 1080px;
+    background: radial-gradient(ellipse at 30% 40%,
+      var(--tilt-bg-from) 0%, var(--tilt-bg-to) 60%);
+    display: flex; align-items: center; justify-content: center;
+    perspective: 1600px;          /* REQUIRED for rotate3d to render depth */
+  }
+  /* Wrap any <img> (or a <div> with a background-image) in .stage-tilt */
+  .stage-tilt {
+    transform: rotate3d(1, 0.25, 0, 16deg) rotateZ(-1deg);
+    transform-origin: center center;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow:
+      0 40px 80px -20px rgba(0, 0, 0, 0.55),       /* drop shadow */
+      0 0 0 1px rgba(255, 255, 255, 0.06),          /* hairline */
+      0 0 60px 8px color-mix(in srgb, var(--tilt-accent) 30%, transparent);
+    animation: tilt-rise 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .stage-tilt img, .stage-tilt video {
+    display: block; width: 100%; height: auto;
+  }
+  @keyframes tilt-rise {
+    from { opacity: 0; transform: rotate3d(1, 0.25, 0, 22deg) rotateZ(-2deg) translateY(40px); }
+    to   { opacity: 1; }
+  }
+  /* Optional: animated cursor glyph — absolute-position it over a UI control */
+  .tilt-cursor {
+    position: absolute; width: 64px; height: 64px; pointer-events: none;
+    filter: drop-shadow(0 6px 18px color-mix(in srgb, var(--tilt-accent-2) 55%, transparent));
+    animation: cursor-tap 1400ms ease-in-out infinite;
+  }
+  @keyframes cursor-tap {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-4px, -4px) scale(0.92); }
+  }
+</style></head>
+<body>
+  <div class="stage-tilt" style="width: 900px;">
+    <img src="product-screenshot.png" />
+  </div>
+  <!-- Optional: drop a cursor glyph SVG into .tilt-cursor at an exact x/y -->
+</body></html>
+```
+
+**Override knobs** (pass through `--slots` or edit the CSS vars):
+
+| Variable | Default | When to change |
+|---|---|---|
+| `--tilt-accent` | `#c44eff` (purple) | Match the product's brand color |
+| `--tilt-accent-2` | `#ff4ea3` (pink) | Cursor glow; usually accent's sibling hue |
+| `--tilt-bg-from` / `--tilt-bg-to` | purple → near-black | For light-theme promos, swap to off-white gradient |
+| `rotate3d` angle | `16deg` | Reduce to `8deg` for subtler tilt; increase to `22deg` for more dramatic |
+| `rotateZ` | `-1deg` | Flip sign to tilt the other way — rotate between scenes for variety |
+
+**When NOT to use this wrapper** (narrow list):
+
+- User explicitly asked for a flat/axis-aligned image
+- The image IS the entire frame (a full-bleed photo with no UI) — tilting a photo looks weird; apply only to UI, product cards, screenshots
+- The scene is a `07-chapter-divider` or text-only card — tilt is for images, not type
+
+**Rotation variety across a multi-scene promo:** when you have 3+ image
+scenes back-to-back, alternate the Z rotation between `-1deg` and `+1deg`
+and vary the X rotation between `12deg`, `16deg`, and `20deg` across
+scenes. A uniform tilt angle across every scene reads as templated; small
+variation reads as crafted.
+
+### No scene is static — always-on motion rule
+
+<HARD-RULE>
+**Every `motion.render-html` scene MUST have motion for its full duration.**
+A scene that holds a still image for 3 seconds reads as a slideshow and
+breaks the "motion graphics" illusion — viewers perceive it as a freeze.
+If the content itself doesn't move (typography card, single product shot,
+logo reveal), add ambient motion. No exceptions for promo/intro/outro
+formats.
+</HARD-RULE>
+
+Three ways to satisfy the rule. Pick the cheapest that fits the shot:
+
+**1. Subtle Ken Burns on any image (preferred for UI/product shots).**
+A slow pan + zoom on the `.stage-tilt` wrapper — imperceptible per-frame
+but unmistakably alive over 3 seconds. Runs in parallel with `tilt-rise`.
+
+```css
+.stage-tilt {
+	/* entrance (from the earlier rule) keeps running */
+	animation:
+		tilt-rise 700ms cubic-bezier(0.16, 1, 0.3, 1) both,
+		ken-burns 6s ease-in-out 500ms both;
+}
+@keyframes ken-burns {
+	0%   { transform: rotate3d(1, 0.25, 0, 16deg) rotateZ(-1deg) scale(1)   translate(0, 0); }
+	100% { transform: rotate3d(1, 0.25, 0, 16deg) rotateZ(-1deg) scale(1.06) translate(-14px, -6px); }
+}
+```
+
+Keep the motion deliberately tiny — `scale(1.06)` and ±14px over 6s is
+invisible as a single step but feels cinematic over the shot. Alternate
+direction per scene (left-up → right-down → left-down → right-up) for
+variety on multi-shot sequences.
+
+**2. Animated gradient / shine sweep (preferred for typography + logo).**
+Typography cards shouldn't pan; they should shimmer. Animate the gradient
+behind the text or sweep a highlight across it.
+
+```css
+.bg-shimmer {
+	background: linear-gradient(120deg, #3b1566 0%, #0a0a14 40%, #3b1566 80%, #0a0a14 100%);
+	background-size: 220% 100%;
+	animation: shimmer 8s ease-in-out infinite;
+}
+@keyframes shimmer {
+	0%, 100% { background-position: 0% 0%; }
+	50%      { background-position: 100% 0%; }
+}
+
+/* Or a shine sweep over a word */
+.shine {
+	background: linear-gradient(90deg, transparent 20%, rgba(255,255,255,0.4) 50%, transparent 80%);
+	background-size: 220% 100%;
+	-webkit-background-clip: text;
+	animation: sweep 2200ms ease-in-out infinite;
+}
+@keyframes sweep {
+	0%   { background-position: 100% 0%; }
+	100% { background-position: -100% 0%; }
+}
+```
+
+**3. Bokeh / particle drift (preferred for ambient pads + CTA outros).**
+Give bokeh light-blurs a slow drift. Almost free computationally and
+always-on.
+
+```css
+.bokeh {
+	animation: drift 14s ease-in-out infinite alternate;
+}
+@keyframes drift {
+	0%   { transform: translate(0, 0) scale(1); }
+	100% { transform: translate(30px, -20px) scale(1.15); }
+}
+```
+
+**Rule-of-thumb mapping for the 7-act promo recipe:**
+
+| Act / shot type | Default always-on motion |
+|---|---|
+| Hook (typography) | Shimmer gradient + bokeh drift |
+| Brand / logo reveal | Bokeh drift + logo subtle scale 1 → 1.02 loop |
+| Word-pop callouts | Shine sweep across the word; bg shimmer |
+| UI / product screenshot | Ken Burns on `.stage-tilt` + bokeh drift |
+| Pull-quote / benefit | Shimmer gradient |
+| Metric / stat reveal | Counter count-up + bokeh drift |
+| Chapter divider | Shine sweep + bokeh drift |
+| CTA / end screen | Bokeh drift + CTA button pulse (scale 1 → 1.03) |
+
+### Multi-image scenes — never identical, always varied
+
+When a single scene contains **multiple images** (product gallery,
+feature grid, testimonial wall, before-after, 3-up comparison), a uniform
+layout with identical tilts reads as a wireframe. The Teamble-style
+reference gets variety by:
+
+- Rotating Z-axis tilt direction per item: `-2deg`, `+3deg`, `-1deg`, `+4deg`
+- Mixing X-axis tilts: shallower (`8-12deg`) for items in the foreground,
+  steeper (`18-24deg`) for items in the back, so depth is implied
+- Staggering entrance: each image uses `animation-delay: 0ms, 150ms, 300ms, 450ms`
+  — the scene "builds" rather than appearing all at once
+- Varying scale: lead image at `scale(1)`, secondary at `scale(0.85)`, tertiary
+  at `scale(0.7)` — implies focus + hierarchy
+
+```css
+.stage-tilt:nth-child(1) { transform: rotate3d(1, 0.25, 0, 12deg) rotateZ(-2deg) scale(1);    z-index: 3; animation-delay: 0ms; }
+.stage-tilt:nth-child(2) { transform: rotate3d(1, 0.25, 0, 18deg) rotateZ( 3deg) scale(0.85); z-index: 2; animation-delay: 150ms; }
+.stage-tilt:nth-child(3) { transform: rotate3d(1, 0.25, 0, 22deg) rotateZ(-1deg) scale(0.7);  z-index: 1; animation-delay: 300ms; }
+```
+
+**Placement patterns to choose from** (pick one per scene, don't mix):
+
+- **Stacked cascade** — images offset diagonally, overlapping 15–20% each
+- **Orbital** — one hero image center, supporting ones arranged around it
+  (cf. Teamble's "Onboarding Survey" orbital shot)
+- **Scattered** — images at random(ish) angles across the frame with
+  generous negative space, each at a slightly different Z tilt
+- **Stack-and-fan** — a focused hero + a fan of thumbnails behind it
+- **Line-up** — 3 items in a horizontal row with descending Z-axis tilt
+
+**Anti-patterns (do NOT do these):**
+
+- Three images in a neat horizontal grid with identical tilts → looks like
+  a product-listing page, not a promo
+- Every image entering at the same moment → no rhythm
+- Identical rotation signs (`rotateZ(-1deg)` on all) → feels machine-placed
 
 ### Quick layout sanity check before committing to a full render
 
@@ -621,19 +1090,49 @@ to verify positioning before launching the full render.
 
 ### Adding background audio to any project
 
+Audio overlays are **first-class timeline regions** — they can be dragged,
+trimmed, and have an in-point into the source file, just like video clips.
+Waveform peaks are extracted automatically when you add an overlay so the
+timeline UI can render a real waveform.
+
 ```bash
-# Add music (plays from the start, volume 60%)
+# 1) Simple: play the full file from t=0 at 60% volume
 pandastudio project.add-audio --id=$ID \
   --audioPath=/path/to/music.mp3 --volume=0.6 --json
-# → returns { overlayId: "audio-1" }
+# → { overlayId: "audio-1" } — durations are probed automatically
 
-# Add a VO track starting at 2s
+# 2) Position on the timeline: play from 2s–17s of the edited timeline
 pandastudio project.add-audio --id=$ID \
-  --audioPath=/path/to/vo.wav --startMs=2000 --volume=1.0 --json
+  --audioPath=/path/to/music.mp3 \
+  --startMs=2000 --endMs=17000 --volume=0.55 --json
 
-# Remove it later
+# 3) Trim into the source: start playback at the 4s mark of the source file,
+#    play 13 seconds of it, positioned at 2s on the edited timeline.
+pandastudio project.add-audio --id=$ID \
+  --audioPath=/path/to/music.mp3 \
+  --startMs=2000 --endMs=15000 --sourceStartMs=4000 \
+  --volume=0.55 --json
+
+# 4) Change timing later (drag + trim without removing)
+pandastudio project.update-region --id=$ID \
+  --regionType=audio-overlay --regionId=audio-1 \
+  --startMs=5000 --endMs=20000 --sourceStartMs=2000 --volume=0.7 --json
+
+# 5) Remove
 pandastudio project.remove-audio --id=$ID --overlayId=audio-1 --json
+# or: pandastudio project.remove-region --regionType=audio-overlay --regionId=audio-1
 ```
+
+**Arg precedence for duration** (matches the primitive):
+
+1. Explicit `--endMs` — always wins
+2. Legacy `--maxDurationMs` — `endMs = startMs + maxDurationMs`
+3. `--durationMs` fallback
+4. Probed real file duration (when nothing else is specified)
+
+**Ducking music under voiceover** — use two overlays: the VO at `volume=1.0`
+and the music at `volume=0.2`. Both export through the same FFmpeg `amix`, so
+an explicit ducking automation isn't needed for simple cases.
 
 Audio overlays are exported automatically — you don't need to do anything
 extra in `export.start`.
@@ -641,34 +1140,50 @@ extra in `export.start`.
 ### Bundled background music — browse and add in one step
 
 PandaStudio ships with royalty-free background music tracks you can drop into
-any project without sourcing external files.
+any project without sourcing external files. Every track carries **`intents`**
+(agent-routing hints) and **`recommendedFor`** (destinations) — match on
+`intents` first when picking a track; use `mood` and `category` as tiebreakers.
 
 ```bash
-# 1. List all bundled tracks (id, title, category, mood, durationMs, absolutePath)
+# 1. List all bundled tracks — each has id, title, category, mood, durationMs,
+#    intents[], recommendedFor[], absolutePath
 pandastudio asset.list-music --json | jq '.data.tracks'
-
-# Example output:
-# [
-#   { "id": "chill-vlog-ambience", "title": "Chill Vlog Ambience",
-#     "category": "lofi", "mood": "calm", "durationMs": 30000,
-#     "absolutePath": "/Applications/PandaStudio.app/.../music/chill-vlog-ambience.wav" },
-#   { "id": "tech-review-background", "title": "Tech Review Background",
-#     "category": "corporate", "mood": "energetic", "durationMs": 30000,
-#     "absolutePath": "/Applications/PandaStudio.app/.../music/tech-review-background.wav" }
-# ]
-
-# 2. Pick a track and add it to the project (use absolutePath directly)
-MUSIC=$(pandastudio asset.list-music --json \
-  | jq -r '.data.tracks[] | select(.mood == "calm") | .absolutePath' | head -1)
-
-pandastudio project.add-audio --id=$ID \
-  --audioPath="$MUSIC" --volume=0.5 --json
 ```
 
-**Mood → track selection heuristic** (use unless user specifies):
-- Tutorial / explainer → `energetic` (corporate)
-- Vlog / day-in-life → `calm` (lofi)
-- Product showcase → pick by category (`corporate` for tech, `lofi` for lifestyle)
+**Current library (v2):**
+
+| id | category | mood | intents | recommendedFor |
+|---|---|---|---|---|
+| `tech-review-background` | corporate | energetic | tech_review, tutorial, explainer, saas_walkthrough | youtube-long, linkedin |
+| `chill-vlog-ambience` | lofi | calm | vlog, day_in_life, lifestyle, ambient_underscore | youtube-long, shorts |
+| `kinetic-product-drive-a` | electronic | energetic | product_video, kinetic_text, promo, intro, outro, product_reveal, motion_graphics | youtube-long, shorts, linkedin |
+| `kinetic-product-drive-b` | electronic | energetic | product_video, kinetic_text, promo, intro, outro, product_reveal, motion_graphics | youtube-long, shorts, linkedin |
+| `generic-underscore-a` | generic | neutral | generic, background, under_voiceover, default | youtube-long, linkedin, loom |
+| `generic-underscore-b` | generic | neutral | generic, background, under_voiceover, default | youtube-long, linkedin, loom |
+
+**Intent → track selection (use unless the user specifies a track):**
+
+- Product video / product demo / product reveal → `kinetic-product-drive-a` or `-b`
+- Kinetic text / motion graphics / promo → `kinetic-product-drive-a` or `-b`
+- YouTube **intro** or **outro** → `kinetic-product-drive-a` or `-b` (energetic hook; trim to length)
+- Tech review / tutorial / explainer / SaaS walkthrough → `tech-review-background`
+- Vlog / day-in-life / lifestyle → `chill-vlog-ambience`
+- Anything else / don't-know / "just add music" → one of the `generic-underscore-*` tracks
+- **LinkedIn / Loom:** prefer `generic-underscore-*` (neutral, won't distract from message) — never use `kinetic-product-drive-*` on LinkedIn unless the user's brief is explicitly promo/reveal
+
+```bash
+# 2. Pick by intent and add to project (agent-friendly filter)
+MUSIC=$(pandastudio asset.list-music --json \
+  | jq -r '.data.tracks[] | select(.intents | index("product_video")) | .absolutePath' \
+  | head -1)
+
+pandastudio project.add-audio --id=$ID \
+  --audioPath="$MUSIC" --volume=0.3 --fadeIn=500 --fadeOut=500 --json
+```
+
+Among tracks that match an intent, rotate between variants (`-a` and `-b`) or
+pick by `durationMs` closest to what the project needs. Never pick by filename
+— always query `asset.list-music` so new tracks get picked up automatically.
 
 ### Color grading clips (LUT presets)
 
@@ -997,7 +1512,10 @@ pandastudio project.update-region --id=$ID \
   --regionType=annotation --regionId=ann-1 --text="Updated text" --y=20
 pandastudio project.update-region --id=$ID \
   --regionType=fx --regionId=fx-1 --opacity=0.5 --endMs=5000
-# regionType: zoom | trim | speed | annotation | fx | lower-third | overlay
+pandastudio project.update-region --id=$ID \
+  --regionType=audio-overlay --regionId=audio-1 \
+  --startMs=2000 --endMs=15000 --sourceStartMs=4000 --volume=0.55
+# regionType: zoom | trim | speed | annotation | fx | lower-third | overlay | audio-overlay
 
 # Export defaults (pre-fills the Export dialog; CLI export.start uses its own --quality)
 pandastudio project.set-export-settings --id=$ID --quality=source --format=mp4
