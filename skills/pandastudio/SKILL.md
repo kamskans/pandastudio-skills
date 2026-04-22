@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.13.0 -->
+<!-- version: 2.14.0 -->
 
 # PandaStudio
 
@@ -1115,10 +1115,20 @@ pandastudio transcript.remove-silences --id=$ID --minSilenceMs=$SILENCE_MS
 #    Default swoosh SFX is auto-attached; for `linkedin` pass --soundVolume=0.5
 #    or --soundUrl=none. For `loom`, skip zooms entirely unless a UI
 #    moment is absolutely critical.
-pandastudio project.add-zoom --id=$ID --atMs=<wordStartMs> --durationMs=<profileDur> --depth=3
+#
+#    CRITICAL: ALWAYS pass --anchorSourceMs when atMs comes from a transcript
+#    word. Without it, the zoom drifts off the moment as soon as ANY trim is
+#    added — and step 1 always adds trims (remove-fillers, remove-silences).
+#    The anchor binds the zoom to the source recording moment so it
+#    re-anchors automatically on every trim/speed change.
+pandastudio project.add-zoom --id=$ID \
+  --atMs=<wordStartMs> --anchorSourceMs=<wordStartMs> \
+  --durationMs=<profileDur> --depth=3
 
 # Reveal moments (after "and now" / "finally") in youtube-long / shorts:
-pandastudio project.add-zoom --id=$ID --atMs=<ms> --durationMs=2500 --depth=5 \
+pandastudio project.add-zoom --id=$ID \
+  --atMs=<ms> --anchorSourceMs=<ms> \
+  --durationMs=2500 --depth=5 \
   --soundUrl=bundled:sound/dramatic-whoosh --soundVolume=0.7
 
 # 3. POLISH — skip sections by profile:
