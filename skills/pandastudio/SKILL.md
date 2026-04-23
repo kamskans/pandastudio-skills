@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.19.0 -->
+<!-- version: 2.20.0 -->
 
 # PandaStudio
 
@@ -1034,6 +1034,78 @@ always-on.
 | Metric / stat reveal | Counter count-up + bokeh drift |
 | Chapter divider | Shine sweep + bokeh drift |
 | CTA / end screen | Bokeh drift + CTA button pulse (scale 1 → 1.03) |
+
+### Animation timing — slow is cinematic, fast is amateur
+
+<HARD-RULE>
+**Scale every animation duration to the scene's duration. Never use the
+example timings verbatim — they assume a 3-second scene.** Scenes of
+different lengths need proportional timings or they read as rushed
+(too short) or dead (too long).
+</HARD-RULE>
+
+The single most common mistake in agent-generated motion graphics is
+stacked, overlapping, rapid-fire reveals. Cinematic motion graphics
+breathe — the eye needs time to land on each element before the next
+one arrives. Default to **slower than you think is right**, then
+tighten only if the scene clearly drags.
+
+**Letter / word entrance (single headline or word-pop):**
+
+| Scene length | Entrance duration | Stagger between letters |
+|---|---|---|
+| 1.5s (stings) | 350–500ms | 35ms |
+| 3s (hook / word-pop) | **600–900ms** | 50–70ms |
+| 5s (pull-quote) | 900–1200ms | 70–90ms |
+| 8–10s (benefit + UI context) | 1200–1600ms | 90–120ms |
+
+Use `cubic-bezier(0.16, 1, 0.3, 1)` (strong ease-out) — the first 100ms
+feels fast, the last 600ms settles gently. Avoid `linear` and `ease-in`
+for entrances; they look mechanical.
+
+**Ken Burns on UI / product shots — match the full scene:**
+
+The `ken-burns` keyframes example above uses a fixed 6s duration. For a
+3-second scene that means Ken Burns runs to 50% and then cuts — looks
+jittery. Instead, **set the Ken Burns `animation-duration` equal to the
+scene's total `durationMs`**. Scale amount also proportional: tiny over
+long scenes, barely-there over short ones.
+
+| Scene length | Ken Burns duration | Scale target |
+|---|---|---|
+| 3s | **3s** | 1.03 |
+| 6s | **6s** | 1.06 |
+| 10s+ | **10s+** | 1.08 max |
+
+Going past `scale(1.1)` at 30fps starts to look like zooming not
+floating. Keep it subtle.
+
+**Multi-element stacked entrances — always stagger, never simultaneous:**
+
+When a scene has multiple entering elements (headline + subtitle + CTA
+button, or 3 stat cards), stagger them by a meaningful gap. Agents
+often use 100–200ms stagger, which reads as "all at once." A headline
+landing 800ms before the subtitle is properly paced.
+
+```css
+.headline   { animation: rise 800ms cubic-bezier(0.16,1,0.3,1) 200ms  both; }
+.subtitle   { animation: rise 800ms cubic-bezier(0.16,1,0.3,1) 1000ms both; }
+.cta-button { animation: rise 600ms cubic-bezier(0.16,1,0.3,1) 1800ms both; }
+```
+
+For a 5-second scene: element 1 lands at 1s, element 2 at 1.8s,
+element 3 at 2.4s — the viewer has ~2.5s of static readable layout
+at the end, which is correct.
+
+**Rule-of-thumb:** if a viewer can't read the text before the next one
+enters, you're too fast. If they get bored waiting, too slow. Err on
+the slow side — 500ms too slow reads as "classy," 200ms too fast reads
+as "amateur TikTok."
+
+**Shimmer / bokeh drift durations should already be long** (8s shimmer,
+14s bokeh in the examples above). Don't speed these up — their whole
+purpose is subtle ambient motion, and anything under ~6s starts to
+feel nervous.
 
 ### Multi-image scenes — never identical, always varied
 
