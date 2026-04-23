@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.20.0 -->
+<!-- version: 2.23.0 -->
 
 # PandaStudio
 
@@ -382,82 +382,159 @@ The 20 bundled templates exist to make the **in-app Gemma E2B** (a small local m
 
 ## Custom motion graphics — HTML authoring
 
-When the brief doesn't fit a template — or you want a one-off animation — author the HTML/CSS/JS yourself and let `motion.render-html` render it through the Chromium → capturePage → FFmpeg pipeline.
+When the brief doesn't fit a template — or you want a one-off animation — author HTML/CSS/JS yourself and let `motion.render-html` render it through **[HyperFrames](https://github.com/heygen-com/hyperframes)** — the open-source Puppeteer+FFmpeg engine HeyGen built for frame-perfect, seekable video capture (Apache-2.0, bundled as `@hyperframes/producer`).
 
-The contract is loose:
+**What "frame-perfect" means here:** your animation is *not* played in real time and screen-recorded. HyperFrames loads the page, pauses it, then advances a seekable timeline one frame-time at a time and captures via Chrome's BeginFrame API. A 1-second fade-in takes exactly 1 second in the output file regardless of how slow a given frame takes to render. CSS-keyframe and rAF-clock animations won't do this — you MUST hand the engine a paused, seekable timeline.
 
-- Animations should auto-start on `DOMContentLoaded` (CSS keyframes, GSAP, Lottie, anything Chromium renders). No `body.go` ceremony — capture begins after first paint.
-- The window honours the dimensions you ask for (`aspectRatio` 16:9 / 9:16 / 1:1 OR explicit `width`+`height`).
-- Capture runs for `durationMs` (default 2500, range 100–60000) at `frameRate` FPS (default 30, range 1–60).
-- `requestAnimationFrame` fires correctly at the configured frame rate — `backgroundThrottling` is disabled and `setFrameRate(fps)` is applied to the offscreen window. JS-driven animation libraries (GSAP, Anime.js, etc.), canvas animations, and WebGL all tick at the right cadence.
-- External resources load freely: Google Fonts, CDN scripts, `https://` images. Pass local files via `--assets` instead of embedding base64.
+### The page contract (required)
+
+Every custom composition MUST satisfy three things. Missing any of them is a hard error or — worse — a silent render where the MP4 shows "sudden jumps every 1 second" instead of smooth motion.
+
+1. **A composition root element** carrying metadata HyperFrames reads:
+   ```html
+   <div data-composition-id="my-scene"
+        data-width="1280"
+        data-height="720"
+        data-duration="3">
+     <!-- your scene -->
+   </div>
+   ```
+   `data-duration` is in **seconds** (float allowed). `data-width` and `data-height` are authoritative — they override anything you pass to `motion.render-html`. The `data-composition-id` value is the key you'll register your timeline under in step 3.
+
+2. **A paused GSAP timeline.** Build it with `{ paused: true }`, add every tween at its intended time offset, and DO NOT call `.play()`. The engine drives the playhead:
+   ```js
+   const tl = gsap.timeline({ paused: true });
+   tl.to("#title",  { opacity: 1, y: 0, duration: 0.9, ease: "power2.out" }, 0.2);
+   tl.to("#accent", { scaleX: 1,        duration: 0.7, ease: "power2.out" }, 0.7);
+   ```
+
+3. **Register the timeline by composition-id.** This is the step that makes everything smooth — miss it and the render will show jump-cuts:
+   ```js
+   window.__timelines = window.__timelines || {};
+   window.__timelines["my-scene"] = tl;   // key must match data-composition-id
+   ```
+   The engine scans `window.__timelines[compositionId]` during compilation, wraps `.seek()` with the invalidation hooks chrome-headless-shell's BeginFrame mode requires, and drives the playhead one frame-time at a time. Without this wrapper a manual `tl.seek(t)` style commit isn't guaranteed to flush to the compositor before the frame is captured — you get stalls followed by "everything pops at once" jumps.
+
+> **Do not** set `window.__hf = { duration, seek }` directly and hope for the best. That protocol is the engine's *internal* interface; using it bypasses the compositor invalidation wrapper and produces the exact "sloppy, no smooth motion" symptom described above. `window.__timelines[id]` is the public contract.
+
+### Canonical template — copy this
+
+```html
+<!doctype html>
+<html>
+<head>
+  <style>
+    html, body { margin: 0; height: 100%; background: #0f172a; overflow: hidden;
+      font-family: "Inter", system-ui, sans-serif; }
+    #title { color: #e2e8f0; font-weight: 800; font-size: 96px;
+      opacity: 0; transform: translateY(40px); }
+    #accent { position: absolute; left: 50%; bottom: 12%;
+      width: 240px; height: 6px; background: #38bdf8;
+      transform: translateX(-50%) scaleX(0); transform-origin: left center; }
+    .scene { width: 100%; height: 100%; display: grid; place-items: center; }
+  </style>
+  <script src="https://unpkg.com/gsap@3.13.0/dist/gsap.min.js"></script>
+</head>
+<body>
+  <!-- Composition root: duration is authoritative -->
+  <div class="scene"
+       data-composition-id="q4-intro"
+       data-width="1280"
+       data-height="720"
+       data-duration="3">
+    <div id="title">Q4 Wrap</div>
+    <div id="accent"></div>
+  </div>
+  <script>
+    // Paused timeline — HyperFrames drives the playhead.
+    const tl = gsap.timeline({ paused: true });
+    tl.to("#title",  { opacity: 1, y: 0,      duration: 0.9, ease: "power3.out" }, 0.2);
+    tl.to("#accent", { scaleX: 1,             duration: 0.7, ease: "power2.out" }, 0.7);
+    tl.to({},        { duration: 1.2 });                                            // hold
+    tl.to("#title",  { opacity: 0, y: -20,    duration: 0.5, ease: "power2.in"  }, 2.5);
+
+    // Register by composition-id. This is what the engine looks for.
+    window.__timelines = window.__timelines || {};
+    window.__timelines["q4-intro"] = tl;
+  </script>
+</body>
+</html>
+```
+
+Render it:
 
 ```bash
-cat > /tmp/intro.html <<'HTML'
-<!doctype html>
-<html><head><style>
-  html,body{margin:0;background:#0f172a;color:#e2e8f0;font:700 96px/1 system-ui;
-    height:100%;display:grid;place-items:center;overflow:hidden}
-  h1{opacity:0;transform:translateY(40px);
-    animation:rise .9s cubic-bezier(.2,.7,.2,1) .3s forwards}
-  @keyframes rise{to{opacity:1;transform:none}}
-</style></head><body><h1>Q4 Wrap</h1></body></html>
-HTML
-
 JOB=$(pandastudio motion.render-html \
   --htmlPath=/tmp/intro.html \
   --aspectRatio=16:9 \
-  --durationMs=2500 \
+  --durationMs=3000 \
   --json | jq -r '.data.jobId')
 
 pandastudio job.wait --id="$JOB" --json | jq '.data.job.result.outputPath'
 ```
 
-You can also pass `--html='<!doctype html>...'` inline — the renderer stages it as a temp file under `os.tmpdir()` so file:// loads work normally. Use `htmlPath` when the markup is large or you want to debug it in a browser first.
+You can also pass `--html='<!doctype html>...'` inline — the renderer stages it as a temp file so relative asset paths still work. Use `htmlPath` for anything non-trivial so you can preview it in a browser first (a well-authored HyperFrames page is debuggable: open it, call `__hf.seek(1.5)` in devtools, see exactly what frame 45 will look like).
 
-Result is an MP4 in the recordings dir. Drop it onto a project with `project.add-motion-graphic` exactly like a `motion.generate` output.
+Result is an MP4 at the requested dimensions and duration. Drop it onto a project with `project.add-motion-graphic` exactly like a `motion.generate` output.
+
+### Why CSS keyframes alone don't work
+
+CSS `@keyframes … forwards` animations are driven by the page's wallclock at load time. The moment the page renders, they start playing — so by the time HyperFrames calls `seek(0)` the animation may already be finished. **CSS transitions and keyframes are only safe inside a paused GSAP timeline** (where GSAP applies them by setting styles at each seek), or via `animation-play-state: paused` if you're driving `animation-delay` from JS.
+
+**Rule of thumb:** if you want a text "rise in" effect, use `gsap.to("#text", { opacity: 1, y: 0, … })` inside a paused timeline — not `@keyframes rise … forwards`.
 
 ### Transparent overlays — `--transparent`
 
 Add `--transparent` to get a **WebM with a VP9/alpha channel** instead of an opaque MP4. Use this for anything that needs to composite on top of existing video: lower thirds, watermarks, bug logos, corner clocks, branded name plates.
 
-**HTML contract for transparent renders:**
+**Two things change:**
 
-```css
-/* Make the page background transparent — the BrowserWindow is already
-   compositing against ARGB, but you must not override it in CSS. */
-html, body {
-  background: transparent;
-}
-```
+1. Your CSS must keep the page background transparent:
+   ```css
+   html, body { background: transparent; }
+   ```
+2. Output extension becomes `.webm`.
 
-Everything else is the same as a normal `motion.render-html`. Semi-transparent elements (e.g. `rgba(0,0,0,0.8)` card backgrounds) render correctly — the alpha value is preserved through capturePage() → PNG → VP9/yuva420p.
+Everything else — the composition root, the `__hf.seek` contract, paused GSAP timelines — is identical. Semi-transparent elements (e.g. `rgba(0,0,0,0.8)` card backgrounds) composite correctly via VP9/yuva420p.
 
 **Constraint:** `--audioPath` is ignored in transparent mode. VP9+alpha is a video-only stream; mux audio in at composite time.
 
-```bash
-cat > /tmp/lower-third.html <<'HTML'
+```html
 <!doctype html>
-<html><head><style>
-  html,body { margin:0; width:100%; height:100%; background:transparent; overflow:hidden;
-    font-family:"Inter",system-ui,sans-serif; }
-  .card {
-    position:absolute; left:5vw; bottom:9vh;
-    background:rgba(0,0,0,0.85); border-radius:10px; padding:14px 22px;
-    color:#fff; opacity:0; transform:translateY(20px);
-    animation:slide-in .5s cubic-bezier(.16,1,.3,1) .2s forwards;
-  }
-  .name  { font-size:26px; font-weight:700; }
-  .title { font-size:15px; opacity:.65; margin-top:3px; }
-  @keyframes slide-in { to { opacity:1; transform:none; } }
-</style></head><body>
-  <div class="card">
-    <div class="name">Alex Rivera</div>
-    <div class="title">Senior Product Designer</div>
+<html>
+<head>
+  <style>
+    html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
+      font-family: "Inter", system-ui, sans-serif; }
+    .card { position: absolute; left: 5vw; bottom: 9vh;
+      background: rgba(0,0,0,0.85); border-radius: 10px; padding: 14px 22px;
+      color: #fff; opacity: 0; transform: translateY(20px); }
+    .name  { font-size: 26px; font-weight: 700; }
+    .role  { font-size: 15px; opacity: .65; margin-top: 3px; }
+  </style>
+  <script src="https://unpkg.com/gsap@3.13.0/dist/gsap.min.js"></script>
+</head>
+<body>
+  <div data-composition-id="lower-third"
+       data-width="1920" data-height="1080" data-duration="3.5">
+    <div class="card" id="card">
+      <div class="name">Alex Rivera</div>
+      <div class="role">Senior Product Designer</div>
+    </div>
   </div>
-</body></html>
-HTML
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.to("#card", { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 0.2);
+    tl.to({},      { duration: 2.3 });
+    tl.to("#card", { opacity: 0, y: 20, duration: 0.5, ease: "power2.in" }, 3.0);
+    window.__timelines = window.__timelines || {};
+    window.__timelines["lower-third"] = tl;
+  </script>
+</body>
+</html>
+```
 
+```bash
 JOB=$(pandastudio motion.render-html \
   --htmlPath=/tmp/lower-third.html \
   --aspectRatio=16:9 \
@@ -469,7 +546,41 @@ JOB=$(pandastudio motion.render-html \
 pandastudio job.wait --id="$JOB" --json | jq '.data.job.result.outputPath'
 ```
 
-The resulting `.webm` can be added to a project with `project.add-motion-graphic` — the same call as any other motion graphic.
+The resulting `.webm` attaches with `project.add-motion-graphic` — same call as any other motion graphic.
+
+### Common authoring mistakes
+
+- **Registering via `window.__hf = { duration, seek }` instead of `window.__timelines[id] = tl`.** The engine accepts `__hf` without throwing, but a manual `tl.seek(t)` inside that `seek` function doesn't force the paused timeline to commit its styles to chrome-headless-shell's BeginFrame compositor. The MP4 renders with identical frames for ~1-second stretches followed by sudden jumps — the exact "sloppy, no smooth motion" symptom. **Always use `__timelines[id]`.**
+- **Forgetting `{ paused: true }` on the GSAP timeline.** The timeline plays once on page load; capture starts *after* the page is quiescent, so your whole animation may already have run. Always build timelines paused.
+- **CSS `@keyframes … forwards` for entrances.** Not seekable — CSS animations are rAF-clock-driven, not timeline-driven. Replace every entrance with `gsap.to(...)` inside the timeline.
+- **Mismatch between `data-composition-id` and the `__timelines` key.** Must be exactly equal. The engine finds the timeline by this key; a typo means the engine registers nothing and the render is static.
+- **`data-duration` mismatch with the timeline's actual length.** Set `data-duration` to the longest-ending tween's end time. Over-long wastes frames on a blank tail; under-long clips the animation. Keep them in sync.
+- **Using `setTimeout`/`setInterval` to orchestrate scene changes.** They run on page wallclock, not composition time, and won't be seeked. Put every visual state change on the GSAP timeline.
+- **Local assets referenced with absolute filesystem paths.** The engine serves the HTML's directory as the web root; reference assets with relative URLs (`./logo.png`) and pass them via `--assets`.
+
+### Pacing — how to make it feel polished, not "amateur-TikTok fast"
+
+Frame-perfect rendering doesn't make bad timing look good. Empirically-tested rules of thumb for agent-authored promos:
+
+- **Scene duration ≥ 4 s** for anything with more than ~3 elements. Dense scenes (multi-row tables, 3+ cards) need 5–7 s.
+- **Pre-hold of 0.3–0.5 s** before the first element animates. Gives the viewer's eye time to settle on the frame before content starts moving.
+- **Stagger ≥ 0.15 s** between sibling reveals (text words, card cascade, bullet rows). Sub-100 ms stagger reads as "flash, flash, flash" — the viewer can't parse individual entrances.
+- **Post-hold ≥ 1.5 s** after the last reveal before the scene ends. The viewer needs time to *read*, not just *see*.
+- **Softer easing for body copy, punchier easing for accents.** `power2.out` (gentle landing) for headlines and cards; `power3.out` or `back.out(1.4)` for accents, buttons, icons. Avoid `power3.out` on long strings of staggered words — it compresses the reveal into a bang.
+- **Keep every scene moving.** A 2-second static hold after a reveal reads as "the render froze." Add a slow 3–5% zoom or a 20–30 px pan during holds so the composition continues to breathe.
+
+### Non-GSAP drivers (escape hatch)
+
+If you're NOT using GSAP — e.g. Lottie player, three.js, canvas-driven animation — the lower-level contract is `window.__hf = { duration, seek }`:
+
+```js
+window.__hf = {
+  duration: 3,
+  seek(t) { myCustomEngine.renderAtTime(t); }
+};
+```
+
+This only works if your `seek(t)` synchronously forces a repaint (canvas: redraw; three.js: `renderer.render(scene, camera)`; Lottie: `anim.goToAndStop(t * 1000, false)`). GSAP paused-timeline `.seek()` does **not** meet that bar under headless-shell BeginFrame — that's why GSAP compositions must register via `__timelines[id]` instead.
 
 ## Transcript-based editing — PandaStudio's signature feature
 
@@ -1034,78 +1145,6 @@ always-on.
 | Metric / stat reveal | Counter count-up + bokeh drift |
 | Chapter divider | Shine sweep + bokeh drift |
 | CTA / end screen | Bokeh drift + CTA button pulse (scale 1 → 1.03) |
-
-### Animation timing — slow is cinematic, fast is amateur
-
-<HARD-RULE>
-**Scale every animation duration to the scene's duration. Never use the
-example timings verbatim — they assume a 3-second scene.** Scenes of
-different lengths need proportional timings or they read as rushed
-(too short) or dead (too long).
-</HARD-RULE>
-
-The single most common mistake in agent-generated motion graphics is
-stacked, overlapping, rapid-fire reveals. Cinematic motion graphics
-breathe — the eye needs time to land on each element before the next
-one arrives. Default to **slower than you think is right**, then
-tighten only if the scene clearly drags.
-
-**Letter / word entrance (single headline or word-pop):**
-
-| Scene length | Entrance duration | Stagger between letters |
-|---|---|---|
-| 1.5s (stings) | 350–500ms | 35ms |
-| 3s (hook / word-pop) | **600–900ms** | 50–70ms |
-| 5s (pull-quote) | 900–1200ms | 70–90ms |
-| 8–10s (benefit + UI context) | 1200–1600ms | 90–120ms |
-
-Use `cubic-bezier(0.16, 1, 0.3, 1)` (strong ease-out) — the first 100ms
-feels fast, the last 600ms settles gently. Avoid `linear` and `ease-in`
-for entrances; they look mechanical.
-
-**Ken Burns on UI / product shots — match the full scene:**
-
-The `ken-burns` keyframes example above uses a fixed 6s duration. For a
-3-second scene that means Ken Burns runs to 50% and then cuts — looks
-jittery. Instead, **set the Ken Burns `animation-duration` equal to the
-scene's total `durationMs`**. Scale amount also proportional: tiny over
-long scenes, barely-there over short ones.
-
-| Scene length | Ken Burns duration | Scale target |
-|---|---|---|
-| 3s | **3s** | 1.03 |
-| 6s | **6s** | 1.06 |
-| 10s+ | **10s+** | 1.08 max |
-
-Going past `scale(1.1)` at 30fps starts to look like zooming not
-floating. Keep it subtle.
-
-**Multi-element stacked entrances — always stagger, never simultaneous:**
-
-When a scene has multiple entering elements (headline + subtitle + CTA
-button, or 3 stat cards), stagger them by a meaningful gap. Agents
-often use 100–200ms stagger, which reads as "all at once." A headline
-landing 800ms before the subtitle is properly paced.
-
-```css
-.headline   { animation: rise 800ms cubic-bezier(0.16,1,0.3,1) 200ms  both; }
-.subtitle   { animation: rise 800ms cubic-bezier(0.16,1,0.3,1) 1000ms both; }
-.cta-button { animation: rise 600ms cubic-bezier(0.16,1,0.3,1) 1800ms both; }
-```
-
-For a 5-second scene: element 1 lands at 1s, element 2 at 1.8s,
-element 3 at 2.4s — the viewer has ~2.5s of static readable layout
-at the end, which is correct.
-
-**Rule-of-thumb:** if a viewer can't read the text before the next one
-enters, you're too fast. If they get bored waiting, too slow. Err on
-the slow side — 500ms too slow reads as "classy," 200ms too fast reads
-as "amateur TikTok."
-
-**Shimmer / bokeh drift durations should already be long** (8s shimmer,
-14s bokeh in the examples above). Don't speed these up — their whole
-purpose is subtle ambient motion, and anything under ~6s starts to
-feel nervous.
 
 ### Multi-image scenes — never identical, always varied
 
