@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.23.0 -->
+<!-- version: 2.27.1 -->
 
 # PandaStudio
 
@@ -52,6 +52,169 @@ Always run `pandastudio system.status --json` first. Read the `license` block:
 | `automationGated: true`        | Trial expired, no license. Only `system.*` and `window.focus` work. **Stop and tell the user to activate a license in Settings → License.** |
 
 If the call fails with a connection error, the CLI auto-launches PandaStudio and waits up to 60 s. If it fails with `invalid or missing bearer token`, the on-disk credentials at `~/.config/pandastudio/{token,port}` rotated mid-flight — wait 2 s and retry once.
+
+## Workspaces (v1.19+)
+
+PandaStudio is multi-workspace as of v1.19. Every `project.*` / `export.*` / `motion.*` / `caption.*` / `audio.*` query operates inside the **active workspace** — the one listed in `workspace.current`. Users (typically agencies) separate clients into their own workspaces so credentials, exports, and YouTube connections never cross-contaminate.
+
+**Right after `system.status`, check the workspace context:**
+
+```bash
+pandastudio workspace.list --json | jq '.data | { current: .currentWorkspaceId, count: (.workspaces | length), cap: .limit }'
+```
+
+The returned `limit.max` is:
+- `1` — Starter plan or Trial
+- `3` — Creator plan
+- `null` — Team plan (unlimited)
+
+**Switching workspaces:**
+
+```bash
+# Get the id of a specific client's workspace
+WS=$(pandastudio workspace.list --json | jq -r '.data.workspaces[] | select(.name == "ACME Agency — Client A") | .id')
+pandastudio workspace.switch --id=$WS --json
+# Every subsequent query now operates inside that workspace.
+```
+
+**Creating a workspace:**
+
+```bash
+# Agencies: one workspace per client.
+pandastudio workspace.create --name="ACME Agency — Client A" --switchTo=true --json
+
+# If the plan cap is hit, the response looks like:
+# { "ok": false, "error": "Your Starter plan allows 1 workspace. Upgrade to Creator to create more.",
+#   "details": { "code": "workspace_limit_reached", "upgradeTo": "Creator" } }
+# Tell the user to upgrade at writepanda.ai/#pricing; do NOT retry.
+```
+
+**Deleting (destructive):** call `workspace.contents` first so you can show the user what will be lost, then `workspace.delete`. Projects' on-disk `.pandastudio` files stay — only the library rows disappear. YouTube-published videos stay on YouTube (we can't delete those); we only drop the local connection + cache.
+
+```bash
+pandastudio workspace.contents --id=$WS --json | jq '.data.counts'
+# { "projectCount": 12, "exportCount": 4, "publishedVideoCount": 3 }
+# Confirm with user before:
+pandastudio workspace.delete --id=$WS --json
+```
+
+**Don't quietly switch workspaces mid-task.** If you need to operate in a different workspace than the one the user opened, confirm with them first. Crossing client boundaries silently is how agency relationships break.
+
+## Publishing to YouTube (v1.19+)
+
+PandaStudio uploads directly to YouTube via the Google Data API v3 — no PandaStudio backend, no proxy. Each workspace has its own connected Google accounts; publishing is always scoped to the active workspace.
+
+### Before you touch any `youtube.*` verb
+
+```bash
+pandastudio youtube.is-configured --json | jq '.data.configured'
+# true → continue.  false → tell the user "this build can't publish to YouTube",
+#                   do NOT try the other verbs, they'll all fail.
+```
+
+### Connection flow (interactive — only run when user asks)
+
+```bash
+# Check what's already connected.
+pandastudio youtube.list-accounts --json | jq '.data'
+# → { accounts: [...], channels: [...] }
+
+# If empty or the user wants another account:
+pandastudio youtube.connect --json
+# This opens the user's BROWSER. Expect up to ~5 minutes while they
+# authenticate. Succeeds with { account, channels } or fails with
+# "OAuth timed out" / "user cancelled".
+#
+# Important: don't call youtube.connect on a schedule or pre-emptively.
+# It's explicit consent; only call when the user is sitting there.
+```
+
+Account is stored encrypted via `safeStorage` (Keychain on Mac, DPAPI on Windows, libsecret on Linux). Refresh tokens never leave the machine.
+
+### Publishing an export
+
+End-to-end recipe — assumes a transcribed export with a generated thumbnail already in the library:
+
+```bash
+EID="export-uuid-here"
+
+# 1. Sanity: already published?
+ALREADY=$(pandastudio export.get --id=$EID --json | jq -r '.data.entry.youtubeVideoId')
+if [ "$ALREADY" != "null" ]; then
+  echo "Already on YouTube as $ALREADY — use export.update-youtube to edit."
+  exit 0
+fi
+
+# 2. Pick the account + channel.
+ACCOUNTS=$(pandastudio youtube.list-accounts --json)
+ACC=$(echo "$ACCOUNTS" | jq -r '.data.accounts[0].id')
+CH=$(echo "$ACCOUNTS" | jq -r --arg A "$ACC" '.data.channels[] | select(.accountId == $A) | .id' | head -1)
+
+# 3. Pull existing metadata from the export row.
+ENTRY=$(pandastudio export.get --id=$EID --json)
+TITLE=$(echo "$ENTRY" | jq -r '.data.entry.generatedTitle // .data.entry.fileName')
+DESC=$(echo "$ENTRY" | jq -r '.data.entry.generatedDescription // ""')
+
+# 4. Publish. privacyStatus=unlisted is a safer default than public;
+#    use public only when the user explicitly says "publish publicly".
+pandastudio export.publish-youtube \
+  --id=$EID --accountId=$ACC --channelId=$CH \
+  --title="$TITLE" \
+  --description="$DESC" \
+  --tags='["tutorial","how-to"]' \
+  --privacyStatus=unlisted \
+  --setThumbnail=true \
+  --json
+# → { videoId: "abc...", videoUrl: "https://www.youtube.com/watch?v=abc..." }
+```
+
+**Expected wall-clock:** ~30 s per 100 MB of source video on a typical connection. Don't tear down the tool's connection to PandaStudio during this window.
+
+**`privacyStatus` default:** If the user didn't specify, use `unlisted`. Public-by-default risks a client seeing work-in-progress material on their channel. Agents should ask explicitly: *"Public, unlisted, or private?"* before first-ever publish.
+
+### Editing an already-published video
+
+**Metadata edits (title / description / tags / privacy) are temporarily unavailable from agents** — the `youtube.force-ssl` scope required for `videos.update` is pending Google review for this OAuth project. When `export.update-youtube` is called it will fail with an "insufficient scope" error. Until approval lands (flagged via `YOUTUBE_METADATA_EDIT_ENABLED` in the build), direct the user to **YouTube Studio** at `https://studio.youtube.com/video/<VID>/edit` for those changes.
+
+```bash
+# When the scope is approved this becomes the canonical path:
+pandastudio export.update-youtube \
+  --accountId=$ACC --videoId=$VID \
+  --title="Updated title" \
+  --description="Updated description" \
+  --privacyStatus=public \
+  --json
+# Until then: "open https://studio.youtube.com/video/$VID/edit in the browser"
+```
+
+**Thumbnail replacement works right now** — no extra scope needed. `export.update-youtube-thumbnail` uses the same `youtube.upload` scope that handled the original upload:
+
+```bash
+# Generate fresh thumbnail for the source export.
+pandastudio export.generate-thumbnail --id=$EID --prompt="..." --json | jq -r '.data.imagePath'
+# → /Users/…/thumbnails/<eid>/1745…-abcd.webp  (already 1280×720 after FFmpeg crop)
+
+pandastudio export.update-youtube-thumbnail \
+  --accountId=$ACC --videoId=$VID \
+  --imagePath=/Users/…/thumbnails/<eid>/1745…-abcd.webp \
+  --json
+```
+
+### Dashboard (listing existing videos)
+
+```bash
+pandastudio export.list-youtube --accountId=$ACC --max=50 --json \
+  | jq '.data.videos[] | {id, title, viewCount, publishedAt, privacyStatus}'
+```
+
+Not limited to PandaStudio-published videos — returns everything on the channel's uploads playlist.
+
+### Don't
+
+- **Don't publish public without the user's explicit word.** `unlisted` is the safe default.
+- **Don't call `youtube.connect` without the user asking.** It's interactive consent.
+- **Don't retry a failed upload blindly.** If `export.publish-youtube` fails with a quota error (`details.code = "quotaExceeded"` or similar), stop and surface it. YouTube upload quota resets daily.
+- **Don't cross workspaces.** If the user's active workspace doesn't have the YouTube account connected, ASK before switching — publishing to a different client's channel by mistake is the worst kind of mistake.
 
 ## Editorial decisions — what to ask, what to assume, what NEVER to ask
 
@@ -581,6 +744,76 @@ window.__hf = {
 ```
 
 This only works if your `seek(t)` synchronously forces a repaint (canvas: redraw; three.js: `renderer.render(scene, camera)`; Lottie: `anim.goToAndStop(t * 1000, false)`). GSAP paused-timeline `.seek()` does **not** meet that bar under headless-shell BeginFrame — that's why GSAP compositions must register via `__timelines[id]` instead.
+
+### HyperFrames block catalog — don't re-invent when you can install
+
+Before writing HTML from scratch, check the HyperFrames catalog. It's a curated library of high-quality pre-built compositions (social-overlay blocks, cinematic shader transitions, effects) that install as drop-in `.html` files and render through the exact same `motion.render-html` path as any hand-authored composition. They already follow the `window.__timelines[id]` contract and have been tuned by the HeyGen team. For common patterns — YouTube lower thirds, Instagram-follow cards, shader transitions between scenes — these are sharper, better-paced, and faster than writing your own.
+
+**Install a block:**
+
+```bash
+# Pick a working directory (doesn't matter where — the composition is
+# just an .html file that PandaStudio renders by path).
+cd /tmp/my-promo && npm init -y >/dev/null
+
+# Install one — creates compositions/<slug>.html and any required assets.
+npx hyperframes add instagram-follow
+# → compositions/instagram-follow.html
+# → assets/avatar.jpg (may be replaceable depending on the block)
+
+# Then render it straight through motion.render-html:
+JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/my-promo/compositions/instagram-follow.html \
+  --width=1080 --height=1920 \
+  --durationMs=4500 \
+  --transparent \
+  --json | jq -r '.data.jobId')
+
+pandastudio job.wait --id=$JOB --json | jq '.data.job.result.outputPath'
+```
+
+**Blocks — full-scene compositions you can render standalone:**
+
+| Slug | Category | Notes |
+|------|----------|-------|
+| `yt-lower-third` | Broadcast | YouTube subscribe lower-third with avatar + channel info. Use `--transparent`. |
+| `instagram-follow` | Social | IG-style profile card + follow button slide-in. Use `--transparent`. |
+| `tiktok-follow` | Social | TikTok-style follow overlay. Use `--transparent`. |
+| `spotify-card` | Social | Now-playing card with album art + progress. Use `--transparent`. |
+| `x-post` | Social | X/Twitter post overlay with engagement metrics. Use `--transparent`. |
+| `reddit-post` | Social | Reddit post card with upvotes + comments. Use `--transparent`. |
+| `macos-notification` | UI | macOS notification banner. Use `--transparent`. |
+| `app-showcase` | UI | Three floating smartphone screens (fitness-app style). Opaque. |
+| `data-chart` | Data viz | Bar + line chart, NYT-style typography, staggered reveal. Opaque. |
+| `flowchart` | Data viz | Animated decision tree with SVG connectors + typing cursor. Opaque. |
+| `logo-outro` | Branding | Piece-by-piece logo assembly + tagline fade + URL pill. Opaque. |
+| `ui-3d-reveal` | UI | Perspective-3D reveal of UI elements. Opaque. |
+
+**Shader transitions — render as a `.mov`/`.webm` that sits *between* two scenes on the timeline:**
+
+`chromatic-radial-split`, `cinematic-zoom`, `cross-warp-morph`, `domain-warp-dissolve`, `flash-through-white`, `glitch`, `gravitational-lens`, `light-leak`, `ridged-burn`, `ripple-waves`, `sdf-iris`, `swirl-vortex`, `thermal-distortion`, `whip-pan`.
+
+Each is a short (0.5–1.2 s) effect that cross-warps or morphs between two still frames. They are authored to accept two `input_images` via the composition HTML's `data-` attributes — open the installed `.html` and follow the inline comments to wire your two scene frames in. Render them with `--transparent` only if the specific block's CSS has transparent backgrounds (most don't — they fill the full frame with the effect).
+
+**Transition showcases** (`transitions-3d`, `transitions-blur`, `transitions-cover`, `transitions-destruction`, `transitions-dissolve`, `transitions-distortion`, `transitions-grid`, `transitions-light`, `transitions-mechanical`, `transitions-other`, `transitions-push`, `transitions-radial`, `transitions-scale`) are bundles that demo multiple related effects in a single composition — useful for picking which specific transition to use before installing the dedicated shader block.
+
+**Components — animated effects you can layer inside your own compositions:**
+
+- `grain-overlay` — animated film-grain texture, ideal on top of static imagery.
+- `grid-pixelate-wipe` — screen dissolves into staggered grid squares.
+- `shimmer-sweep` — light sweep across text/elements via CSS gradient mask.
+
+**Prefer the catalog when:**
+- The user asks for something the catalog matches by name (name-plate, follow overlay, chart, logo outro, whip-pan, light leak).
+- You need a transition between two scenes — shader transitions are much better than anything GSAP-on-CSS can do in a browser.
+- Speed matters — `npx hyperframes add` completes in seconds and you skip the authoring iteration loop entirely.
+
+**Write custom HTML when:**
+- The brief is specific to the user's content (partli.app promo, personalised intro with their transcript) and no catalog block approximates it.
+- You need layout control the catalog doesn't provide (multi-scene bespoke promo).
+- You're composing several blocks together — put catalog blocks inside a parent composition via `<div data-composition-src="compositions/<slug>.html" ...>` (the engine inlines the sub-composition's timeline into the parent automatically).
+
+**Full catalog URL:** https://hyperframes.heygen.com/catalog — browse previews and confirm slugs before installing.
 
 ## Transcript-based editing — PandaStudio's signature feature
 
@@ -1659,6 +1892,93 @@ pandastudio llm.generate-timestamps --id=$ID --maxChapters=8 --json
 ```
 
 These are READ-ONLY — they return text for you to display or stash on the export-library entry; they don't mutate the project. Perfect for auto-populating the YouTube upload box after `export.start` finishes.
+
+## YouTube thumbnails (v1.18+)
+
+PandaStudio can generate YouTube thumbnails via Replicate's `openai/gpt-image-2` model using **the user's own Replicate API key** — PandaStudio never pays for or proxies these calls. Before any thumbnail verb will work, the user must open **Settings → Integrations** and paste a key from https://replicate.com/account/api-tokens. The key is stored encrypted via the OS keychain (Keychain on macOS, DPAPI on Windows, libsecret on Linux).
+
+### Check whether the user has a key
+
+```bash
+# Any thumbnail verb will return a clean error if the key isn't set.
+# Don't guess — if the UI flow is driven by an agent, check first:
+pandastudio export.get --id=$EID --json | jq '.data.entry.thumbnailPath'
+```
+
+If `export.generate-thumbnail` returns `"No Replicate API key set. Open Settings → Integrations to add one."`, tell the user to set it rather than looping. Direct them to the Settings pane; PandaStudio does not accept keys via CLI on purpose (so they never end up in shell history or a file an agent could read).
+
+### Generate from the transcript
+
+Requires `transcript.transcribe` + the export already in the library. By default, the local LLM writes a YouTube-art-director prompt from the transcript and feeds it to gpt-image-2 at `medium` quality, 3:2 aspect, WebP output.
+
+```bash
+pandastudio export.generate-thumbnail --id=$EID --json
+# → { success: true, imagePath: "/.../<entryId>/1745…-abcd.webp", prompt: "…", iterations: [] }
+```
+
+Pass an explicit prompt when you want control:
+
+```bash
+pandastudio export.generate-thumbnail --id=$EID \
+  --prompt="Bold close-up of a mechanical keyboard with neon RGB glow, \"ENDGAME BUILD\" in large white sans-serif overlay, shot with 50mm, cinematic lighting" \
+  --quality=medium --json
+```
+
+Pass a reference image when you want style transfer or to anchor on the creator's face/logo:
+
+```bash
+pandastudio export.generate-thumbnail --id=$EID \
+  --referenceImagePath=/Users/.../face.jpg \
+  --prompt="Apply the face from the reference image; add a shocked expression" --json
+```
+
+### Iterate via edit prompts (chat-style)
+
+Use after the first generation (or after a manual upload) to refine without starting over. Each edit pushes the previous thumbnail onto `entry.thumbnailIterations` so the user can revert.
+
+```bash
+pandastudio export.edit-thumbnail --id=$EID \
+  --editPrompt="Make the background color more saturated and move the text lower" --json
+
+pandastudio export.edit-thumbnail --id=$EID \
+  --editPrompt="Remove the logo in the bottom-right" --json
+```
+
+Good iteration prompts are **short and specific**. gpt-image-2 works best with one change at a time; if the user asks for three things, make three separate calls in sequence. Edits run at `low` quality (fast, cheap) — regenerate if the user wants the full-quality version back.
+
+### Manual upload
+
+When the user already has a thumbnail file they want to use:
+
+```bash
+pandastudio export.set-thumbnail --id=$EID \
+  --sourcePath=/path/to/thumbnail.png --json
+```
+
+Accepts PNG / JPEG / WebP. Copies into the managed thumbnails directory (`<userData>/thumbnails/<entryId>/`). Iteration history is cleared because the user is starting fresh. Once set, the user can still call `export.edit-thumbnail` to iterate from there.
+
+### Revert or clear
+
+```bash
+# Grab the iteration id from entry.thumbnailIterations[]
+pandastudio export.get --id=$EID --json \
+  | jq '.data.entry.thumbnailIterations[] | {id, createdAt, prompt}'
+
+pandastudio export.revert-thumbnail --id=$EID --iterationId=$ITER_ID --json
+
+# Wipe the thumbnail entirely
+pandastudio export.clear-thumbnail --id=$EID --json
+```
+
+### Prompt shape that works
+
+gpt-image-2 rewards photo-language and specificity. The LLM that auto-writes the prompt already follows these rules; when you write your own, mirror them:
+
+- **One focal subject.** Describe what's in the middle of the frame, in photo language: "extreme close-up of …", "over-the-shoulder of …".
+- **Specify lighting.** "Shot with 50mm, soft daylight, shallow depth of field" → photorealistic. "Bold graphic poster style, saturated, high contrast" → graphic. Don't mix unless that's the intent.
+- **Quote any on-image text.** `bold sans-serif overlay reading "GAME OVER"`. gpt-image-2's text-rendering is sharp — take advantage of it.
+- **Lock what shouldn't change** on edits. "Change ONLY the background color, keep the subject, composition, and text identical."
+- **Iterate small.** One change per `edit-thumbnail` call beats "make it 5 things at once".
 
 ## Export — produce the final MP4
 
