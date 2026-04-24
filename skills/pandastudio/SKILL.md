@@ -2141,6 +2141,27 @@ Resolve the destination first (see [HARD-GATE](#editorial-decisions--what-to-ask
 | Moody storytelling | `moodyDark` | 0.7 |
 | Travel / lifestyle | `warmSunset` | 0.7 |
 
+### Creator-style overrides (when the user names a style)
+
+When the user says *"like Ali Abdaal's videos"* / *"MKBHD style"* /
+*"MrBeast-style"* / etc., start from the matching base profile, then
+apply the overrides below. These are on top of the profile defaults,
+not instead of them. Unlisted styles → fall back to base profile.
+
+| Style | Base profile | Pacing | LUT | Music | Caption template | Motion-graphic cadence + notes |
+|---|---|---|---|---|---|---|
+| **Ali Abdaal** (productivity / book reviews / tutorial long-form) | `youtube-long` | 1 visual change every **3–5s**; aggressive filler + silence removal | `modernVibrant` @ 0.5 | warm ambient / lofi @ 0.15–0.20 | `panda-pop`, positionY 0.85 (below lower-third zone) | Intro title card (3s held) · host lower-third at 0:04–0:09 · 3–4 right-rail concept callouts at emphasis claims · 1 stat-reveal full-frame takeover if the video cites a number · outro card 4–6s hold with "Like & Subscribe" + shimmer on handle |
+| **MKBHD** (tech reviews / product-focused long-form) | `youtube-long` | 1 change every **4–6s** — contemplative, product breathes on screen | `modernVibrant` @ 0.6 OR `cinematicTealOrange` @ 0.5 | upbeat tech-review bed @ 0.20 | `panda-clean` @ positionY 0.82 | Clean intro wordmark (2s) · minimal lower-thirds (1 total, on first product mention) · stat-reveals over product shots use chrome-gradient numbers on dark · outro: product recap card + subscribe |
+| **MrBeast** (stunts / challenges / max-retention) | `youtube-long` | 1 change every **2–3s** — very fast, shorts-like cadence | `warmSunset` @ 0.8 (saturated, warm) | dramatic orchestral bed @ 0.30 | `panda-neon`, **huge** (fontSize 58+), color-coded by topic, positionY 0.8 | Big chrome-gradient kinetic-type every ~5s · frequent full-frame stat takeovers with counter tweens · countdown overlays if the video has stakes · outro: "what's next" teaser card, **hold full 6s** |
+| **Veritasium / Kurzgesagt-live** (science / education long-form) | `youtube-long` | 1 change every **5–7s** — contemplative, give diagrams time to read | `naturalEnhanced` @ 0.4 | ambient / orchestral @ 0.12 | `panda-clean` @ positionY 0.85 | Explanatory diagrams as motion graphics (labeled SVGs with `power2.inOut` reveals, `stagger: 0.15` on labels) · chapter dividers with chrome-gradient section titles · one or two hero stat-reveals with counter tweens · outro: citations card + subscribe |
+| **Vox / Johnny Harris** (explainer / essay long-form) | `youtube-long` | 1 change every **4–6s** — narrative-driven | `cinematicTealOrange` @ 0.7 | cinematic bed @ 0.18 | `panda-clean` @ positionY 0.85 | Chapter cards at every act break (bold chrome-gradient section titles) · map / timeline / chart motion graphics · pull-quote callouts in right rail · outro: credits card + next video teaser |
+
+**Rule:** an agent authoring any "style X" edit MUST still follow the 11
+Laws from `reference/motion-philosophy.md`. The style overrides change
+palette, cadence, and music — they do NOT let you ship flat-white text
+on a flat-black background. Grid + vignette + grain + chrome gradient
+are mandatory regardless of named style.
+
 ### The runbook (ordered — do not rearrange)
 
 ```bash
@@ -2231,7 +2252,26 @@ if [ "$PROFILE" != "loom" ]; then
   pandastudio caption.set-template --id=$ID --templateId=$TEMPLATE
 fi
 
-# 5. EXPORT — quality per profile
+# 4.5. VERIFY FRAMES — MANDATORY. Never export without looking.
+# Run motion.verify-frames on every rendered motion-graphic MP4 AND on
+# a draft pass of the full composition (preview.show, then extract
+# frames at hero timestamps). READ each PNG as a multimodal image and
+# confirm against the motion-philosophy §4 pre-flight checklist:
+# - no cropped faces / text overflow / blank frames
+# - captions on the right word
+# - no MG covers host face (Mode C) or screen zone (Mode B)
+# - chrome-gradient text is actually rendering (not flat white)
+# - grid + vignette + grain visible on every hero beat
+# If any frame fails, iterate and re-verify. Do NOT skip this step
+# even when "it's just a quick edit" — this is what separates
+# ships-it-works-ish from ships-it-looks-good.
+pandastudio preview.show --id=$ID   # let the project render a full draft
+# Then verify each generated motion-graphic MP4 at its hero timestamps:
+# pandastudio motion.verify-frames --videoPath=/tmp/motion-intro.mp4 \
+#   --timestamps='[0.3,1.0,1.8,2.7]' --json
+# Read every returned frame. If any fail, fix + re-render + re-verify.
+
+# 5. EXPORT — quality per profile. Only run AFTER verify-frames passes.
 QUALITY=$([ "$PROFILE" = "loom" ] && echo "standard" || echo "high")
 pandastudio export.start --id=$ID --quality=$QUALITY --json | jq -r '.data.jobId' | \
   xargs -I {} pandastudio job.wait --id={}
@@ -2248,17 +2288,63 @@ pandastudio export.start --id=$ID --quality=$QUALITY --json | jq -r '.data.jobId
 - **Applying `youtube-long` defaults to a `shorts` project** — wrong aspect, music too quiet, captions too subtle, pacing too slow
 - **Motion graphics in `loom`** — kills the "this is a quick update" vibe
 
-### Pattern: "edit this for <destination>" one-shot
+### Entry triggers — phrases that start the playbook
 
-After HARD-GATE resolves the profile, announce the plan in one sentence and execute without further questions:
+These phrases all route to the edit runbook above. Don't ask the user
+to expand any of them — resolve the profile + style, announce the plan,
+execute.
 
-> I'll edit this as a **YouTube long-form** video — pacing first (trim fillers + silences), then zooms with swoosh SFX at UI moments, intro title card + lower third, `modernVibrant` LUT, background music at 15%, and `panda-pop` captions. Should take ~3 minutes.
+| User says | Resolve to |
+|---|---|
+| "edit this" / "polish this" / "make it engaging" / "make it ready" | `youtube-long`, no style override |
+| "YouTube-ready" / "make a YouTube video" / "edit for YouTube" | `youtube-long`, no style override |
+| "make it a Short" / "TikTok" / "Reel" / "vertical" / "9:16" | `shorts`, no style override |
+| "for LinkedIn" | `linkedin`, no style override |
+| "Loom" / "internal update" / "just cut the fluff" | `loom`, no style override |
+| "edit like Ali Abdaal" / "Ali Abdaal style" / "tutorial style" / "productivity video" | `youtube-long` + **Ali Abdaal** override |
+| "MKBHD style" / "tech review style" / "product review" | `youtube-long` + **MKBHD** override |
+| "MrBeast style" / "high-retention" / "challenge video" / "maximum engagement" | `youtube-long` + **MrBeast** override |
+| "Veritasium style" / "educational" / "Kurzgesagt vibe" / "explainer" | `youtube-long` + **Veritasium** override |
+| "Vox style" / "essay" / "narrative" / "Johnny Harris style" | `youtube-long` + **Vox** override |
 
-Or for Shorts:
+If the user doesn't name a style and doesn't specify a destination, the
+safe default is `youtube-long` with no style override — the most common
+case by far.
 
-> I'll edit this as a **Short** — aggressive pacing (hook in 3s, 6–12 zooms/min), `modernVibrant` LUT at full intensity, `panda-neon` captions positioned higher, and music at 30%. No intro card or lower thirds — they don't fit the vertical frame. ~2 minutes.
+### Pattern: one-shot execution
 
-Don't ask the user to micro-manage step choices. The profile table is the answer.
+After entry trigger + profile/style resolution, announce the plan in
+one sentence and execute. Load `reference/motion-philosophy.md`
+automatically before the motion-graphics steps. Run the full runbook
+including the mandatory frame-verification gate. Do NOT ask the user
+to approve individual steps.
+
+> I'll edit this as a **YouTube long-form in Ali Abdaal style** — aggressive
+> filler + silence removal, 3–5s pacing, 4 right-rail concept callouts at
+> emphasis claims, 1 stat-reveal takeover, `modernVibrant` LUT at 0.5,
+> warm ambient music at 0.15, `panda-pop` captions at y=0.85, and a 5s
+> outro CTA card. Motion graphics authored against motion-philosophy
+> (chrome-gradient, grid + vignette + grain). Frame-verify before export.
+> ~5 minutes.
+
+> I'll edit this as a **Short** — aggressive pacing (hook in 3s, 6–12
+> zooms/min), `modernVibrant` LUT at full intensity, `panda-neon`
+> captions positioned higher, music at 30%. No intro card or lower
+> thirds — they don't fit the vertical frame. Frame-verify before
+> export. ~2 minutes.
+
+> I'll edit this as a **MrBeast-style YouTube video** — 2–3s pacing
+> (very fast), `warmSunset` LUT at 0.8, dramatic orchestral bed at 0.30,
+> huge color-coded `panda-neon` captions, chrome kinetic-type every 5s,
+> full-frame stat takeovers, 6s outro teaser card. Motion graphics
+> authored against motion-philosophy. Frame-verify before export.
+> ~6 minutes.
+
+Don't ask the user to micro-manage step choices. The profile table +
+creator overrides + motion-philosophy are the answer. If something
+genuinely needs user input (missing brand reference for a named style
+that has none obvious, missing subject name for the lower third),
+collect ALL such questions in a single message — never one-at-a-time.
 
 ## What this skill is NOT for
 
