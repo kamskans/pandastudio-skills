@@ -176,6 +176,13 @@ most of the reference pieces.
 
 ### 1.5 Pacing Discipline (numeric)
 
+**The numbers below are for HERO / standalone motion-graphic pieces
+(30s branded promos, launch reels) where the entire screen is the
+motion graphic and there's no host speaking. For MOTION-GRAPHIC
+OVERLAYS on top of a YouTube host (Mode C from video-authoring.md),
+see §1.6 below — those timings are slower because the viewer is
+split-attention between the host's voice and the graphic.**
+
 - **Default scene length:** 1.0–2.0s. Longer only for hero moments + outro.
 - **Reveal cadence inside a scene:** new visual element every 0.3–0.6s.
   No dead air > 1s mid-piece.
@@ -185,6 +192,75 @@ most of the reference pieces.
 - **Hold durations:**
   - Logo crystallization: 1.5–2s
   - Final CTA card: 4–6s (the longest single shot in the piece is the outro)
+
+### 1.6 Pacing for OVERLAY motion graphics (YouTube side-panel, lower thirds, concept callouts)
+
+When the motion graphic overlays existing host footage (Mode C from
+`video-authoring.md`), **the viewer can't absorb it as fast as a
+standalone piece** — they're also listening to the speaker. Slower
+pacing is correct, not a bug.
+
+| Overlay type | Total duration on timeline | Animation completes at | Hold ratio |
+|---|---|---|---|
+| **Concept callout** (3–5 word right-rail card) | **5–7 s** | 1.2 s | animation 20% / hold 80% |
+| **Lower third** (name + title) | **5–8 s** | 1.0 s | animation 15% / hold 85% |
+| **Stat reveal** (number + label) | **4–5 s** | 1.5 s (counter tween 0→final) | animation 35% / hold 65% |
+| **Intro title card** (full-frame takeover) | **3–5 s** | 1.8 s | animation 45% / hold 55% |
+| **Chapter marker** (small top-left badge) | **2–3 s** | 0.4 s | animation 20% / hold 80% |
+| **Outro CTA card** (full-frame takeover) | **5–7 s** | 1.5 s + shimmer loop | animation 25% / hold 75% (with continuous shimmer) |
+
+**The hold-ratio rule is the critical one.** An overlay where the
+animation runs the full duration leaves the viewer nothing to read —
+the text is moving the whole time and they can't parse it. Structure
+your GSAP timeline so everything lands within the first 20–45% of the
+scene, then the static frame HOLDS for the remaining 55–80%.
+
+**Canonical timing pattern for a concept callout (total 6s):**
+
+```js
+// Scene total: 6s. Animation lands at 1.2s. Hold 4.8s. Exit at 5.7s.
+const SCENE = 6;
+const IN_END = 1.2;   // reveal complete by 1.2s
+const OUT_START = 5.7; // exit begins at 5.7s
+const OUT_END = 6.0;
+
+const tl = gsap.timeline({ paused: true });
+
+// Entry: 0 → 1.2s (card slides in from right + chrome-sweep)
+tl.from('.callout-card', { x: '100%', duration: 0.8, ease: 'expo.out' }, 0);
+tl.from('.callout-text', { y: 20, opacity: 0, duration: 0.5, ease: 'power2.out' }, 0.6);
+// Chrome sweep on the headline word:
+tl.to('.headline', { backgroundPosition: '0% 0', duration: 0.6, ease: 'power2.out' }, 1.0);
+
+// HOLD 1.2s → 5.7s (4.5s of stillness). Viewer reads the card.
+// Add one micro-motion loop so it's not frozen — vignette breath or a
+// slow drift on the background grid.
+gsap.to('.callout-bg', { backgroundPositionY: '+=40', duration: 4, ease: 'none' });
+
+// Exit: 5.7s → 6.0s (card slides out to right with blur)
+tl.to('.callout-card', { x: '100%', filter: 'blur(10px)', duration: 0.3, ease: 'power2.in' }, 5.7);
+
+tl.to({}, { duration: SCENE }, 0);  // Law #11 anchor
+window.__timelines['concept-callout'] = tl;
+```
+
+**Reading-time formula** for copy-heavy overlays (pull quotes, benefit
+callouts):
+
+```
+minimum_duration_seconds = max(5, words × 0.35 + 2)
+```
+
+A 3-word callout ("uncovers hidden trends") needs at least 5s. A 6-word
+callout ("this is the best part") needs at least 4.1s → rounds to 5s.
+A 10-word pull quote needs 5.5s → use 6s. **Never ship an overlay
+under 4 seconds total** — the viewer can't catch it AND listen to the
+host at the same time.
+
+**On the timeline:** `project.add-motion-graphic --durationMs=<total>`
+where `<total>` matches the scene duration you authored. Don't author
+a 6000ms scene and then place it on the timeline for 3000ms —
+that truncates half the animation + all the hold.
   - Section headlines: 1–1.5s of read time after fully revealed
 - **Breathing rule:** every ~7–8s of kinetic density, give the viewer a 1s
   rest beat (brand reveal, coin spin, outro hold).

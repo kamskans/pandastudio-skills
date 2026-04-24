@@ -380,6 +380,27 @@ Default to strategy 2 unless the project design says otherwise. If the
 user says "make it feel like [brand] video", and [brand] is Linear /
 Figma / Vercel / Infinite / any clean-aesthetic brand → use 1.
 
+### 3.4.5 Overlay pacing — **read `motion-philosophy.md` §1.6**
+
+Every overlay below is a motion graphic on top of a live host. Viewers
+are split-attention. Use the slower timing table in
+[`motion-philosophy.md`](motion-philosophy.md) §1.6, not §1.5 (which is
+for standalone hero pieces). Summary:
+
+| Overlay | Total timeline duration | Animation completes at | Hold |
+|---|---|---|---|
+| Concept callout | **5–7s** | 1.2s | 4–5.5s hold |
+| Lower third | **5–8s** | 1.0s | 4.5–7s hold |
+| Stat reveal | **4–5s** | 1.5s (counter tween) | 2.5–3.5s hold |
+| Intro title card | **3–5s** | 1.8s | 1–3s hold |
+| Chapter marker | **2–3s** | 0.4s | 1.5–2.5s hold |
+| Outro CTA | **5–7s** | 1.5s | 3.5–5.5s hold (+ shimmer) |
+
+**Critical:** match `project.add-motion-graphic --durationMs` to the
+total scene duration you authored. If you rendered a 6000ms scene and
+placed it with `--durationMs=3000`, half the hold is truncated —
+viewer sees the reveal and then it disappears mid-read.
+
 ### 3.5 Side-rail content vocabulary (strategy 1)
 
 These are the reusable MG primitives that work in the left/right rails

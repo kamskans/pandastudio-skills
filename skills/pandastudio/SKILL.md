@@ -2121,7 +2121,9 @@ Resolve the destination first (see [HARD-GATE](#editorial-decisions--what-to-ask
 | Intro card | 2–4 s | **0–1 s or none** | 2–3 s | none |
 | Lower thirds | yes, at first mentions | **no** (too small vertically) | yes | no |
 | Zoom cadence | 3–6 / min | **6–12 / min** | 1–2 / min | 0–1 / min |
-| Default zoom duration | 1.5 s | **1.0 s** | 2.0 s | 2.0 s |
+| Default emphasis zoom duration | **7 s** | 3 s | 4 s | 2 s |
+| Sustained held-zoom duration (section reframe) | **15 s** | — | 8 s | — |
+| Agent zooms on screen-share clips | **NEVER** (telemetry handles it) | **NEVER** | **NEVER** | **NEVER** |
 | Zoom SFX volume | 1.0 (swoosh-fast) | **1.0 (swoosh-fast)** | 0.5 (or `none`) | `none` |
 | Filler/silence removal | yes | yes | yes | **yes (aggressive — minSilenceMs 300)** |
 | Speed regions (B-roll) | 1.5–2× | **2–3×** or cut entirely | 1.25–1.5× | none |
@@ -2184,26 +2186,69 @@ SILENCE_MS=$([ "$PROFILE" = "loom" ] && echo 300 || echo 500)
 pandastudio transcript.remove-silences --id=$ID --minSilenceMs=$SILENCE_MS
 
 # 2. EMPHASIS — zooms (skip for `loom`). Cadence comes from the profile table.
-#    Read transcript; scan for "click", "here", "this", "select", "look at",
-#    "and now", "finally", "boom". For each hit, drop a zoom at that word's
-#    startMs. Cadence cap: profile-specific (see table).
-#    Default swoosh SFX is auto-attached; for `linkedin` pass --soundVolume=0.5
-#    or --soundUrl=none. For `loom`, skip zooms entirely unless a UI
-#    moment is absolutely critical.
+#
+#    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#    HARD RULE #1 — DO NOT add zooms to screen-share clips.
+#    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#    PandaStudio auto-adds zooms to screen-share clips based on cursor
+#    telemetry captured during recording. Adding more on top = stacked
+#    zooms on the same moments, visual chaos.
+#
+#    For each clip returned by project.read:
+#      - If clip.webcamPath is present  → "both" mode (screen + PiP
+#        webcam). Telemetry zooms ALREADY exist on this clip. **SKIP.**
+#      - If the clip is pure camera (no webcamPath AND mediaPath is a
+#        camera recording) → safe to add zooms on emphasis.
+#      - If screen-only (no webcamPath, mediaPath is screen) → telemetry
+#        still exists, zooms are auto-added. **SKIP.**
+#
+#    Heuristic: if project.read returns existing zoomRegions for a clip
+#    whose webcamPath is set, those are telemetry-based — stay OUT of
+#    that clip's zoom space entirely. Only author zooms on pure-camera
+#    clips (webcamPath absent, no pre-existing zoom regions).
+#
+#    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#    HARD RULE #2 — Zoom duration floor is 6 seconds, NOT 1.5–3 seconds.
+#    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#    Premium YouTube zooms ride through a complete thought or cut. A 1.5s
+#    or 3s zoom reads as a twitch. Defaults:
+#      - Emphasis punch-in zoom (camera pulls in on a word/claim):
+#        durationMs=6000 to 8000  (was 1500 — that was wrong)
+#      - Sustained / held zoom (camera pulls in on a subject and
+#        stays for the whole sub-topic):
+#        durationMs=10000 to 20000
+#      - Reveal moment (dramatic, loud SFX): durationMs=6000 minimum
+#    Depth 3 (modest) for talking-head emphasis; depth 5 only for
+#    dramatic reveal beats. Don't stack multiple zooms inside 5s of each
+#    other — leaves no time to settle.
+#
+#    Shot selection: scan the transcript for punchy claims, specific
+#    numbers, opinionated statements ("the best", "this changed
+#    everything", "most people don't know"), moments of pivot ("and
+#    now", "finally", "but here's the thing"). Aim for the user's
+#    eyes to want to lean in. NOT every UI-verb word ("click", "select")
+#    — that was the old rule, it's wrong for engagement-style edits.
 #
 #    CRITICAL: ALWAYS pass --anchorSourceMs when atMs comes from a transcript
 #    word. Without it, the zoom drifts off the moment as soon as ANY trim is
 #    added — and step 1 always adds trims (remove-fillers, remove-silences).
 #    The anchor binds the zoom to the source recording moment so it
 #    re-anchors automatically on every trim/speed change.
-pandastudio project.add-zoom --id=$ID \
-  --atMs=<wordStartMs> --anchorSourceMs=<wordStartMs> \
-  --durationMs=<profileDur> --depth=3
 
-# Reveal moments (after "and now" / "finally") in youtube-long / shorts:
-pandastudio project.add-zoom --id=$ID \
+# Emphasis punch-in — modest scale, held through the thought
+pandastudio project.add-zoom --id=$ID --clipId=$CLIP_ID \
+  --atMs=<wordStartMs> --anchorSourceMs=<wordStartMs> \
+  --durationMs=7000 --depth=3
+
+# Sustained held zoom — reframe on a topic and stay for the full section
+pandastudio project.add-zoom --id=$ID --clipId=$CLIP_ID \
+  --atMs=<sectionStartMs> --anchorSourceMs=<sectionStartMs> \
+  --durationMs=15000 --depth=3
+
+# Reveal moment (dramatic, with SFX). Use SPARINGLY — 1-2 per video max.
+pandastudio project.add-zoom --id=$ID --clipId=$CLIP_ID \
   --atMs=<ms> --anchorSourceMs=<ms> \
-  --durationMs=2500 --depth=5 \
+  --durationMs=6000 --depth=5 \
   --soundUrl=bundled:sound/dramatic-whoosh --soundVolume=0.7
 
 # 3. POLISH — skip sections by profile:
