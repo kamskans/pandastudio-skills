@@ -545,6 +545,26 @@ The 20 bundled templates exist to make the **in-app Gemma E2B** (a small local m
 
 ## Custom motion graphics — HTML authoring
 
+> **BEFORE WRITING ANY MOTION GRAPHIC**, load two reference files:
+>
+> 1. **[`reference/motion-philosophy.md`](reference/motion-philosophy.md)** —
+>    the 11 Laws of motion design, visual vocabulary catalog, easing
+>    dictionary by purpose, pacing discipline, pre-flight checklist,
+>    canonical composition template. This is the aesthetic contract.
+>    Mechanics without this = "correctly rendered but forgettable."
+> 2. **[`reference/video-authoring.md`](reference/video-authoring.md)** —
+>    only when authoring for a specific delivery format. Covers the three
+>    modes PandaStudio produces:
+>    - **Mode A:** 9:16 camera-only (TikTok/Shorts/Reels talking-head)
+>    - **Mode B:** 9:16 screen-recording + PiP face (PandaStudio's unique
+>      mode — inverted caption safe zones, screen stays uncovered)
+>    - **Mode C:** 16:9 YouTube with side-overlay motion graphics (graphics
+>      slide in beside host video, never cover the speaker)
+>
+> Load these BEFORE you start typing HTML. Static text fading in on a
+> flat background is the lowest tier of motion graphics. The docs above
+> tell you what the next tier looks like and how to get there.
+
 When the brief doesn't fit a template — or you want a one-off animation — author HTML/CSS/JS yourself and let `motion.render-html` render it through **[HyperFrames](https://github.com/heygen-com/hyperframes)** — the open-source Puppeteer+FFmpeg engine HeyGen built for frame-perfect, seekable video capture (Apache-2.0, bundled as `@hyperframes/producer`).
 
 **What "frame-perfect" means here:** your animation is *not* played in real time and screen-recorded. HyperFrames loads the page, pauses it, then advances a seekable timeline one frame-time at a time and captures via Chrome's BeginFrame API. A 1-second fade-in takes exactly 1 second in the output file regardless of how slow a given frame takes to render. CSS-keyframe and rAF-clock animations won't do this — you MUST hand the engine a paused, seekable timeline.
@@ -1655,6 +1675,50 @@ pandastudio motion.screenshot \
 `motion.screenshot` returns `{ outputPath }` directly — no `job.wait` needed.
 Open the PNG, verify, then call `motion.render-html` with the same args.
 
+### Frame-verify before declaring done — `motion.verify-frames`
+
+`motion.screenshot` validates layout on a STILL composition. But a motion
+graphic is only "done" when you've watched its rendered MP4 land at hero
+moments — has the caption landed on the right word? Did the face transition
+interpolate smoothly? Does the color-recolor beat actually flip? Lint
+passing and preview snapshots won't catch a face that snapped or a caption
+that drifted one word off.
+
+**Contract:** after `motion.render-html` (or `export.start` for a full
+project), extract 8–15 frames at hero timestamps and READ each PNG
+(multimodal) before you declare the piece shippable. This is the
+"lint passing ≠ design working" rule from
+[`reference/motion-philosophy.md`](reference/motion-philosophy.md) §4.
+
+```bash
+# After a render lands, extract frames at hero moments
+pandastudio motion.verify-frames \
+  --videoPath=/path/to/output.mp4 \
+  --timestamps='[0.5,1.5,3.0,5.0,7.5,10.0,12.5,15.0]' \
+  --json
+
+# Or from an export-library entry
+pandastudio motion.verify-frames \
+  --entryId=$ENTRY_ID \
+  --timestamps='[0.5,1.5,3.0,5.0,7.5,10.0,12.5,15.0]' \
+  --json
+```
+
+Returns `{ frames: [{ timestampSeconds, path }...], nextStep: "..." }`.
+**Read each `path` as an image** and verify per the checklist in
+[`reference/video-authoring.md`](reference/video-authoring.md) §5:
+
+- No cropped faces / text overflow / blank frames
+- Caption lands on the right word at each captured moment
+- Face mode transitions (Mode A) look smooth, not snapped
+- No MG covers the host face area (Mode C) or the screen zone (Mode B)
+- Color palette looks right (no accidental flat-white text)
+- Backgrounds have the grid + vignette + grain texture
+
+If any frame fails, iterate the motion graphic and re-run
+`motion.verify-frames` before `export.start`. **No shipping un-looked-at
+work.**
+
 ### Assembling multi-scene motion graphics — always use motion.concat
 
 **This is the mandatory last step whenever you render more than one scene.**
@@ -2163,3 +2227,5 @@ Don't ask the user to micro-manage step choices. The profile table is the answer
 - [`reference/commands.md`](reference/commands.md) — every verb.noun with arg schema and a one-line example.
 - [`reference/examples.md`](reference/examples.md) — multi-step recipes: "make a 30 s intro card", "browse exports and pick the best title", "render a Shorts (9:16) lower-third".
 - [`reference/templates.md`](reference/templates.md) — what each motion-graphic template looks like, with the slots it accepts and which aspect ratios it supports.
+- [`reference/motion-philosophy.md`](reference/motion-philosophy.md) — **the aesthetic contract.** 11 Laws, visual vocabulary, easing dictionary, canonical shell, pre-flight checklist. Load this BEFORE authoring any motion graphic. This is what raises output from "template-filled" to "HyperFrames-quality".
+- [`reference/video-authoring.md`](reference/video-authoring.md) — **3-mode delivery playbook.** Mode A (9:16 camera-only), Mode B (9:16 screen-rec + PiP face — PandaStudio's unique mode), Mode C (16:9 YouTube side-overlay). Face choreography, caption safe zones, audio-sync protocol, frame verification. Load this for any shorts/YouTube authoring task.
