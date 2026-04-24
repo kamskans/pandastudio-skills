@@ -425,32 +425,30 @@ Before you ship any motion graphic, ask:
 
 ---
 
-## 7 · Mapping this to PandaStudio's two authoring paths
+## 7 · How PandaStudio's agent authors motion graphics
 
-PandaStudio's agent has two ways to emit a motion graphic:
+**`motion.render-html` is the only verb on your surface.** Do not call
+`motion.generate` / `motion.list` / `motion.themes` — those are for the
+in-app Gemma E2B local model (which can't write code). The bundled
+templates are v0 quality and do not meet the bar in this document.
 
-**Path 1 — `motion.generate --templateId=<name> --slots={...}`.** Fast,
-parameterised, template-filled. Use for:
-- Standard lower-thirds with brand accent
-- Captions / chapter cards
-- Static intro/outro when speed matters more than hero polish
+For every motion graphic, regardless of type or complexity:
 
-The current template library covers these cases. When picking a
-template, cross-check against the 11 Laws — if the template's
-background is a flat fill with no grid/vignette/grain and its text is
-flat white, that's a v0 template and needs an upgrade commit before you
-ship with it for hero work.
+1. Load this doc (if not already loaded).
+2. If authoring for a specific delivery format (9:16 shorts, 16:9
+   YouTube side-overlay), also load `reference/video-authoring.md`.
+3. Start from the canonical shell below — grid + vignette + grain + Law
+   #11 anchor are mandatory, not optional.
+4. Add scene content on tracks 2–8. Use vocabulary from §1.4. Pick
+   eases from §2. Respect pacing floors from §1.5.
+5. After rendering, run `motion.verify-frames` and READ each frame.
+6. Run the pre-flight checklist (§4) before declaring done.
 
-**Path 2 — `motion.render-html` with custom HTML.** Slow,
-hand-authored. Use when:
-- User wants a specific aesthetic (MrBeast / Kurzgesagt / Linear / Infinite)
-- Hero moments (logo reveal, brand outro, product-family sequence)
-- No template covers the need
-- User asked for "something cinematic" or "like HyperFrames"
-
-For path 2, this doc IS the authoring contract. Open `index.html`,
-canonical template below, + the 11 Laws + easing dictionary open in the
-agent's context. Don't start typing without them.
+Same applies for any scene: lower thirds, intro cards, stat reveals,
+sponsor reads, chapter dividers, subscribe CTAs, outro cards, spotlight
+rings, reaction bursts. Every one gets the 11 Laws treatment. No
+"this is just a small lower third, I'll skip the grid" — the grid is
+cheap and it's what separates template-filled from reference-quality.
 
 ### Canonical composition template (use verbatim)
 

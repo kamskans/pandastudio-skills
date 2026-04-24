@@ -16,9 +16,9 @@ description: Edit videos in PandaStudio — a desktop video editor for YouTube, 
 
 PandaStudio is a desktop video editor. You drive it either through the `pandastudio` CLI (localhost HTTP) **or** through the `writepanda` MCP server (same verbs, exposed as `project_list`, `project_add_zoom`, `motion_generate`, `export_start`, etc.). **The verbs, argument names, and behaviors are identical across both interfaces** — every example in this skill that shows a CLI call like `pandastudio project.add-zoom` maps 1:1 to the MCP tool `project_add_zoom` with the same args. Use whichever is available; don't switch mid-task.
 
-> Like HyperFrames is HTML+CSS for video composition, PandaStudio is a ready-made template + project surface — you don't author scenes, you fill slots in pre-built motion-graphic templates and arrange them on the editor's timeline.
+> PandaStudio is a desktop video editor with an HTML-based motion-graphics pipeline (HyperFrames + Puppeteer under the hood). As an AI agent, you **author motion graphics as custom HTML via `motion.render-html`** — you do NOT fill bundled templates. The bundled template library exists for the in-app Gemma E2B local model (which can't write code); it is not part of your surface. Always write HTML. The aesthetic bar + recipes are in [`reference/motion-philosophy.md`](reference/motion-philosophy.md) — load this before authoring anything.
 
-> Like HyperFrames is HTML+CSS for video composition, PandaStudio is a ready-made template + project surface — you don't author scenes, you fill slots in pre-built motion-graphic templates and arrange them on the editor's timeline.
+> PandaStudio is a desktop video editor with an HTML-based motion-graphics pipeline (HyperFrames + Puppeteer under the hood). As an AI agent, you **author motion graphics as custom HTML via `motion.render-html`** — you do NOT fill bundled templates. The bundled template library exists for the in-app Gemma E2B local model (which can't write code); it is not part of your surface. Always write HTML. The aesthetic bar + recipes are in [`reference/motion-philosophy.md`](reference/motion-philosophy.md) — load this before authoring anything.
 
 ## Quickstart
 
@@ -29,10 +29,12 @@ pandastudio system.status --json
 # 2. Discover what's available — never guess command names.
 pandastudio commands
 
-# 3. Render a motion graphic from a template.
-JOB=$(pandastudio motion.generate \
-  --templateId=title-card-vox \
-  --slots='{"title":"How I Built This","subtitle":"in 24 hours"}' \
+# 3. Render a motion graphic. As an agent you AUTHOR HTML — you don't
+#    fill templates. See the "Motion graphics" section for the full
+#    contract; the canonical shell lives in reference/motion-philosophy.md.
+JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/title-card.html \
+  --durationMs=4000 \
   --aspectRatio=16:9 \
   --json | jq -r '.data.jobId')
 
@@ -248,7 +250,7 @@ The profile is the source of truth for every default below. See the [Video editi
 
    Don't fabricate a name. Don't invent a job title. Skip this question entirely for the `shorts` and `loom` profiles — they don't use lower thirds.
 
-**3. Brand / style direction.** If the user named a style ("MrBeast" / "MKBHD" / "Vox" / "Kurzgesagt" / "Veritasium"), apply the matching `motion.themes` theme. If they gave none AND there are multiple source clips that suggest a brand context, ASK ONE QUESTION:
+**3. Brand / style direction.** If the user named a style ("MrBeast" / "MKBHD" / "Vox" / "Kurzgesagt" / "Veritasium" / "Linear" / "Infinite"), interpret it as a style reference for authoring HTML — translate their palette, typography, and motion vocabulary into a composition built against [`reference/motion-philosophy.md`](reference/motion-philosophy.md) §1. Do NOT call `motion.themes` / `motion.generate` — those route to bundled templates which are not on your surface. If they gave no style reference AND there are multiple source clips that suggest a brand context, ASK ONE QUESTION:
    > "Any brand colors, fonts, or visual references — or default look?"
 
 If all three are clear (or already specified), proceed without asking. Combine multiple asks into a single message when possible.
@@ -453,11 +455,13 @@ pandastudio project.set-region-sound \
   --id=<uuid> --regionType=lowerThird --regionId=lt-1 \
   --soundUrl=none  # mute this one
 
-# YouTube-style lower third — rendered as a motion graphic MP4, then overlaid
-# templateId: youtube-lower-third  slots: channelName, handle, accentColor, bgColor, textColor
-JOB=$(pandastudio motion.generate \
-  --templateId=youtube-lower-third \
-  --slots='{"channelName":"PandaStudio","handle":"@pandastudio","accentColor":"#FF0000"}' \
+# YouTube-style lower third — author HTML, render, overlay.
+# Do NOT use motion.generate. Author HTML with chrome-gradient text, halo
+# glow, and slide-in from edge. See reference/motion-philosophy.md §1.4
+# and §7 for the canonical shell.
+JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/lower-third.html \
+  --durationMs=5000 \
   --aspectRatio=16:9 --json | jq -r '.data.jobId')
 pandastudio job.wait --id="$JOB" --json
 
@@ -525,23 +529,37 @@ pandastudio project.open --id=$ID
 pandastudio window.editor          # = project.open with no args
 ```
 
-## Motion graphics — templates vs. custom HTML
+## Motion graphics — you author HTML, templates are not yours
 
-**Decision table — read this before calling either verb:**
+**Hard rule, no exceptions: agents author motion graphics via
+`motion.render-html`. Do NOT call `motion.generate`.**
+
+The 21 bundled templates (`01-title-card-vox.html`, `09-stat-reveal.html`,
+`20-youtube-lower-third.html`, etc.) exist exclusively for the **in-app
+Gemma E2B local model** — a small on-device model that can't write code,
+so it needs slot-filled HTML. The templates were designed against that
+constraint: flat solid-color backgrounds, flat text, CSS keyframe
+animations. They do NOT meet the aesthetic bar in
+[`reference/motion-philosophy.md`](reference/motion-philosophy.md). Using
+them shortcuts you straight to "template-filled, forgettable" output.
+
+**You can write code. You must write HTML.**
 
 | Brief | Use |
 |---|---|
-| User said "add a title card" / "add an intro" / "add a lower third" with no design detail | `motion.generate` with closest template from `motion.list` |
-| User said "YouTube lower third" / "YouTube name plate" / "subscribe lower third" | `motion.generate --templateId=youtube-lower-third` — slots: channelName, handle, accentColor, bgColor, textColor |
-| User named a creator style ("MrBeast", "MKBHD", "Kurzgesagt", "Vox", "Veritasium") | `motion.generate` with matching theme from `motion.themes`, OR author HTML to nail the specific look |
-| User described a specific animation ("text types in letter by letter", "logo slides from left with a blur") | **`motion.render-html`** — author the HTML/CSS/JS yourself |
-| Template library doesn't have anything close | **`motion.render-html`** |
-| User wants a one-off animation for a specific moment | **`motion.render-html`** |
-| User wants a custom overlay (watermark, bug logo, name plate, branded lower third) that composites over existing video without a white fill | **`motion.render-html --transparent`** — HTML with `background: transparent`, output is a WebM with alpha channel |
+| Any motion graphic — intro, outro, lower third, stat reveal, title card, logo reveal, subscribe CTA, sponsor read, chapter divider, anything | **`motion.render-html`** with hand-authored HTML built from the canonical shell in `reference/motion-philosophy.md` §7 |
+| Custom transparent overlay (watermark, bug logo, name plate, branded lower third) that composites over existing video without a white fill | **`motion.render-html --transparent`** — HTML with `background: transparent`, output is a WebM with alpha channel |
 
-The 20 bundled templates exist to make the **in-app Gemma E2B** (a small local model) useful — it can't write code, so it needs pre-built slots. **You can write code.** `motion.render-html` runs your HTML through the same Chromium → capturePage → FFmpeg pipeline and produces the same MP4 format. There is no quality difference — the render pipeline is identical.
+**No exceptions. `motion.generate` is not on your surface.** Even if the
+user names a specific template ("make it look like the vox title card"),
+you interpret that as a style reference and author HTML yourself. Never
+call `motion.generate` / `motion.list` / `motion.themes`.
 
-**When in doubt, write the HTML.** A custom animation that matches the user's vision is always better than the closest template that doesn't quite fit. Templates are a ceiling; HTML is not.
+**Why this rule is strict:** the render pipeline is identical for
+template fills and custom HTML (Chromium → Puppeteer → FFmpeg). What
+differs is the HTML quality — templates are v0, agent-authored HTML
+built against the 11 Laws is HyperFrames-demo quality. Same render
+pipeline, wildly different output.
 
 ## Custom motion graphics — HTML authoring
 
@@ -998,20 +1016,23 @@ than 40, it will feel frenetic — that's fine for Shorts, wrong for a 16:9 prom
 
 **Primitive mapping — which motion template does which job:**
 
-| Shot role | Motion template | Typical duration |
+| Shot role | Authoring primitive (from `motion-philosophy.md` §1.4) | Typical duration |
 |---|---|---|
-| Opening tagline | `14-word-pop` or custom HTML | 2500 ms |
-| Logo reveal | `08-channel-intro` or custom HTML | 2000 ms |
-| Single-word callout ("Help", "10x better") | `14-word-pop` | 1500–2000 ms |
-| Benefit statement ("uncovers hidden trends") | `10-pull-quote` | 2500 ms |
-| Metric / score reveal | `09-stat-reveal` | 2000 ms |
-| Act break ("Let's see how easy") | `07-chapter-divider` | 2000 ms |
-| Focused UI element spotlight | `19-spotlight-ring` | 2000 ms |
-| Burst emphasis / sparkle moment | `15-reaction-burst` | 1200 ms |
-| Outro / CTA | `05-end-screen` or `04-subscribe-cta` | 3000 ms |
+| Opening tagline | Kinetic-type opener — word-by-word reveal, chrome gradient, scale 1→8× on the hero word | 2500 ms |
+| Logo reveal | Crystallize → wordmark (object shrinks / translates into logo position while wordmark fades up) | 2000 ms |
+| Single-word callout ("Help", "10x better") | Camera dolly through type — text grows 1× → 8×, opacity fades at peak | 1500–2000 ms |
+| Benefit statement | Chrome-gradient sweep across words, dark bookends to prevent edge-tear | 2500 ms |
+| Metric / score reveal | Counter tween (number counts up 0 → final over 0.8s, power2.out) + scale entry | 2000 ms |
+| Act break | Whip-streak transition + chapter label appearing from off-frame | 2000 ms |
+| Focused UI element spotlight | Highlight ring (`box-shadow: 0 0 0 3px var(--accent), 0 0 20px var(--accent)`) + vignette breath | 2000 ms |
+| Burst emphasis | Floating cluster drift + sparkle particles | 1200 ms |
+| Outro / CTA | Held hero card 4–6s with shimmer-sweep on logo | 3000 ms |
 | UI fragment (from screen recording) | `project.add-clip` + `project.add-zoom` into the relevant region | 2500–3500 ms |
 
-Run `pandastudio motion.list --json` to see all 20 templates with slots.
+Each row authors as its own HTML composition. Every composition starts
+from the canonical shell in `reference/motion-philosophy.md` §7 (grid
++ vignette + grain + chrome-gradient heading styles + Law #11 anchor).
+Run all renders in parallel, concat the sequence.
 
 **PandaStudio limitation — honest note:** the editor does NOT render 3D
 perspective tilts on screen-recording clips. The Teamble reference achieves
@@ -1043,6 +1064,13 @@ If the user wants the 3D-tilted look and accepts longer build time, go with
 
 **Shot-list executable template** (scale to your runtime):
 
+Before writing any HTML, load [`reference/motion-philosophy.md`](reference/motion-philosophy.md)
+and build from the canonical shell in §7. Every scene inherits the grid
++ vignette + grain background, chrome-gradient heading class, and the
+Law #11 timeline anchor. Author each scene's HTML as its own file
+(`/tmp/scene-hook.html`, `/tmp/scene-brand.html`, etc.), render them
+**all in parallel**, then concat.
+
 ```bash
 # ── Setup ─────────────────────────────────────────────────────────
 P=$(pandastudio project.new --name="$PRODUCT Promo" --aspectRatio=16:9 --json)
@@ -1053,27 +1081,55 @@ MUSIC=$(pandastudio asset.list-music --json \
   | jq -r '.data.tracks[] | select(.intents | index("product_video")) | .absolutePath' \
   | head -1)
 
-# ── Act 1: Hook (single-line tagline, 2.5s) ──────────────────────
-JOB=$(pandastudio motion.generate \
-  --templateId=14-word-pop --themeId=mkbhd \
-  --slots='{"word":"The people success platform"}' \
-  --durationMs=2500 --json | jq -r '.data.jobId')
-HOOK=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
+# ── Author every scene's HTML upfront (not shown — use the canonical ──
+#    shell + the motion vocabulary from reference/motion-philosophy.md):
+#
+#    /tmp/scene-hook.html     — Act 1 hook (kinetic-type opener, 2.5s)
+#    /tmp/scene-brand.html    — Act 2 logo reveal (crystallize→wordmark, 2s)
+#    /tmp/scene-p1.html       — Act 3 single-word "Help"      (1.8s)
+#    /tmp/scene-p2.html       — Act 3 single-word "10x better" (1.8s)
+#    /tmp/scene-p3.html       — Act 3 single-word "faster feedback" (1.8s)
+#    /tmp/scene-actbreak.html — Act 5 chapter divider w/ whip streak (2s)
+#    /tmp/scene-benefit.html  — Act 6 chrome-sweep pull-quote (2.5s)
+#    /tmp/scene-stat.html     — Act 6 stat reveal w/ counter tween (2s)
+#    /tmp/scene-outro.html    — Act 7 held hero CTA card (3s, min 4s hold)
+#
+# Each file starts from the canonical shell in §7 of motion-philosophy.md.
+# Load philosophy → pick primitives from §1.4 → compose → save.
 
-# ── Act 2: Brand (logo reveal, 2s) ───────────────────────────────
-JOB=$(pandastudio motion.generate \
-  --templateId=08-channel-intro --themeId=mkbhd \
-  --slots='{"channelName":"teamble","handle":"ai"}' \
-  --durationMs=2000 --json | jq -r '.data.jobId')
-BRAND=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
+# ── Fire every render in parallel ────────────────────────────────
+# Since v1.17 each motion.render-html call spawns its own Chromium
+# process. 3+ concurrent renders finish in the time of one (~5× speedup).
+# Collect ALL jobIds first, THEN job.wait each — no job.wait between fires.
+HOOK_JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/scene-hook.html     --durationMs=2500 --json | jq -r '.data.jobId')
+BRAND_JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/scene-brand.html    --durationMs=2000 --json | jq -r '.data.jobId')
+P1_JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/scene-p1.html       --durationMs=1800 --json | jq -r '.data.jobId')
+P2_JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/scene-p2.html       --durationMs=1800 --json | jq -r '.data.jobId')
+P3_JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/scene-p3.html       --durationMs=1800 --json | jq -r '.data.jobId')
+ACTBREAK_JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/scene-actbreak.html --durationMs=2000 --json | jq -r '.data.jobId')
+BENEFIT_JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/scene-benefit.html  --durationMs=2500 --json | jq -r '.data.jobId')
+STAT_JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/scene-stat.html     --durationMs=2000 --json | jq -r '.data.jobId')
+OUTRO_JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/scene-outro.html    --durationMs=3000 --json | jq -r '.data.jobId')
 
-# ── Act 3: Problem — 3 giant word-pop cards ──────────────────────
-for WORD in "Help" "10x better" "faster feedback"; do
-  JOB=$(pandastudio motion.generate \
-    --templateId=14-word-pop --themeId=mkbhd \
-    --slots="{\"word\":\"$WORD\"}" --durationMs=1800 --json | jq -r '.data.jobId')
-  P3+=("$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')")
-done
+# All nine renders are now racing in parallel. Collect results.
+HOOK=$(pandastudio     job.wait --id=$HOOK_JOB     --json | jq -r '.data.job.result.outputPath')
+BRAND=$(pandastudio    job.wait --id=$BRAND_JOB    --json | jq -r '.data.job.result.outputPath')
+P1=$(pandastudio       job.wait --id=$P1_JOB       --json | jq -r '.data.job.result.outputPath')
+P2=$(pandastudio       job.wait --id=$P2_JOB       --json | jq -r '.data.job.result.outputPath')
+P3=$(pandastudio       job.wait --id=$P3_JOB       --json | jq -r '.data.job.result.outputPath')
+ACTBREAK=$(pandastudio job.wait --id=$ACTBREAK_JOB --json | jq -r '.data.job.result.outputPath')
+BENEFIT1=$(pandastudio job.wait --id=$BENEFIT_JOB  --json | jq -r '.data.job.result.outputPath')
+STAT=$(pandastudio     job.wait --id=$STAT_JOB     --json | jq -r '.data.job.result.outputPath')
+OUTRO=$(pandastudio    job.wait --id=$OUTRO_JOB    --json | jq -r '.data.job.result.outputPath')
 
 # ── Act 4: Product snippets (screen recordings + zooms) ──────────
 # The user provides a full-UI screen recording as $UI_REC.
@@ -1093,33 +1149,6 @@ pandastudio project.add-zoom --id=$ID --clipId="$CLIP_ID" \
 pandastudio project.add-zoom --id=$ID --clipId="$CLIP_ID" \
   --startMs=2500 --endMs=5500 --targetX=0.72 --targetY=0.35 --zoom=2.2 --json
 # ... repeat for 6–10 zooms total, rotating focus across UI regions
-
-# ── Act 5: Act break (chapter divider, 2s) ───────────────────────
-JOB=$(pandastudio motion.generate \
-  --templateId=07-chapter-divider --themeId=mkbhd \
-  --slots='{"chapter":"Let'\''s see how easy"}' \
-  --durationMs=2000 --json | jq -r '.data.jobId')
-ACTBREAK=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
-
-# ── Act 6: Benefit montage — alternate pull-quotes + UI zooms ────
-JOB=$(pandastudio motion.generate \
-  --templateId=10-pull-quote --themeId=mkbhd \
-  --slots='{"quote":"uncovers hidden trends"}' \
-  --durationMs=2500 --json | jq -r '.data.jobId')
-BENEFIT1=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
-
-JOB=$(pandastudio motion.generate \
-  --templateId=09-stat-reveal --themeId=mkbhd \
-  --slots='{"stat":"41","label":"feedback score"}' \
-  --durationMs=2000 --json | jq -r '.data.jobId')
-STAT=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
-
-# ── Act 7: CTA / Logo return ─────────────────────────────────────
-JOB=$(pandastudio motion.generate \
-  --templateId=05-end-screen --themeId=mkbhd \
-  --slots='{"cta":"teamble.ai","tagline":"Make feedback effortless"}' \
-  --durationMs=3000 --json | jq -r '.data.jobId')
-OUTRO=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
 
 # ── Concat the pre-UI segments and the post-UI segments ──────────
 # Rule from the concat hard-rule above: motion segments MUST be merged
@@ -1862,11 +1891,11 @@ Key patterns:
 **Single rendered scene → add directly. Multiple scenes → concat first, then add.**
 
 ```bash
-# Single title card — add directly (no concat needed for one scene)
-TITLE=$(pandastudio motion.generate \
-  --templateId=title-card-vox \
-  --slots='{"title":"How I Built This","subtitle":"in 24 hours"}' \
-  --aspectRatio=16:9 --json | jq -r '.data.jobId')
+# Single title card — author HTML, render, add directly.
+# (Do NOT use motion.generate; write the HTML from reference/motion-philosophy.md §7.)
+TITLE=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/title-card.html \
+  --durationMs=3000 --aspectRatio=16:9 --json | jq -r '.data.jobId')
 TITLE_PATH=$(pandastudio job.wait --id="$TITLE" --json | jq -r '.data.job.result.outputPath')
 
 pandastudio project.add-clip --id=$ID --media="$TITLE_PATH" --atIndex=0 --json
@@ -2162,10 +2191,13 @@ pandastudio project.add-zoom --id=$ID \
 #    - `linkedin`: skip 3d (no music)
 
 # 3a. Intro title card (youtube-long: 2-4s, linkedin: 2-3s)
+# Author HTML from reference/motion-philosophy.md §7 canonical shell.
+# Do NOT use motion.generate — templates are not on your surface.
 if [ "$PROFILE" = "youtube-long" ] || [ "$PROFILE" = "linkedin" ]; then
-  JOB=$(pandastudio motion.generate --templateId=youtube-lower-third \
-    --slots='{"channelName":"<name>","handle":"@<handle>"}' --json | jq -r '.data.jobId')
-  FILE=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.outputPath')
+  JOB=$(pandastudio motion.render-html \
+    --htmlPath=/tmp/intro-title.html \
+    --durationMs=3000 --json | jq -r '.data.jobId')
+  FILE=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
   pandastudio project.add-motion-graphic --id=$ID --file=$FILE --durationMs=3000 --atMs=0
 fi
 
