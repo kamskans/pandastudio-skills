@@ -2164,6 +2164,48 @@ palette, cadence, and music — they do NOT let you ship flat-white text
 on a flat-black background. Grid + vignette + grain + chrome gradient
 are mandatory regardless of named style.
 
+### Anchoring — every transcript-derived region MUST be anchored
+
+This rule applies to FIVE region types: zoom, motion-graphic, lower-third,
+annotation, and audio-overlay (when used as SFX, not background music).
+
+**The problem.** Region positions are stored in **edited time** —
+post-trim playback time. When the user (or you) runs `transcript.remove-fillers`,
+`transcript.remove-silences`, `transcript.delete-words`, or `transcript.find-replace`,
+new trim regions get added, the edited-time map shifts, and any region whose
+`startMs`/`endMs` was authored against the previous edited time **drifts off
+the moment it was placed on**. A "Like and Subscribe" lower third you placed
+on the word "subscribe" silently moves 800ms early because there used to be
+800ms of "um"s before it that got trimmed.
+
+**The fix is the `--anchorSourceMs` argument.** When you derive `atMs` /
+`startMs` from a transcript word's source time, pass that same value as
+`--anchorSourceMs`. The region records its anchor moment in raw recording
+time. Every subsequent trim/speed edit auto-rebases the region's edited
+positions back onto the anchor — the lower third stays glued to "subscribe"
+no matter how much you trim.
+
+**Verbs that accept anchors (use them ALWAYS when picking from transcript):**
+
+| Verb | Anchor args | When required |
+|---|---|---|
+| `project.add-zoom` | `--anchorSourceMs`, `--anchorSourceEndMs` | Always when atMs comes from a transcript word |
+| `project.add-motion-graphic` | `--anchorSourceMs`, `--anchorSourceEndMs` | Always when atMs comes from a transcript word |
+| `project.add-lower-third` | `--anchorSourceMs`, `--anchorSourceEndMs` | Always when atMs comes from a transcript word |
+| `project.add-annotation` | `--anchorSourceMs`, `--anchorSourceEndMs` | Always when startMs comes from a transcript word |
+| `project.add-audio` | `--anchorSourceMs`, `--anchorSourceEndMs` | When the overlay is an SFX pinned to a word. **NEVER for background music** — those should stay free-floating (a fixed slot of the edited timeline, not anchored to content). |
+
+**Free-floating is OK** — when the user explicitly placed a region by edited
+time (e.g. an outro card at "the last 5 seconds of the timeline"), omit the
+anchor. The region stays where you put it regardless of subsequent edits.
+
+**The runbook below already orders pacing FIRST, then regions.** That's safe
+even without anchors — regions land on the post-trim timeline. But: any
+mid-flow re-edit ("actually, remove the part about X" after you've placed
+motion graphics) drifts unanchored regions silently. Always anchor when the
+position came from a transcript word, even if the runbook order is followed.
+The cost is one extra arg per call; the benefit is correctness under iteration.
+
 ### The runbook (ordered — do not rearrange)
 
 ```bash
