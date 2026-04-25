@@ -539,6 +539,82 @@ work.
 
 ---
 
+## 5b · Clip-transform regions (camera-only / user-uploaded recordings only)
+
+For **camera-only** projects (Mode A 9:16 talking-head, or Mode C 16:9
+single-host), the main video clip can be time-bounded shrunk to make
+room for a motion graphic, then returned to full-frame. This is the
+"camera moves to corner / portrait card while a graphic plays" pattern
+used by Ali Abdaal, MKBHD intro cards, etc.
+
+> **Constraint — camera-only or user-uploaded recordings only.** Do
+> not add `clipTransformRegions` to projects whose primary clip is a
+> screen recording. Screen recordings have their own time-aware
+> visual story via cursor-telemetry zooms (`zoomRegions`); stacking
+> a layout transform on top of that fights the zoom math and produces
+> two competing motions.
+
+### 5b.1 Verb
+
+```bash
+pandastudio project.add-clip-transform-region \
+  --startMs=2000 \
+  --endMs=8000 \
+  --preset=cam-bottom-half \
+  --transitionMs=320          # optional, default 320
+```
+
+The default 320 ms transition is a cubic ease-in/out at both region
+boundaries. The verb supports `anchor.sourceMs` (passes through
+`rebaseAnchored` like every other anchored region type).
+
+### 5b.2 Presets
+
+| Preset | Use it when… |
+|---|---|
+| `cam-bottom-half` | 9:16 Mode A — motion graphic plays in top half, camera shrinks to bottom half. The default 9:16 explainer beat. |
+| `cam-top-half` | 9:16 Mode A inverse — graphic on bottom (lower-third style), camera occupies top. |
+| `cam-right-portrait` | 16:9 Mode C — Ali-Abdaal-style. Camera shrinks to a ~35% right-side portrait card while the left half hosts the motion graphic. The canonical 16:9 explainer beat. |
+| `cam-left-portrait` | 16:9 Mode C mirror — camera on left, graphic on right. Less common; only when the user specifies. |
+| `cam-bottom-right-quarter` | 16:9 brand corner — camera in a small bottom-right quarter while the rest is graphic-driven (logo reveals, big stat reveals). |
+| `cam-bottom-left-quarter` | Mirror of the above. |
+
+### 5b.3 The pattern
+
+A clip-transform region by itself is not the deliverable — it's
+infrastructure for an explainer beat. Always pair it with a motion
+graphic that plays during the same window:
+
+```bash
+# 1. Author and add the motion graphic (use motion.render-html)
+pandastudio motion.render-html --html=$HTML --outId=$MGID --aspect=16:9
+pandastudio project.add-motion-graphic \
+  --src=$MGOUT --startMs=2000 --endMs=8000 \
+  --x=0 --y=0 --width=960 --height=1080   # left half of a 1920x1080 stage
+
+# 2. Add the matching clip-transform so the camera makes room
+pandastudio project.add-clip-transform-region \
+  --startMs=2000 --endMs=8000 --preset=cam-right-portrait
+```
+
+Match the region timestamps to the motion graphic's. The 320 ms
+ease-in/out at boundaries means the camera glides into the portrait
+card just before the graphic starts and glides back to full-frame just
+after it ends — feels intentional, not snapped.
+
+### 5b.4 What clip-transform is NOT for
+
+- **Screen recordings.** Use `zoomRegions` (`project.add-zoom`) for
+  time-aware emphasis on screen content.
+- **Picture-in-picture webcam over a screen recording.** That's
+  configured project-wide via `project.set-webcam-layout`, not via
+  per-region transforms.
+- **Permanent layout changes.** If the entire video should be
+  side-by-side, set `webcamLayout` once. Clip-transform is exclusively
+  for time-bounded explainer beats.
+
+---
+
 ## 6 · Mode-to-template cheat sheet
 
 Until the template library is audited and upgraded to match these
