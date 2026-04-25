@@ -41,7 +41,7 @@ All accept `id` or `path`, plus optional `expectedRevision` for conflict-safe wr
 | `project.add-motion-graphic` | `file`, `durationMs`, `atMs` (optional, defaults to end-of-timeline) | Drop an MP4 (typically from `motion.generate`) as a media-overlay region. |
 | `project.add-fx` | `fxId` (bundled) OR `src` (custom URL/path), `atMs`, `durationMs` (optional) | Drop an FX overlay. Bundled FX inherits blend mode + opacity from the manifest. |
 | `project.add-lower-third` | `content` (req), `subtitle`, `atMs` (req), `durationMs`, `designType`, `accentColor` | Drop a lower-third name plate. |
-| `project.add-zoom` | `atMs`, `durationMs`, `depth` (1-6), `focusX/Y` (0-1) | Highlight a UI moment with a zoom region. |
+| `project.add-zoom` | `atMs`, `durationMs`, `depth` (1-6, default **2** = 1.5× soft modern), `focusX/Y` (0-1), `soundUrl` (default `bundled:sound/swoosh-fast`) | Highlight a UI moment with a zoom region. Ships with a default swoosh SFX; pass `soundUrl=none` to silence. |
 | `project.add-clip-transform-region` | `startMs`, `endMs`, `preset` (`cam-bottom-half` / `cam-top-half` / `cam-right-portrait` / `cam-left-portrait` / `cam-bottom-right-quarter` / `cam-bottom-left-quarter`), `transitionMs` (default 320) | Time-bounded layout transform on the main video clip — shrink camera to make room for a motion graphic during an explainer beat. **Camera-only / user-uploaded recordings only — never on screen recordings.** See video-authoring §5b. |
 | `project.add-trim` | `startMs`, `endMs` | Cut a section the exporter skips. |
 | `project.add-speed` | `startMs`, `endMs`, `speed` (0.25/0.5/0.75/1.25/1.5/1.75/2) | Speed up or slow down a span. |
