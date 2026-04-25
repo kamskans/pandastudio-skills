@@ -44,6 +44,15 @@ The TikTok/Shorts default. Face fills top half or whole frame; motion
 graphics live in the bottom portion; captions across the middle or
 bottom third.
 
+> **Default pairing:** for any motion graphic that plays mid-video
+> (not a full-screen intro/outro card), add a
+> `project.add-clip-transform-region preset=cam-bottom-half` (or
+> `cam-top-half`) over the same time window. Camera shrinks to one
+> half, the graphic gets the other half, then the camera returns to
+> full-frame. See §5b. Without this, the graphic either covers the
+> face or you have to permanently downsize the camera — both are
+> worse than the time-bounded shrink.
+
 ### 1.1 Face choreography — the most jarring mistake
 
 A face that **snaps between sizes instantly is the single worst frame
@@ -148,6 +157,10 @@ Plus:
 
 - [ ] Face mode transitions are interpolated (0.32s+ ease) everywhere,
       not snapped
+- [ ] **Every mid-video motion graphic has a paired
+      `clip-transform-region` covering the same window** (see §5b) —
+      so the camera shrinks to make room for the graphic instead of
+      being covered by it
 - [ ] Face is graded (contrast 1.08 / saturate 1.08 / brightness 0.97)
 - [ ] Ken Burns on face (1.0 → 1.05 over beat, `ease: 'none'`)
 - [ ] Side vignette on face frame
@@ -284,6 +297,16 @@ not the graphic.
 The premium pattern: **host stays live, graphic slides in beside them,
 they keep talking.** Graphic earns its space, plays its beat, slides
 out. Host was never interrupted.
+
+> **For camera-only Mode C (single-host explainers, no screen rec):
+> reach for `project.add-clip-transform-region preset=cam-right-portrait`
+> on every mid-video graphic.** The host shrinks to a portrait card on
+> the right while the graphic plays in the left half, then the host
+> returns to full-frame. This is the Ali-Abdaal / MKBHD pattern and
+> it is the default — see §5b. Skipping the clip-transform means
+> either the graphic covers the host's face (worst) or you're stuck
+> permanently letterboxing the host (a worse design choice than
+> time-bounded shrinking).
 
 Zones for 16:9 1920×1080:
 
@@ -448,6 +471,13 @@ of a 480-px-wide × 1080-px-tall zone.
       sponsor read — not mid-body
 - [ ] Host face area (x 640–1280, y 200–800 in strategy 2) has nothing
       on top of it at any frame
+- [ ] **Camera-only Mode C: every mid-video motion graphic has a paired
+      `clip-transform-region preset=cam-right-portrait` (or
+      `cam-left-portrait`) over the same window** (see §5b). The host
+      shrinks to a portrait card during the graphic's beat and returns
+      to full-frame after — Ali-Abdaal pattern. Skip only when the
+      project has a screen recording (those use cursor-telemetry zooms,
+      not clip-transform).
 
 ---
 
@@ -539,13 +569,24 @@ work.
 
 ---
 
-## 5b · Clip-transform regions (camera-only / user-uploaded recordings only)
+## 5b · Clip-transform regions — the default move for explainer beats
 
-For **camera-only** projects (Mode A 9:16 talking-head, or Mode C 16:9
-single-host), the main video clip can be time-bounded shrunk to make
-room for a motion graphic, then returned to full-frame. This is the
-"camera moves to corner / portrait card while a graphic plays" pattern
-used by Ali Abdaal, MKBHD intro cards, etc.
+> **Read this as a default rule, not a niche feature.** Whenever you
+> add a motion graphic to a **camera-only** project (Mode A 9:16
+> talking-head, or Mode C 16:9 single-host), you should also add a
+> clip-transform-region over the same time window. The camera shrinks
+> to make room for the graphic, plays the beat, then returns to
+> full-frame. **Skipping it = the graphic covers the host's face**,
+> which is the worst version of this edit.
+
+This is the "camera moves to corner / portrait card while a graphic
+plays" pattern Ali Abdaal, MKBHD, and most modern YouTube explainers
+use for every mid-video graphic. It's not advanced — it's the
+baseline. Reach for it whenever:
+
+- A motion graphic plays mid-video (not as a full-screen intro/outro)
+- The host is the main subject (camera-only / talking-head)
+- The graphic and the host both need to be visible at the same time
 
 > **Constraint — camera-only or user-uploaded recordings only.** Do
 > not add `clipTransformRegions` to projects whose primary clip is a
@@ -626,8 +667,11 @@ playbooks, here's the quick map:
 | "Turn this tutorial into a short" (screen + cam) | B | `motion.generate templateId=short-screen-pip` | `motion.render-html` with Mode B shell |
 | "YouTube intro / outro card" | C | `motion.generate templateId=youtube-lower-third` or `templateId=youtube-outro` | `motion.render-html` |
 | "Hero logo reveal for my brand" | A/B/C | `motion.render-html` (templates won't have the polish) | — |
-| "Explain this stat with a graphic" (mid-YouTube) | C | `motion.render-html` side-rail stat-reveal | — |
-| "Add chapter markers" (YouTube) | C | `motion.generate templateId=chapter-marker` | `motion.render-html` |
+| "Explain this stat with a graphic" (mid-YouTube, talking-head) | C | `motion.render-html` left-half graphic **+ `project.add-clip-transform-region preset=cam-right-portrait`** | — |
+| "Make this explainer Ali-Abdaal-style" (16:9 talking-head + tools) | C | For each tool intro: `motion.render-html` + `project.add-clip-transform-region preset=cam-right-portrait` | — |
+| "When I say X, show a graphic in the top half" (9:16 talking-head) | A | `motion.render-html` + `project.add-clip-transform-region preset=cam-bottom-half` | — |
+| "Add chapter markers" (YouTube) | C | `motion.generate templateId=chapter-marker` + clip-transform if mid-video over face | `motion.render-html` |
+| "Drop a logo / brand corner during my intro line" (camera-only) | A/C | `motion.render-html` + `project.add-clip-transform-region preset=cam-bottom-right-quarter` | — |
 
 **When in doubt: `motion.render-html` with the canonical shell from
 `motion-philosophy.md` §7.** Templates are faster but can only go as

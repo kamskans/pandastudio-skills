@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.28.1 -->
+<!-- version: 2.29.0 -->
 
 # PandaStudio
 
@@ -417,6 +417,25 @@ pandastudio project.add-motion-graphic \
 pandastudio project.add-motion-graphic \
   --id=<uuid> --file=/path/intro.mp4 --durationMs=2500 --atMs=0 \
   --soundUrl=bundled:sound/message-pop --soundVolume=0.9
+
+# ⚠ DEFAULT PAIRING: when the project is camera-only (talking-head,
+# user-uploaded recording, no screen recording) and you're dropping a
+# motion graphic mid-video, you MUST also add a clip-transform-region
+# over the same window. Otherwise the graphic covers the host's face —
+# which is the worst version of this edit. The clip-transform shrinks
+# the camera so the graphic plays alongside it, then returns to full
+# frame. Skipping this is a bug, not a stylistic choice.
+#
+#  9:16 talking-head Short → preset=cam-bottom-half
+#                            (graphic in top half, camera bottom half)
+#  16:9 single-host explainer (Ali-Abdaal-style) → preset=cam-right-portrait
+#                            (graphic in left half, camera as right portrait card)
+#
+# DO NOT use clip-transform on screen recordings — those use cursor-
+# telemetry zooms (project.add-zoom). See reference/video-authoring.md
+# §5b for all six presets and the full pairing pattern.
+pandastudio project.add-clip-transform-region \
+  --id=<uuid> --startMs=2000 --endMs=8000 --preset=cam-right-portrait
 
 pandastudio project.add-fx \
   --id=<uuid> --fxId=film-burn --atMs=5000
