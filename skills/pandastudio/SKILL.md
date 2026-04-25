@@ -1683,31 +1683,50 @@ audio into the scene MP4) or `project.add-audio` (adds music at the project
 level and exports with everything else). The project-level approach is more
 flexible — the same music plays across all scenes.
 
-### Validate layout with motion.screenshot BEFORE rendering
+### Pre-flight EVERY motion graphic with `motion.screenshot` — mandatory
 
-Full renders take 15–30 seconds. Use `motion.screenshot` to capture a single
-PNG frame in under a second — validate fonts, layout, and element positions
-before committing to a full encode.
+**This is the single highest-leverage performance habit you can adopt.**
+
+Full renders take 10–60 seconds depending on length and complexity. A
+single `motion.screenshot` frame is ~2 seconds. If your composition has
+a typo, missing CSS class, broken chrome-gradient, or wrong font weight,
+catching it on a 2-second screenshot saves a 30–60 second re-render.
+Across a 6-render multi-scene promo, the savings compound.
+
+**Required workflow before EVERY motion.render-html call:**
 
 ```bash
-# Check the first visible frame (t=0)
+# 1. Author /tmp/scene-1.html.
+# 2. Screenshot at t=0.5s (just past the entrance) AND at the hero
+#    moment (where the chrome-gradient should be lit, where the text
+#    should have settled, etc.). Two ~2-second calls.
 pandastudio motion.screenshot \
-  --html='<html>...</html>' \
-  --aspectRatio=16:9 \
-  --outputName=preview-t0 \
-  --json
+  --htmlPath=/tmp/scene-1.html --aspectRatio=16:9 --atMs=500 \
+  --outputName=scene-1-t500 --json
+pandastudio motion.screenshot \
+  --htmlPath=/tmp/scene-1.html --aspectRatio=16:9 --atMs=2000 \
+  --outputName=scene-1-t2000 --json
 
-# Check mid-animation (t=2s) to see the composition in motion
-pandastudio motion.screenshot \
-  --htmlPath=/tmp/product-scene.html \
-  --atMs=2000 \
-  --assets=/Users/me/product.png \
-  --outputName=preview-t2000 \
-  --json
+# 3. READ both PNGs (multimodal). Confirm:
+#    - Fonts are loading (not Times New Roman fallback)
+#    - Chrome gradient is rendering (not flat white text)
+#    - Layout fits the canvas (no overflow / cropping)
+#    - Per-word stagger is producing the right spans
+#    If anything looks wrong, fix the HTML and re-shoot — at 2s each
+#    you can iterate ~10 times in the time of one full render.
+
+# 4. Only AFTER both screenshots verify, call motion.render-html.
+pandastudio motion.render-html \
+  --htmlPath=/tmp/scene-1.html --durationMs=4000 \
+  --aspectRatio=16:9 --outputName=scene-1 --json
 ```
 
-`motion.screenshot` returns `{ outputPath }` directly — no `job.wait` needed.
-Open the PNG, verify, then call `motion.render-html` with the same args.
+**Skip pre-flight only when:** you're producing a new variant of a
+template you've already verified working. New compositions = always
+pre-flight.
+
+`motion.screenshot` returns `{ outputPath }` directly — no `job.wait`
+needed.
 
 ### Frame-verify before declaring done — `motion.verify-frames`
 
@@ -2220,9 +2239,24 @@ ID=$(pandastudio project.current --json | jq -r '.data.project.id // empty')
 pandastudio project.set-aspect-ratio --id=$ID --aspect=$ASPECT
 
 # 1. PACING — always run. Loom uses aggressive silence removal.
+#
+#    PERFORMANCE: audio.clean takes 30-60s on a typical 5-min recording.
+#    Fire it in the BACKGROUND and let it run while you build motion
+#    graphics in step 5 below. Block on it ONLY before export.start in
+#    step 7. Net wall-clock saving: 30-60s.
+# First read: pull the full project once including transcripts (you
+# need them to scan for emphasis words in step 2). Subsequent reads
+# pass --includeTranscript=false to skip the 600+ KB transcript dump
+# — saves ~2-4s of JSON parse per re-read, which adds up across a
+# multi-step edit.
 pandastudio project.read --id=$ID --json
 pandastudio transcript.transcribe --id=$ID               # skip if transcribed
-pandastudio audio.clean --id=$ID                         # skip if cleaned
+
+# Fire audio.clean async — it's a 30-60s job and runs independently.
+# Capture the jobId; do NOT job.wait here. The clean completes in the
+# background while we author MGs.
+AUDIO_CLEAN_JOB=$(pandastudio audio.clean --id=$ID --json | jq -r '.data.jobId // empty')
+
 pandastudio transcript.remove-fillers --id=$ID
 SILENCE_MS=$([ "$PROFILE" = "loom" ] && echo 300 || echo 500)
 pandastudio transcript.remove-silences --id=$ID --minSilenceMs=$SILENCE_MS
@@ -2359,10 +2393,69 @@ pandastudio preview.show --id=$ID   # let the project render a full draft
 # Read every returned frame. If any fail, fix + re-render + re-verify.
 
 # 5. EXPORT — quality per profile. Only run AFTER verify-frames passes.
+# First: block on the audio.clean job that's been running in the
+# background since step 1. By now it's almost certainly done (30-60s
+# vs the ~90s+ the rest of the work took), so this resolves instantly.
+[ -n "$AUDIO_CLEAN_JOB" ] && pandastudio job.wait --id="$AUDIO_CLEAN_JOB"
 QUALITY=$([ "$PROFILE" = "loom" ] && echo "standard" || echo "high")
 pandastudio export.start --id=$ID --quality=$QUALITY --json | jq -r '.data.jobId' | \
   xargs -I {} pandastudio job.wait --id={}
 ```
+
+### Performance — how to keep wall-clock minimal on a typical edit
+
+A "make me an Ali-Abdaal-style YouTube edit" runs ~100–180s of useful
+work. The dominant costs in order:
+
+1. **Motion-graphic renders** (60–90s for 6 parallel scenes; 5× longer
+   if accidentally serialised). Already addressed: every
+   `motion.render-html` call spawns its own Chromium OS process — fire
+   them all in parallel, collect jobIds, THEN `job.wait` each. Never
+   `job.wait` between fires. (See "renders are parallel" in the Custom
+   Motion Graphics section.)
+
+2. **`audio.clean`** (30–60s on a 5-min recording). Fire it in the
+   BACKGROUND right after `transcript.transcribe`. It runs while you
+   author motion graphics + add zooms/captions/LUT. Block on it ONLY
+   before `export.start`. The runbook above already does this — capture
+   `$AUDIO_CLEAN_JOB`, do all your other work, `job.wait` at step 5.
+   Net saving: 30–60s of wall-clock that would otherwise serialise.
+
+3. **Re-renders due to layout bugs** (30–60s when one slips through).
+   Always pre-flight new motion-graphic HTML with `motion.screenshot`
+   at t=0.5s and at the hero moment BEFORE calling `motion.render-html`
+   (see "Pre-flight EVERY motion graphic" above). Two ~2s screenshots
+   beat one ~30–60s wasted render.
+
+4. **`project.read` parse overhead** (~2–4s per read on a 5-min
+   recording — transcripts are 600+ KB). After your first read, pass
+   `--includeTranscript=false` on subsequent reads. clipStates still
+   tells you transcribed/wordCount status; the transcript words
+   themselves are rarely needed after pacing is done.
+
+5. **Caching reads in skill state.** If you read the project to get
+   region ids for an update, hold that JSON in your context — don't
+   re-read after every mutation. The mutation handlers all return
+   `{ path, revision, project }` so the response IS the post-write
+   project; use that instead of a fresh read.
+
+6. **Verb-call round-trips.** Each verb is ~10-15ms localhost HTTP.
+   Don't sweat individual calls — batch tasks naturally fall into
+   parallel groups (renders, zooms, etc.) which already amortise.
+
+**Rough wall-clock budget for an Ali-Abdaal-style edit (5-min source,
+6 motion graphics, audio clean ON, captions ON):**
+
+- transcribe + clean fillers/silences:   3–5s
+- audio.clean (background, free):        0s wall-clock if launched right
+- 6 motion-graphic renders in parallel:  60–90s (the dominant cost)
+- region adds + LUT + captions:          5–10s
+- frame verification (24 frames):        5–10s
+- export.start + job.wait:               60–120s (FFmpeg final assembly)
+
+Total: 130–230s. The motion-graphic renders are the main lever.
+Anything else is rounding error — chase the renders if you want to
+shave more.
 
 ### Anti-patterns (do NOT do these — all profiles)
 
