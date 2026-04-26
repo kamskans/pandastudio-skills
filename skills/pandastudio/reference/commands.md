@@ -73,6 +73,14 @@ Motion-graphic templates (title cards, lower thirds, end screens, etc.) with opt
 
 Theme application: pull `motion.themes`, find the theme the user wants, merge `theme.colors` into `slots` before sending. The backend doesn't know about themes — they're a pre-render layer.
 
+## media.*
+
+Project-agnostic media generation. Currently a single verb wrapping Replicate gpt-image-2 for B-roll, concept stills, reference frames.
+
+| Command | Args | Purpose |
+|---|---|---|
+| `media.generate-image` | `prompt` (required), `aspectRatio` (`1:1` \| `3:2` (default) \| `2:3`), `quality` (`low` \| `medium` (default) \| `high`), `referenceImagePath` (path/URL, optional), `outputName` (slug, optional) | Generate one image. Returns `{ imagePath, prompt, aspectRatio, predictionId }`. Requires the user's Replicate API key (Settings → Integrations). The canonical B-roll workflow is `media.generate-image` → `motion.render-html` (Ken-Burns + vignette wrap) → `project.add-motion-graphic` — see SKILL.md "B-roll generation". For 16:9 video, generate `3:2` and crop in the wrap; for 9:16, generate `2:3`. |
+
 ## export.*
 
 The export library (MyExports view). Read + patch only — there's no `export.start` yet; new exports require the editor.

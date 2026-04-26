@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.29.0 -->
+<!-- version: 2.30.0 -->
 
 # PandaStudio
 
@@ -874,6 +874,154 @@ Each is a short (0.5–1.2 s) effect that cross-warps or morphs between two stil
 - You're composing several blocks together — put catalog blocks inside a parent composition via `<div data-composition-src="compositions/<slug>.html" ...>` (the engine inlines the sub-composition's timeline into the parent automatically).
 
 **Full catalog URL:** https://hyperframes.heygen.com/catalog — browse previews and confirm slugs before installing.
+
+## B-roll generation (Replicate gpt-image-2)
+
+PandaStudio ships with a project-level image-gen verb backed by the
+user's own Replicate API key. Use it to author B-roll, concept
+stills, mood-board frames, or reference imagery for explainer beats —
+without leaving the editor.
+
+### The verb
+
+```bash
+pandastudio media.generate-image \
+  --prompt="cinematic 35mm photo, sunlit modern desk with vintage typewriter, warm tones, shallow depth of field" \
+  --aspectRatio=3:2 \
+  --quality=medium
+# → { imagePath: "/Users/.../generated-images/<ts>-cinematic-35mm.webp", ... }
+```
+
+**Aspect ratios are gpt-image-2 native:** `1:1` / `3:2` / `2:3`. For
+a 16:9 video, generate `3:2` and crop in the wrap. For 9:16, generate
+`2:3`. Don't ask the model for `16:9` — it doesn't exist in this API.
+
+**Requires a Replicate API key.** If the user hasn't connected one in
+Settings → Integrations, the verb returns an error explaining how to
+set it up. Don't loop on this; surface to the user.
+
+### ⚠ Don't drop a flat photo straight into the timeline
+
+A still image cut between A-roll always reads as amateur. Per
+motion-philosophy Law #4 (*"Camera never sleeps"*), every B-roll
+beat needs at least one micro-motion layer. The two-step recipe:
+
+```bash
+# 1. Generate the still
+RES=$(pandastudio media.generate-image \
+  --prompt="<visual prompt>" --aspectRatio=3:2 --json)
+IMG=$(echo "$RES" | jq -r '.data.imagePath')
+
+# 2. Wrap it in a Ken-Burns + vignette HTML and render to WebM
+#    (use the canonical B-roll shell below)
+JOB=$(pandastudio motion.render-html \
+  --html="$BROLL_HTML" \
+  --aspectRatio=16:9 \
+  --durationMs=4000 \
+  --json | jq -r '.data.jobId')
+WEBM=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
+
+# 3. Drop into the project at the matching transcript moment
+pandastudio project.add-motion-graphic \
+  --id=$PID --file=$WEBM --atMs=$BEAT_MS --durationMs=4000
+```
+
+### Canonical B-roll HTML shell
+
+Drop the absolute file path of the generated image into `<<IMG_PATH>>`.
+The shell handles aspect cropping (`object-fit: cover`), slow Ken-Burns
+zoom, side vignette, and a subtle grain layer. Total duration is
+controlled by `--durationMs` on `motion.render-html`.
+
+```html
+<!doctype html>
+<html><head><style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  .stage { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .broll {
+    position: absolute; inset: 0;
+    background: url("file://<<IMG_PATH>>") center/cover no-repeat;
+    transform-origin: 50% 50%;
+    will-change: transform, filter;
+    filter: saturate(1.05) contrast(1.04);
+  }
+  .vignette {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center,
+      rgba(0,0,0,0) 55%,
+      rgba(0,0,0,0.35) 85%,
+      rgba(0,0,0,0.65) 100%);
+    pointer-events: none;
+  }
+  .grain {
+    position: absolute; inset: 0;
+    opacity: 0.06;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+    background-image:
+      radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
+      radial-gradient(rgba(255,255,255,0.4) 1px, transparent 1px);
+    background-size: 3px 3px, 7px 7px;
+    background-position: 0 0, 1px 2px;
+  }
+</style></head>
+<body>
+  <div class="stage">
+    <div class="broll" id="broll"></div>
+    <div class="vignette"></div>
+    <div class="grain"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script>
+    // HyperFrames sets data-duration on <body>; default 4s if absent.
+    const SLOT_DURATION = (document.body.dataset.duration | 0) || 4;
+    gsap.registerPlugin();
+    const tl = gsap.timeline({ paused: true });
+    // Slow linear push-in — cinematic Ken-Burns. Pick ONE direction
+    // randomly per render to avoid every B-roll feeling identical.
+    const dir = Math.random();
+    const startScale = 1.0, endScale = 1.08;
+    const tx = dir < 0.5 ? -1.5 : 1.5; // % horizontal drift
+    tl.fromTo("#broll",
+      { scale: startScale, x: "0%" },
+      { scale: endScale, x: tx + "%", duration: SLOT_DURATION, ease: "none" },
+      0
+    );
+    // Subtle final-second darken so the cut out feels intentional.
+    tl.to("#broll",
+      { filter: "saturate(0.95) contrast(1.02) brightness(0.92)", duration: 0.6, ease: "power2.in" },
+      SLOT_DURATION - 0.6
+    );
+    // No-op duration anchor — Law #11.
+    tl.to({}, { duration: SLOT_DURATION }, 0);
+    window.__timelines = window.__timelines || {};
+    window.__timelines.broll = tl;
+  </script>
+</body></html>
+```
+
+### When to reach for B-roll
+
+| Beat | B-roll move |
+|---|---|
+| Host says "imagine X" / "picture this" | Concept still that visualises X — 3-4s, host audio under |
+| Host names a product / tool / place | Product still or location photo — 2-3s, single zoom |
+| Host says "studies show" / "research shows" | Abstract data-vis aesthetic still (charts, lines on dark bg) — 3s |
+| Mid-explainer pause ("...") | Pattern break still — texture, atmosphere, no humans — 1.5-2s |
+
+### Density rules
+
+- **Max 1 generated B-roll per 8 seconds of host runtime.** More than that and the host disappears from their own video. The viewer wants the *person*, B-roll is seasoning.
+- **Minimum 1.5s on screen.** Anything shorter feels like a glitch.
+- **Pair with a clip-transform-region for camera-only Mode A/C.** B-roll plays in one half, host stays visible in the other half — see `reference/video-authoring.md` §5b. Never let B-roll cover the host's face.
+- **Quality `low` for first-pass exploration**, `medium` for the keeper. Don't burn `high` until the prompt is locked.
+- **Reuse `referenceImagePath`** to keep visual continuity across multiple B-roll stills in the same video — pass the first generation as the reference for subsequent ones.
+
+### What this verb is NOT for
+
+- **YouTube thumbnails** — use `export.generate-thumbnail` (it's tied to an export entry and tracks iteration history).
+- **Logos / brand marks / typography** — image-gen wrecks fine type. Author those as HTML in `motion.render-html`.
+- **Anything with text overlays** — gpt-image-2's text rendering is unreliable. Generate a clean photo, add text via the motion-graphic wrap.
 
 ## Transcript-based editing — PandaStudio's signature feature
 
