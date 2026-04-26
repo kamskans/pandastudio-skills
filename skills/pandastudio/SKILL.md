@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.30.0 -->
+<!-- version: 2.31.0 -->
 
 # PandaStudio
 
@@ -101,6 +101,35 @@ pandastudio workspace.delete --id=$WS --json
 ```
 
 **Don't quietly switch workspaces mid-task.** If you need to operate in a different workspace than the one the user opened, confirm with them first. Crossing client boundaries silently is how agency relationships break.
+
+### ⚠ When given a project id with no other context
+
+If the user hands you a project id (in chat, in a CSV, in a webhook payload) and you don't know which workspace it belongs to, **always run `project.locate` FIRST**, before any read/edit/export/publish:
+
+```bash
+RES=$(pandastudio project.locate --id=$PID --json)
+# { "data": { "id": ..., "filePath": ..., "workspaceId": ..., "workspaceName": "Client A",
+#             "isInActiveWorkspace": false } }
+IN_ACTIVE=$(echo "$RES" | jq -r '.data.isInActiveWorkspace')
+WS_NAME=$(echo "$RES" | jq -r '.data.workspaceName')
+
+if [ "$IN_ACTIVE" != "true" ]; then
+  # STOP. Do not silently switch. Ask the user.
+  # "This project lives in workspace '$WS_NAME', current is '<X>' — switch?"
+fi
+```
+
+**Why this matters:** `project.read` happily resolves a project from any workspace, but `export.publish-youtube`, `media.generate-image`, `export.generate-thumbnail`, and `youtube.list-accounts` all use the **active workspace's** credentials. Editing project A while workspace B is active and then publishing → the video lands on Client B's YouTube channel. **The worst kind of mistake.**
+
+**Every `project.read` response now also carries the workspace fields** (`workspaceId`, `workspaceName`, `isInActiveWorkspace`) — so even if you skipped `project.locate`, you can still detect the mismatch from the read response and bail before mutating anything. But `project.locate` is cheaper (no project body) and clearer in intent — call it first when working from a bare id.
+
+**Hard rule: never call `export.publish-youtube` without confirming `isInActiveWorkspace === true` for the project being published.** If the user asks you to publish a project in a different workspace, walk them through the explicit switch:
+
+```bash
+pandastudio workspace.switch --id=$TARGET_WS --json
+# Then re-run any pre-flight that depends on workspace state
+# (license check, youtube account list, replicate key check)
+```
 
 ## Publishing to YouTube (v1.19+)
 

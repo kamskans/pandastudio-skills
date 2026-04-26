@@ -21,7 +21,8 @@ Project files are JSON on disk under the user's recordings dir. All paths are va
 
 | Command | Args | Purpose |
 |---|---|---|
-| `project.list` | — | Every project, newest-first: `{ id, revision, path, name, clipCount, modifiedAt, createdAt, sizeBytes }`. |
+| `project.list` | `allWorkspaces` (bool, default false) | Projects in the active workspace (or all, with `allWorkspaces=true`), newest-first: `{ id, revision, path, name, clipCount, modifiedAt, createdAt, sizeBytes, workspaceId }`. Top-level response also returns `currentWorkspaceId`. |
+| `project.locate` | `id` (req) | Look up a project's owning workspace WITHOUT reading the body. Returns `{ id, filePath, workspaceId, workspaceName, isInActiveWorkspace }`. Pre-flight check before any edit/export/publish on a bare project id — prevents publishing to the wrong client's YouTube channel. See SKILL.md "Workspaces" §"When given a project id with no other context". |
 | `project.read` | `id` \| `path` | Full JSON. **Pass back `project.revision` as `expectedRevision` on save.** |
 | `project.show` | `id` \| `path` (or no args) | Resolve to path + summary. With no args, returns recordingsDir + userDataDir. |
 | `project.new` | `name` (req), `withMedia` (string\[\] or comma-list of paths) | Create v3 project; if `withMedia` set, FFmpeg-probes each video and adds it as a clip. |
