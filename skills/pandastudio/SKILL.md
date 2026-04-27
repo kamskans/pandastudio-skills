@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.32.0 -->
+<!-- version: 2.33.0 -->
 
 # PandaStudio
 
@@ -799,6 +799,68 @@ pandastudio job.wait --id="$JOB" --json | jq '.data.job.result.outputPath'
 ```
 
 The resulting `.webm` attaches with `project.add-motion-graphic` — same call as any other motion graphic.
+
+### Frosted-glass overlays — `--transparent` + `backdropBlurStrength` (v1.23.2+)
+
+The compositor (preview, Skia exporter, Tier-3 PixiJS) supports **alpha-driven backdrop blur** on any media-overlay region — the camera (or whatever's underneath) gets Gaussian-blurred through the overlay's alpha channel. So a translucent rounded "glass card" rendered as a transparent WebM gets its underlying area frosted EXACTLY to the card's shape — not a rectangular halo.
+
+**The two-step recipe agents must follow:**
+
+1. **Render the motion graphic with alpha.** Either:
+   - `motion.render-html --transparent` (your authored HTML), OR
+   - `motion.generate --transparent --glassMode` (template + the shared glass-mode CSS pass that hides solid-bg decorations and wraps content in a glass card automatically).
+
+2. **Attach `backdropBlurStrength` when adding to the timeline.** On `project.add-motion-graphic`, pass `backdropBlurStrength=24` (Glass-mode default; 12 = subtle, 36+ = heavy) and `backdropBlurTint='rgba(10,10,10,0.18)'` (slight dark glass).
+
+```bash
+# Author your own glass card via render-html
+JOB=$(pandastudio motion.render-html \
+  --htmlPath=/tmp/glass-card.html \
+  --aspectRatio=9:16 \
+  --durationMs=3500 \
+  --transparent \
+  --json | jq -r '.data.jobId')
+WEBM=$(pandastudio job.wait --id="$JOB" --json | jq -r '.data.job.result.outputPath')
+
+# Drop on timeline WITH frosted-glass blur on the camera behind it
+pandastudio project.add-motion-graphic \
+  --id=$ID \
+  --file="$WEBM" \
+  --durationMs=3500 \
+  --atMs=12000 \
+  --backdropBlurStrength=24 \
+  --backdropBlurTint='rgba(10,10,10,0.18)'
+```
+
+Or via a bundled template's glass-mode pass (no HTML authoring needed):
+
+```bash
+JOB=$(pandastudio motion.generate \
+  --templateId=listicle-vox \
+  --slots='{"title":"5 ways to ship faster","items":[…]}' \
+  --aspectRatio=9:16 \
+  --transparent --glassMode \
+  --json | jq -r '.data.jobId')
+WEBM=$(pandastudio job.wait --id="$JOB" --json | jq -r '.data.job.result.outputPath')
+pandastudio project.add-motion-graphic --id=$ID --file="$WEBM" --durationMs=5200 \
+  --backdropBlurStrength=24 --backdropBlurTint='rgba(10,10,10,0.18)'
+```
+
+**To toggle blur on overlays you already added** — `project.set-overlay-backdrop-blur`:
+
+```bash
+# Add or update
+pandastudio project.set-overlay-backdrop-blur \
+  --id=$ID --regionId=overlay-3 --strength=24 --tint='rgba(10,10,10,0.18)'
+
+# Disable (clears the field)
+pandastudio project.set-overlay-backdrop-blur \
+  --id=$ID --regionId=overlay-3 --strength=0
+```
+
+**Critical pairing rule.** Backdrop blur reads through the overlay's alpha. If the overlay is fully opaque (a regular MP4 motion graphic, an image without alpha, an unmasked video), the blur has no shape to mask and produces nothing visible. **Always pair backdropBlurStrength with a transparent / glassMode render.** When in doubt, set both `transparent: true` AND `backdropBlurStrength: 24` — the visual is the gold-standard "frosted-glass card on camera" look every modern editor (Premiere, CapCut, DaVinci) ships as a built-in effect.
+
+**When NOT to use it.** Speak overlays / annotations that need to read crisp on the underlying frame benefit from blur, but anything that's already a full-frame replacement (a complete background image, a full-bleed video clip) shouldn't have it — there's nothing meaningful to blur behind.
 
 ### Common authoring mistakes
 
