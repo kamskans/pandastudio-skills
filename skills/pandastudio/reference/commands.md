@@ -36,8 +36,9 @@ All accept `id` or `path`, plus optional `expectedRevision` for conflict-safe wr
 
 | Command | Args | Purpose |
 |---|---|---|
-| `project.add-clip` | `media` (path) | Append a video clip to the main track. Probes duration. |
+| `project.add-clip` | `media` (path), `atIndex` (optional, 0 = prepend) | Insert a video clip on the main track. Probes duration. Default: append at end. |
 | `project.remove-clip` | `clipId` | Drop a clip by id. |
+| `project.move-clip` | `clipId`, `toIndex` | Reorder a clip on the main track. Project-level regions automatically migrate to follow their original clips, so zooms/trims/etc. stay attached to the same content after the reorder. |
 | `project.split-clip` | `clipId`, `atSourceMs` | Split a clip in two at a position in its source time. |
 | `project.add-motion-graphic` | `file`, `durationMs`, `atMs` (optional, defaults to end-of-timeline) | Drop an MP4 (typically from `motion.generate`) as a media-overlay region. |
 | `project.add-fx` | `fxId` (bundled) OR `src` (custom URL/path), `atMs`, `durationMs` (optional) | Drop an FX overlay. Bundled FX inherits blend mode + opacity from the manifest. |
@@ -123,7 +124,7 @@ The editorial primitive that makes PandaStudio PandaStudio. Every operation that
 
 | Command | Args | Purpose |
 |---|---|---|
-| `export.start` | `id` \| `path`, `outputPath` (optional), `quality` (`draft \| standard \| high \| ultra`) | **Async.** Render the project to MP4 via the Skia native render-helper. Returns `{ jobId, outputPath }`. Honours every region/style/caption/FX/lower-third in the project. |
+| `export.start` | `id` \| `path`, `outputPath` (optional), `quality` (`draft \| standard \| high \| ultra`) | **Async.** Render the project to MP4 via the same Tier-3 PixiJS pipeline the editor's Export Video button uses (v1.24+). Reuses an open editor if it's already on the target project, otherwise spawns a hidden editor window for the duration of the render. Returns `{ jobId, outputPath }`. Honours every region/style/caption/FX/lower-third/motion-graphic in the project. |
 | `export.list` | — | Every entry in the export library, newest-first. |
 | `export.get` | `id` | Read a single library entry. |
 | `export.update` | `id`, `patch` | Patch fields like generatedTitle. |

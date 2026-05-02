@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.33.0 -->
+<!-- version: 2.35.0 -->
 
 # PandaStudio
 
@@ -436,6 +436,7 @@ first.
 ```bash
 pandastudio project.add-clip --id=<uuid> --media=/path/new-clip.mp4
 pandastudio project.add-clip --id=<uuid> --media=/path/title.mp4 --atIndex=0  # prepend
+pandastudio project.move-clip --id=<uuid> --clipId=clip-2 --toIndex=0  # reorder
 pandastudio project.split-clip --id=<uuid> --clipId=clip-1 --atSourceMs=4000
 pandastudio project.remove-clip --id=<uuid> --clipId=clip-2
 pandastudio project.delete --id=<uuid>  # ⚠ permanent, no trash
@@ -802,7 +803,7 @@ The resulting `.webm` attaches with `project.add-motion-graphic` — same call a
 
 ### Frosted-glass overlays — `--transparent` + `backdropBlurStrength` (v1.23.2+)
 
-The compositor (preview, Skia exporter, Tier-3 PixiJS) supports **alpha-driven backdrop blur** on any media-overlay region — the camera (or whatever's underneath) gets Gaussian-blurred through the overlay's alpha channel. So a translucent rounded "glass card" rendered as a transparent WebM gets its underlying area frosted EXACTLY to the card's shape — not a rectangular halo.
+The compositor (preview + export — same code path as of v1.24+) supports **alpha-driven backdrop blur** on any media-overlay region — the camera (or whatever's underneath) gets Gaussian-blurred through the overlay's alpha channel. So a translucent rounded "glass card" rendered as a transparent WebM gets its underlying area frosted EXACTLY to the card's shape — not a rectangular halo.
 
 **The two-step recipe agents must follow:**
 
@@ -2367,7 +2368,7 @@ gpt-image-2 rewards photo-language and specificity. The LLM that auto-writes the
 
 ## Export — produce the final MP4
 
-The centerpiece. Headless, runs the same Skia native render-helper the editor's Export button does. **Async; poll `job.wait`.**
+The centerpiece. Routes through the same Tier-3 PixiJS renderer the editor's Export Video button uses (v1.24+ — was a separate Skia native pipeline before that, see release notes for the convergence). When an editor window is already open on the project you're exporting, the agent reuses it. Otherwise the agent spawns a hidden editor window for the duration of the render and closes it after. **Async; poll `job.wait`.**
 
 ```bash
 JOB=$(pandastudio export.start --id=$ID --quality=high --json \
@@ -2382,7 +2383,7 @@ Quality presets: `draft` (1280×720), `standard` / `high` (1920×1080), `ultra` 
 
 The export honours **everything** in the project: clips, trims (incl. those from transcript word deletes), speed regions, zooms, captions, FX, lower-thirds with sound, motion graphics, annotations, cleaned audio, wallpaper, padding/shadow/radius/blur. One verb, full pipeline.
 
-**Video overlays (motion graphics) are fully composited in the export** — both opaque MP4 (`motion.generate`, `motion.render-html`) and transparent WebM (`motion.render-html --transparent`) are layered onto the main video via a post-process FFmpeg pass after the Skia render. Alpha channels from VP9/WebM sources are preserved exactly. There is nothing extra you need to call — `export.start` handles it automatically once overlays are on the timeline via `project.add-motion-graphic`.
+**Video overlays (motion graphics) are fully composited in the export** — both opaque MP4 (`motion.generate`, `motion.render-html`) and transparent WebM (`motion.render-html --transparent`) are composited inline by the Tier-3 pipeline. Alpha channels from VP9/WebM sources are preserved exactly. There is nothing extra you need to call — `export.start` handles it automatically once overlays are on the timeline via `project.add-motion-graphic`.
 
 ## Video editing playbook — end-to-end recipe (per destination)
 
