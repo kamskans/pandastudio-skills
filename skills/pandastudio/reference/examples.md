@@ -249,7 +249,8 @@ pandastudio project.set-wallpaper --id=$ID --wallpaper=gradient-night
 pandastudio window.preview --id=$ID
 echo "Preview opened — give the user a moment to scrub."
 
-# Step 12: EXPORT. Headless, full Skia native pipeline.
+# Step 12: EXPORT. Routes through the same Tier-3 renderer the UI uses
+# (reusing an open editor on the project, or spawning a hidden one).
 EXPORT_JOB=$(pandastudio export.start --id=$ID --quality=high --json \
   | jq -r '.data.jobId')
 RESULT=$(pandastudio job.wait --id=$EXPORT_JOB --timeoutMs=900000 --json)
