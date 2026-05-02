@@ -5,6 +5,21 @@
 HTML, or build a lower-third / intro / transition, the rules in this doc
 decide whether the result looks premium or looks like default AI output.
 
+> **Authoritative engine docs.** PandaStudio's motion-graphic pipeline is
+> [Hyperframes](https://hyperframes.heygen.com/) (HeyGen's open-source HTML→video
+> renderer). The composition / determinism / timeline rules in this file
+> mirror their published guides — when in doubt, those win:
+>
+> - [Prompting guide](https://hyperframes.heygen.com/guides/prompting) — the
+>   authoritative LLM-targeted authoring playbook
+> - [Common mistakes](https://hyperframes.heygen.com/guides/common-mistakes)
+> - [Hyperframes core SKILL.md](https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/SKILL.md)
+> - [Animation-library adapters (gsap, three, anime, lottie, waapi, css)](https://github.com/heygen-com/hyperframes/tree/main/skills)
+>
+> If a motion-graphic render comes out static or off-by-frames, 9 times out of
+> 10 you violated one of the rules in §0 (the 11 laws) or §6 (anti-patterns).
+> Re-read those before debugging deeper.
+
 The bar we're aiming for: the HeyGen HyperFrames launch aesthetic and the
 Infinite Global Payments spot (`x-XTeSJ-DKx63uB4.mp4`, 1920×1080, 30fps,
 900 frames). Black canvas, chrome-gradient type, motion-blurred whips,
@@ -169,8 +184,8 @@ most of the reference pieces.
 | **Color recolor (no cut)** | Same scene, palette shifts via CSS custom properties — reads as a new beat without a new cut. *Highest ROI move in the vocabulary.* | `tl.to(':root', { '--accent': '#ff9430', '--edge': '#ffd84a', duration: 0.6 }, T)` |
 | **Slide-up phone reveal** | Device mockup enters from bottom edge with headline above | `tl.from(phone, { y:'100%', duration:1, ease:'power3.out' }, 0).from(headline, { y:30, opacity:0 }, 0.3)` |
 | **Wheel + side-panel** | Central UI rotates while labeled text panels slide in L/R | `tl.to(wheel, { rotation:120, duration:1.5 }).from(panel, { x:-100, opacity:0 }, '<0.3')` |
-| **Floating cluster drift** | 3+ objects gently bob continuously — keeps "still" frames alive | `gsap.to(coins, { y:'-=15', duration:2, repeat:-1, yoyo:true, ease:'sine.inOut', stagger:{each:0.4, from:'random'} })` |
-| **Vignette breath** | Vignette opacity wobbles to prevent stillness | `gsap.to(vignette, { opacity:0.9, duration:4, repeat:-1, yoyo:true, ease:'sine.inOut' })` |
+| **Floating cluster drift** | 3+ objects gently bob throughout the scene — keeps "still" frames alive. Use a finite repeat count derived from composition duration; `repeat: -1` is forbidden because Hyperframes seeks deterministically and infinite repeats run on GSAP's internal time. | `gsap.to(coins, { y:'-=15', duration:2, repeat: Math.ceil(SLOT_DURATION/4) - 1, yoyo:true, ease:'sine.inOut', stagger:{each:0.4} })` (seeded stagger — drop `from:'random'`; use a deterministic order or seeded PRNG instead) |
+| **Vignette breath** | Vignette opacity wobbles continuously across the scene. Same finite-repeat rule. | `tl.to(vignette, { opacity:0.85, duration:1.6, repeat: Math.ceil(SLOT_DURATION/3.2) - 1, yoyo:true, ease:'sine.inOut' }, 0)` (attach to `tl`, not floating `gsap.to` — keeps it inside the seek-driven timeline) |
 | **Cut-the-curve vertical whip** | Default adjacent-beat transition: exit rides up w/ blur, entry rises from below w/ matching blur, same direction, velocity matched | **Exit:** `tl.to(wrap, { y:-150, filter:"blur(30px)", duration:0.33, ease:"power2.in" })` **Entry:** `gsap.set(wrap, { y:150, filter:"blur(30px)" })` then `tl.to(wrap, { y:0, filter:"blur(0px)", duration:1.0, ease:"power2.out" }, 0)` |
 | **Faux-cursor click event** | 7-tween sequence selling a UI interaction (click, ripple, overshoot, settle) | See §3 of this doc for full recipe |
 
@@ -286,7 +301,7 @@ Don't guess eases. These are the exact values from reference-quality work.
 | UI overshoot (settle) | `elastic.out(1, 0.3)` to `elastic.out(1, 0.4)` | 0.20s |
 | Cursor blink | `steps(1)` yoyo | repeat, 0.4s on / 0.4s off |
 | Continuous rotation | `"none"` | full beat |
-| Breathe / drift | `sine.inOut` yoyo | 2–4s, `repeat: -1` |
+| Breathe / drift | `sine.inOut` yoyo | 2–4s cycle, `repeat: ⌈SLOT_DURATION/cycle⌉ - 1` (NEVER `-1` — see anti-patterns) |
 
 **Stagger values (reference roster):**
 
@@ -406,6 +421,48 @@ tl.to(wrap, { y: -150, filter: 'blur(30px)', duration: 0.33, ease: 'power2.in' }
 **Rule:** if you can't name the matching tween in a comment, you haven't
 designed the seam. Go back and design it.
 
+### 3.6 Deterministic randomness (seeded PRNG)
+
+Hyperframes' frame-perfect capture means `Math.random()` produces a
+DIFFERENT random sequence on every render — particle bursts, scattered
+stars, jittered offsets all change between exports. The fix is a
+seeded mulberry32 PRNG: same seed → same sequence → same frames.
+
+```js
+// Drop this at the top of your <script> body. ~10 LOC, no deps.
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const rand = mulberry32(20251101);  // any constant — change to reroll
+
+// Use anywhere you'd have used Math.random():
+const stars = Array.from({ length: 80 }, (_, i) => ({
+  x: rand() * 100,        // % of canvas
+  y: rand() * 100,
+  size: 1 + rand() * 2.5,
+}));
+```
+
+For one-off harmonic offsets (no PRNG state needed), the
+sin-cosine-hash trick works too:
+
+```js
+// 80 → 300 range, varies per index, deterministic, no state.
+const offset = i =>
+  80 + 220 * Math.abs(Math.sin(i * 0.7 + 0.3) * Math.cos(i * 1.3 + 0.7));
+```
+
+**Never** use `Math.random()`, `Date.now()`, `performance.now()`,
+`crypto.getRandomValues()`, or any GSAP `from: 'random'` stagger. All
+of those produce non-deterministic frames.
+
 ---
 
 ## 4 · Pre-flight checklist — run BEFORE claiming done
@@ -484,17 +541,51 @@ Before you ship any motion graphic, ask:
   the unifying *texture*. Every scene, every time.
 - ❌ **Forgetting to render a draft and look at it.** Lint passing ≠
   design working. **VIEW THE FRAMES.**
-- ❌ **`Math.random()` / `Date.now()` / unseeded PRNGs inside a render
-  loop.** Renders must be deterministic frame-to-frame. Use harmonic
-  hashes instead:
+- ❌ **`Math.random()` / `Date.now()` / `performance.now()` / unseeded
+  PRNGs.** Renders must be bit-deterministic frame-to-frame. Use a
+  seeded mulberry32 PRNG, OR a harmonic hash:
   `80 + 220 * Math.abs(Math.sin(i*0.7 + 0.3) * Math.cos(i*1.3 + 0.7))`
+- ❌ **`repeat: -1` on GSAP tweens.** Infinite repeats run on GSAP's
+  internal time, not seek time, so frames render at non-deterministic
+  phases. Use a finite count that fills the composition: e.g. for a 8s
+  composition with a 2s breath cycle, `repeat: 4`. Pad with
+  `tl.set({}, {}, COMPOSITION_DURATION)` so the timeline length
+  remains exact (Law #11). Same for ALL "live" effects — vignette
+  breath, particle drift, ambient bobs, chromatic shimmer.
+- ❌ **`setInterval` / `setTimeout` / async-await inside the render
+  body or while building timelines.** Synchronous-only. Hyperframes'
+  seek is also synchronous — async work mid-build produces
+  partially-initialised state when the renderer captures.
+- ❌ **Animating `visibility` / `display` / `width` / `height` for
+  reveals.** Animate `opacity` (or GSAP's `autoAlpha`), `transform`,
+  and color. The omitted properties either don't tween, layout-thrash
+  on every frame, or require a full reflow that breaks Hyperframes'
+  frame-perfect capture.
+- ❌ **`<br>` tags for line breaks in headings or body copy.** Use
+  `max-width` and let CSS wrap naturally — `<br>` will land in the
+  wrong place when text length changes between renders.
+- ❌ **SVG-filter grain via `<filter>` data URI.** Breaks Safari /
+  html2canvas (Hyperframes uses Chromium for video render but the same
+  HTML often gets thumbnail-captured elsewhere). Use the CSS radial-
+  gradient grain pattern from §1.1.
+- ❌ **Exit animations on non-final scenes.** When a shader transition
+  fires between scenes, the transition IS the exit — adding a fade-out
+  before it produces a double-fade that looks broken.
 - ❌ **Animating `<video>` dimensions directly.** Wrap the `<video>` in a
   `<div>` and animate the wrapper. Direct `<video>` animation freezes
   the decoder and the video pauses while audio continues.
+- ❌ **Composition timeline shorter than embedded `<video>`.** The video
+  freezes on its last decoded frame for the trailing duration. Pad the
+  GSAP timeline to ≥ video duration via `tl.set({}, {}, videoDuration)`.
 - ❌ **Using `window.__hf.seek` / `window.__hf.duration` directly.** That
   bypasses the compositor invalidation wrapper — animations render with
   1-second stalls. ALWAYS register through `window.__timelines[id]` and
   let the paused-timeline + HF tick loop drive seek.
+- ❌ **Calling `video.play()` / `audio.play()` / setting `currentTime`
+  manually.** Hyperframes owns media playback. Author your `<video>` as
+  `muted playsinline` with `data-start` + `data-duration` attributes
+  and let the framework drive it. Audio goes in separate `<audio>`
+  elements with the same data-attributes.
 - ❌ **Leaning on registry blocks for hero moments.** The HyperFrames
   launch reference installs ZERO registry blocks — every scene is
   hand-built. Registry = production velocity. Bespoke = reference bar.
@@ -592,12 +683,26 @@ cheap and it's what separates template-filled from reference-quality.
   const SLOT_DURATION = 6; // must match data-duration
   const tl = gsap.timeline({ paused: true });
 
-  // ambient life — vignette breath (law #4)
-  gsap.to('.vignette', { opacity: 0.85, duration: 4, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+  // Ambient life — vignette breath (law #4). Attached to the paused
+  // timeline (NOT a floating gsap.to) so Hyperframes' deterministic
+  // seek drives every frame at the right phase. `repeat: -1` would
+  // run on GSAP's internal time and produce non-deterministic frames.
+  // For a 1.6s cycle yoyo over a 6s composition we need ⌈6/3.2⌉-1 = 1
+  // repeat (1.6s × 2 cycle direction × (1+1 plays) = 6.4s ≈ slot).
+  const BREATH_CYCLE = 1.6;
+  tl.to('.vignette', {
+    opacity: 0.85,
+    duration: BREATH_CYCLE,
+    repeat: Math.max(0, Math.ceil(SLOT_DURATION / (BREATH_CYCLE * 2)) - 1),
+    yoyo: true,
+    ease: 'sine.inOut',
+  }, 0);
 
   // … your tweens here …
 
-  // LAW #11 anchor — do not remove
+  // LAW #11 anchor — do not remove. Guarantees the timeline's
+  // cumulative duration === SLOT_DURATION so Hyperframes captures the
+  // full composition without trailing black frames.
   tl.to({}, { duration: SLOT_DURATION }, 0);
   window.__timelines['root'] = tl;
 })();
