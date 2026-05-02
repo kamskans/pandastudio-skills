@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.37.0 -->
+<!-- version: 2.39.0 -->
 
 # PandaStudio
 
@@ -16,9 +16,42 @@ description: Edit videos in PandaStudio — a desktop video editor for YouTube, 
 
 PandaStudio is a desktop video editor. You drive it either through the `pandastudio` CLI (localhost HTTP) **or** through the `writepanda` MCP server (same verbs, exposed as `project_list`, `project_add_zoom`, `motion_generate`, `export_start`, etc.). **The verbs, argument names, and behaviors are identical across both interfaces** — every example in this skill that shows a CLI call like `pandastudio project.add-zoom` maps 1:1 to the MCP tool `project_add_zoom` with the same args. Use whichever is available; don't switch mid-task.
 
-> PandaStudio is a desktop video editor with an HTML-based motion-graphics pipeline (HyperFrames + Puppeteer under the hood). As an AI agent, you **author motion graphics as custom HTML via `motion.render-html`** — you do NOT fill bundled templates. The bundled template library exists for the in-app Gemma E2B local model (which can't write code); it is not part of your surface. Always write HTML. The aesthetic bar + recipes are in [`reference/motion-philosophy.md`](reference/motion-philosophy.md) — load this before authoring anything.
-
-> PandaStudio is a desktop video editor with an HTML-based motion-graphics pipeline (HyperFrames + Puppeteer under the hood). As an AI agent, you **author motion graphics as custom HTML via `motion.render-html`** — you do NOT fill bundled templates. The bundled template library exists for the in-app Gemma E2B local model (which can't write code); it is not part of your surface. Always write HTML. The aesthetic bar + recipes are in [`reference/motion-philosophy.md`](reference/motion-philosophy.md) — load this before authoring anything.
+> ## ⚠️ Motion graphics: you are NOT a template-filler
+>
+> PandaStudio's motion-graphic pipeline is HTML-based (HyperFrames +
+> Puppeteer under the hood). As an AI agent **your only motion-graphic
+> tool is `motion_render_html`** — you author HTML/CSS/JS yourself and
+> render it through HyperFrames.
+>
+> The bundled-template tools (`motion_generate`, `motion_list`,
+> `motion_themes`) **do not exist on your MCP surface as of v1.31.0**
+> — they were removed because their mere presence in the tool list
+> kept luring agents into picking them over the architecturally-correct
+> custom-HTML path. The bundled templates were always intended for the
+> in-app Gemma E2B local model (which can't author HTML); they don't
+> meet the aesthetic bar regardless of who's filling them. If you've
+> seen these tool names referenced in older docs or example pastes,
+> ignore them — call `motion_render_html` instead.
+>
+> The aesthetic baseline is the **Hyperframes example gallery** —
+> <https://hyperframes.heygen.com/examples> — covering kinetic-type,
+> chrome-gradient sweep, perspective grid, light-streak transitions,
+> object morph, energy pulse, slide-up reveal. Those are the **minimum
+> bar**, not aspirational maxes. Whatever the user asks for ("title
+> card", "intro", "stat reveal", "lower third", "logo reveal"), build
+> at or above that bar.
+>
+> **Use three.js where it raises the bar.** Particle fields, 3D type
+> extrusion, perspective camera dollies, true 3D logo reveals, depth
+> parallax — these produce the "highly professional" look. Don't
+> default to flat 2D when 3D would land harder. three.js is loaded
+> identically to GSAP (CDN script tag in your HTML); the seek protocol
+> is documented in `reference/motion-philosophy.md` §3.7.
+>
+> **Always load `reference/motion-philosophy.md` BEFORE authoring** —
+> it has the 11 Laws, the visual vocabulary catalog, the canonical
+> composition shell, and the deterministic-seek requirements. Skipping
+> it produces "correctly rendered but forgettable" output.
 
 ## Quickstart
 
@@ -612,6 +645,51 @@ template fills and custom HTML (Chromium → Puppeteer → FFmpeg). What
 differs is the HTML quality — templates are v0, agent-authored HTML
 built against the 11 Laws is HyperFrames-demo quality. Same render
 pipeline, wildly different output.
+
+### Aesthetic baseline — the Hyperframes example gallery
+
+The user has named the bar explicitly: the **Hyperframes example
+gallery at <https://hyperframes.heygen.com/examples>** is the *minimum*
+quality you ship, not the aspirational max. Walk through that gallery
+mentally before authoring anything; whatever you build should sit at
+or above that level. The categories you'll see there map directly to
+common briefs:
+
+| Brief category | Hyperframes example reference | What "above the bar" looks like |
+|---|---|---|
+| Title card / hero text | `kinetic-type` (massive scaling words, chrome-gradient sweep, halo glow, motion-blurred whips between words) | Three.js perspective camera dollying through 3D extruded type, chrome materials baked into geometry |
+| Stat / number reveal | `kinetic-type` + count-up tween | Three.js particle cloud assembling into the stat, glow halo, depth blur |
+| Logo reveal / outro | `chrome-gradient sweep` + held hero shot | Three.js logo with chrome material, key + rim lighting, perspective grid floor reflecting the logo |
+| Lower third | `slide-up phone reveal` style — accent rule, halo on emphasis, slide from edge | Animated chrome accent bar, micro-shimmer on hero text during hold, subtle 3D parallax on background |
+| Section / chapter divider | `cut-the-curve vertical whip` between scenes | Same whip + a 3D environment cube that rotates 90° as if changing rooms |
+| Energy / data flow | `energy pulse along path` (glow travels SVG path, target node lights up) | Three.js particle stream along a 3D bezier path through space |
+| Object morph (A → B) | `object morph drift` + light-streak whip hides the swap | Three.js mesh morph (vertex morph targets) with depth-of-field defocus during the morph |
+
+**The point of this table is not "copy these specifically."** Use it
+as proof-of-existence — these moves are the *baseline* of what's
+possible inside `motion.render-html`. If your output is flat 2D text
+fading in, you've shipped *below* the gallery. Re-author.
+
+### Use three.js where 3D raises the bar
+
+The Hyperframes engine ships an authoritative three.js adapter — three.js
+loads from CDN exactly like GSAP, and the seek protocol is documented in
+`reference/motion-philosophy.md` §3.7 (`__hfThreeTime` global drives
+deterministic frame capture). Use three.js when:
+
+- The user asks for a "premium" / "professional" / "cinematic" look
+- The brief mentions logos, products, or hero objects (3D extrusion + materials beat 2D every time)
+- A 2D animation would feel flat (kinetic-type, stat reveals, logo reveals are all stronger in 3D)
+- The user references brand work (Hyperframes / HeyGen / Apple keynote / Vox launch reels — these all use 3D)
+
+Don't use three.js when:
+- The brief is a simple lower-third or chyron over a host
+- The motion graphic is < 2 seconds (3D needs hold time to read)
+- The aspect ratio is 9:16 portrait and the 3D scene wouldn't compose well
+
+**Default to 3D unless one of those exclusions clearly applies.** A
+flat 2D motion graphic where 3D would have landed harder is a missed
+opportunity.
 
 ## Custom motion graphics — HTML authoring
 

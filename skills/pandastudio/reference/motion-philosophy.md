@@ -10,6 +10,12 @@ decide whether the result looks premium or looks like default AI output.
 > renderer). The composition / determinism / timeline rules in this file
 > mirror their published guides — when in doubt, those win:
 >
+> - **[Examples gallery](https://hyperframes.heygen.com/examples)** —
+>   the **aesthetic minimum** every motion graphic you ship must clear.
+>   Walk this page mentally before authoring. Kinetic-type, chrome-
+>   gradient sweep, perspective grid, light-streak whip, object morph,
+>   energy pulse, slide-up reveal. Whatever you build sits at or above
+>   that level, never below.
 > - [Prompting guide](https://hyperframes.heygen.com/guides/prompting) — the
 >   authoritative LLM-targeted authoring playbook
 > - [Common mistakes](https://hyperframes.heygen.com/guides/common-mistakes)
@@ -462,6 +468,99 @@ const offset = i =>
 **Never** use `Math.random()`, `Date.now()`, `performance.now()`,
 `crypto.getRandomValues()`, or any GSAP `from: 'random'` stagger. All
 of those produce non-deterministic frames.
+
+### 3.7 three.js — when (and how) to go 3D
+
+The Hyperframes examples gallery (kinetic-type, chrome logo reveals,
+particle-burst stat reveals) is overwhelmingly built on top of three.js.
+Flat 2D motion graphics top out at "polished" — three.js is what gets
+you to "highly professional." Default to 3D unless one of the explicit
+exclusions below applies.
+
+**Use three.js when:**
+
+- The brief is a logo reveal, hero title, or product reveal (3D extrusion + chrome material >> any 2D approximation)
+- Kinetic-type — words flying through 3D space, camera dollying through type, depth of field on receding lines
+- Stat reveals — particle clouds assembling into the number, glow halo, perspective falloff
+- "Premium" / "professional" / "cinematic" / "Apple-keynote-style" briefs
+- Any environment scene — perspective grid floor, sky parallax, infinite hallway, network-of-nodes
+- Object morph between two hero objects (vertex morph targets + DOF beat 2D dissolves)
+
+**Stay 2D when:**
+
+- The motion graphic is a thin overlay on a host (lower-third chyron, name plate, bug logo)
+- Total duration < 2s — 3D needs hold time to read
+- Vertical 9:16 with the 3D scene wouldn't compose (most product reveals work in portrait, but talking-head overlays do not)
+- Battery / perf is critical (rare; the renderer is offline so this almost never applies)
+
+**The page contract for three.js (deterministic seek)**
+
+Hyperframes' frame-perfect capture extends to three.js via a global
+clock variable. You do NOT use `THREE.Clock` (it's wall-clock and
+non-deterministic). Instead:
+
+```js
+// 1. Load three.js from CDN inside the composition <head>:
+//    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 100);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(w, h);
+document.body.appendChild(renderer.domElement);
+
+// 2. Drive every animatable property from a single time variable.
+//    Hyperframes writes the current frame's time into __hfThreeTime
+//    (seconds, float). Read it inside your render loop:
+function tick() {
+  const t = window.__hfThreeTime ?? 0;  // Hyperframes-driven
+  cube.rotation.y = t * 0.5;
+  particles.position.z = -t * 2;
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+tick();
+
+// 3. Register the timeline by composition-id like any GSAP scene.
+//    Mix freely: GSAP can drive DOM overlays, three.js drives 3D.
+window.__timelines = window.__timelines || {};
+window.__timelines["my-3d-scene"] = tl;
+```
+
+The `__hfThreeTime` variable is updated by Hyperframes between frame
+captures — same seek mechanism that drives GSAP's `tl.seek(t)`. Using
+it means:
+
+- 30fps render → frame `n` reads `__hfThreeTime = n / 30`
+- Same input scene + same time = same pixels (deterministic)
+- No `Math.random()` in render loops — use the seeded mulberry32 PRNG
+  from §3.6 instead
+
+**Three.js patterns that map to Hyperframes examples**
+
+| Hyperframes example | three.js implementation |
+|---|---|
+| Kinetic-type (words flying through space) | `TextGeometry` with extruded depth, perspective camera dolly via `camera.position.z = lerp(start, end, t)` |
+| Chrome logo reveal | Extruded geometry + `MeshBasicMaterial` with chrome gradient baked into a CanvasTexture (avoid `MeshPhysicalMaterial` clearcoat — it has WebGL-context issues with `preserveDrawingBuffer`) |
+| Particle stat reveal | `Points` geometry with custom vertex shader, particles assemble from random positions to target positions over `t` |
+| Energy pulse along path | `THREE.CatmullRomCurve3` + glowing sprite that interpolates `curve.getPointAt(t)` |
+| Perspective grid floor | `GridHelper` with `material.opacity = 0.3`, camera looks at horizon, fog for distance falloff |
+| Object morph A → B | Two meshes with `morphTargetInfluences`, GSAP tweens influence from 0 to 1 |
+
+**Material choice — IMPORTANT.** Hyperframes runs in headless Chrome
+with `preserveDrawingBuffer: true`. `MeshPhysicalMaterial` with
+clearcoat or transmission has been observed to throw `glCopySub-
+TextureCHROMIUM` errors in this configuration. Stick to
+`MeshBasicMaterial` (with chrome gradient as a CanvasTexture for the
+"physical" look) or `MeshStandardMaterial` for lit objects. Avoid
+clearcoat/transmission until verified working in headless.
+
+**Performance budget**
+
+- Particles: ≤ 5000 (more starts dropping frames during capture)
+- Geometry: keep under ~50k triangles total
+- Post-processing: only `EffectComposer` with `BloomPass` for hero
+  shots; everything else is too slow for offline render to justify
 
 ---
 
