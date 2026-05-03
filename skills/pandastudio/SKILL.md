@@ -481,6 +481,23 @@ pandastudio project.add-motion-graphic \
   --id=<uuid> --file=/path/intro.mp4 --durationMs=2500 --atMs=0 \
   --soundUrl=bundled:sound/message-pop --soundVolume=0.9
 
+# ⚠ NEVER HAND-AUTHOR THE --file PATH.
+# The only valid value for --file is the exact `outputPath` returned by
+# a prior `motion.render-html` (or `motion.generate`, `motion.concat`,
+# `motion.screenshot`) job. Always wire it through:
+#
+#   JOB=$(pandastudio motion.render-html --htmlPath=… --durationMs=… \
+#       --aspectRatio=16:9 --json | jq -r '.data.jobId')
+#   FILE=$(pandastudio job.wait --id="$JOB" --json | jq -r '.data.job.result.outputPath')
+#   pandastudio project.add-motion-graphic --id=<uuid> --file="$FILE" --durationMs=…
+#
+# Do not guess paths from the recordings directory, the project bundle,
+# or training-data memory. Hand-authored paths land on disk as broken
+# `file:///Users/<you>/Library/Application` (the space in "Application
+# Support" is where guesses get truncated) — the timeline shows a brief
+# flicker and nothing plays. If you don't have an `outputPath` in hand,
+# render one first; never invent one.
+
 # ⚠ DEFAULT PAIRING: when the project is camera-only (talking-head,
 # user-uploaded recording, no screen recording) and you're dropping a
 # motion graphic mid-video, you MUST also add a clip-transform-region
