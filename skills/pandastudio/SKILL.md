@@ -7,14 +7,39 @@ description: Edit videos in PandaStudio — a desktop video editor for YouTube, 
 
 # PandaStudio
 
-> **Version check — do this first.** This skill requires `@writepanda/cli` ≥ 1.15.0 (or `@writepanda/mcp` ≥ 1.15.0).
-> Run `pandastudio --version` via the CLI, or call `system_status` via the MCP. If < 1.15.0,
-> tell the user to update their MCP config to use `npx @writepanda/mcp@latest`
-> (note the `@latest` tag) and restart their agent host. Commands like
-> `asset.list-music`, `asset.list-luts`, and `project.set-clip-lut` do not exist
-> in older versions.
+> ## 🛑 Pick your interface FIRST — do not search for the CLI on disk
+>
+> PandaStudio exposes the same editing surface through two transports:
+>
+> - **MCP server** — tools prefixed `mcp__pandastudio__*` (in-app agent
+>   running inside PandaStudio) or `mcp__writepanda__*` (external agent
+>   hosts like Cursor, Claude Desktop, Claude Code in a terminal). If
+>   either prefix appears in your available toolset, **you are on the
+>   MCP path. Call those tools directly.** Never run `ls /Applications`,
+>   `npm list @writepanda/cli`, `which pandastudio`, or any other
+>   discovery shell command — the MCP server IS the editor, you are
+>   already connected.
+> - **`pandastudio` CLI** (localhost HTTP) — only for agents that have
+>   NEITHER of the MCP prefixes above AND have explicit shell access. If
+>   neither MCP prefix is visible and `which pandastudio` succeeds,
+>   you're on the CLI path.
+>
+> **The verbs, argument names, and behaviors are identical across both.**
+> Every example in this skill that shows a CLI call like
+> `pandastudio project.add-zoom --id=… --atMs=…` maps 1:1 to the MCP
+> tool `project_add_zoom` with the same args (`{id, atMs, …}`). The
+> CLI examples below are just one of two ways to spell the same call —
+> if you have MCP tools, translate them in your head and invoke the
+> MCP tool. Do not fall back to the CLI as a "verify the surface
+> exists" probe; calling `system_status` on the MCP IS the probe.
 
-PandaStudio is a desktop video editor. You drive it either through the `pandastudio` CLI (localhost HTTP) **or** through the `writepanda` MCP server (same verbs, exposed as `project_list`, `project_add_zoom`, `motion_generate`, `export_start`, etc.). **The verbs, argument names, and behaviors are identical across both interfaces** — every example in this skill that shows a CLI call like `pandastudio project.add-zoom` maps 1:1 to the MCP tool `project_add_zoom` with the same args. Use whichever is available; don't switch mid-task.
+> **Version check.** This skill requires `@writepanda/cli` ≥ 1.15.0 (or
+> `@writepanda/mcp` ≥ 1.15.0). On the MCP path, call `system_status`
+> and read the returned version. On the CLI path, run
+> `pandastudio --version`. If < 1.15.0, tell the user to update
+> (`npx @writepanda/mcp@latest`) and restart their agent host. Commands
+> like `asset.list-music`, `asset.list-luts`, and `project.set-clip-lut`
+> do not exist in older versions.
 
 > ## ⚠️ Motion graphics: you are NOT a template-filler
 >
@@ -55,11 +80,18 @@ PandaStudio is a desktop video editor. You drive it either through the `pandastu
 
 ## Quickstart
 
+> **Reminder:** if you have `mcp__pandastudio__*` or `mcp__writepanda__*`
+> tools, ignore the bash syntax below — just call the equivalent MCP
+> tool (`system_status`, `system_list_commands`, `motion_render_html`,
+> `job_wait`). Same args, same response shape.
+
 ```bash
 # 1. Confirm the server is reachable AND the user has a license.
+#    MCP equivalent: call `system_status` with no args.
 pandastudio system.status --json
 
 # 2. Discover what's available — never guess command names.
+#    MCP equivalent: call `system_list_commands`.
 pandastudio commands
 
 # 3. Render a motion graphic. As an agent you AUTHOR HTML — you don't
