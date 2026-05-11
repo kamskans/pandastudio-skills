@@ -7,31 +7,39 @@ description: Edit videos in PandaStudio — a desktop video editor for YouTube, 
 
 # PandaStudio
 
-> ## 🛑 Pick your interface FIRST — do not search for the CLI on disk
+> ## 🛑 Pick your interface FIRST — prefer the CLI
 >
 > PandaStudio exposes the same editing surface through two transports:
 >
-> - **MCP server** — tools prefixed `mcp__pandastudio__*` (in-app agent
->   running inside PandaStudio) or `mcp__writepanda__*` (external agent
->   hosts like Cursor, Claude Desktop, Claude Code in a terminal). If
->   either prefix appears in your available toolset, **you are on the
->   MCP path. Call those tools directly.** Never run `ls /Applications`,
->   `npm list @writepanda/cli`, `which pandastudio`, or any other
->   discovery shell command — the MCP server IS the editor, you are
->   already connected.
-> - **`pandastudio` CLI** (localhost HTTP) — only for agents that have
->   NEITHER of the MCP prefixes above AND have explicit shell access. If
->   neither MCP prefix is visible and `which pandastudio` succeeds,
->   you're on the CLI path.
+> 1. **`pandastudio` CLI** (localhost HTTP). **Prefer this.** A single
+>    bash tool covers the entire ~150-verb surface — no per-tool schema
+>    needs to live in your context. Probe once with
+>    `command -v pandastudio` (or just call `pandastudio system.status
+>    --json`). If it succeeds, you're on the CLI path; every example
+>    in this skill is written for it directly.
 >
-> **The verbs, argument names, and behaviors are identical across both.**
-> Every example in this skill that shows a CLI call like
-> `pandastudio project.add-zoom --id=… --atMs=…` maps 1:1 to the MCP
-> tool `project_add_zoom` with the same args (`{id, atMs, …}`). The
-> CLI examples below are just one of two ways to spell the same call —
-> if you have MCP tools, translate them in your head and invoke the
-> MCP tool. Do not fall back to the CLI as a "verify the surface
-> exists" probe; calling `system_status` on the MCP IS the probe.
+> 2. **MCP server** — tools prefixed `mcp__pandastudio__*` (in-app
+>    PandaStudio agent) or `mcp__writepanda__*` (external hosts like
+>    Cursor, Claude Desktop). **Use only when the CLI is not
+>    installed** — i.e. `command -v pandastudio` returned empty AND
+>    one of the MCP prefixes is visible in your tools.
+>
+> **Why CLI is preferred:** every MCP tool definition costs context
+> tokens (per-tool input schema + description). With ~150 verbs that
+> overhead adds up quickly. The CLI is one bash tool — schema cost
+> stays constant regardless of which verb you call.
+>
+> **The verbs, argument names, and behaviors are identical across both
+> transports.** A CLI call like `pandastudio project.add-zoom --id=…
+> --atMs=…` maps 1:1 to the MCP tool `project_add_zoom` with the same
+> args (`{id, atMs, …}`). If you're on MCP fallback, translate the
+> CLI examples below by lowercasing the verb and replacing the dot
+> with an underscore.
+>
+> **Do not search the filesystem for the CLI.** Don't run `ls
+> /Applications`, `npm list @writepanda/cli`, etc. `command -v
+> pandastudio` is the only probe you need; if it returns nothing,
+> immediately move to the MCP fallback without further discovery.
 
 > **Version check.** This skill requires `@writepanda/cli` ≥ 1.15.0 (or
 > `@writepanda/mcp` ≥ 1.15.0). On the MCP path, call `system_status`
@@ -80,10 +88,11 @@ description: Edit videos in PandaStudio — a desktop video editor for YouTube, 
 
 ## Quickstart
 
-> **Reminder:** if you have `mcp__pandastudio__*` or `mcp__writepanda__*`
-> tools, ignore the bash syntax below — just call the equivalent MCP
-> tool (`system_status`, `system_list_commands`, `motion_render_html`,
-> `job_wait`). Same args, same response shape.
+> **Reminder:** examples below are the CLI path (preferred). If
+> `command -v pandastudio` returned empty, mentally translate each
+> verb — e.g. `pandastudio system.status --json` →
+> `system_status` MCP tool, `pandastudio project.add-zoom --id=… …` →
+> `project_add_zoom` with the same args.
 
 ```bash
 # 1. Confirm the server is reachable AND the user has a license.
