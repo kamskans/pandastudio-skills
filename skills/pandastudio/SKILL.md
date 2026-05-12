@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.39.0 -->
+<!-- version: 2.40.0 -->
 
 # PandaStudio
 
@@ -994,6 +994,26 @@ pandastudio project.set-overlay-backdrop-blur \
 pandastudio project.set-overlay-backdrop-blur \
   --id=$ID --regionId=overlay-3 --strength=0
 ```
+
+**To crop an overlay's source pixels** — `project.set-overlay-crop`. Coordinates are normalized 0–1 over the OVERLAY SOURCE's native dimensions (not the canvas), so the same crop value means the same thing regardless of where the overlay is positioned. Identity {0,0,1,1} or omitting the args clears the crop.
+
+```bash
+# Cut a centre column out of a landscape b-roll so it fits a 9:16 short
+# without auto-crop/squish. Source is 1920×1080; keep middle 50% horiz.
+pandastudio project.set-overlay-crop \
+  --id=$ID --regionId=overlay-3 \
+  --x=0.25 --y=0 --width=0.5 --height=1
+
+# Zoom into the top-right quadrant of a motion graphic
+pandastudio project.set-overlay-crop \
+  --id=$ID --regionId=overlay-3 \
+  --x=0.5 --y=0 --width=0.5 --height=0.5
+
+# Clear any existing crop
+pandastudio project.set-overlay-crop --id=$ID --regionId=overlay-3
+```
+
+When to reach for this: dropping a 16:9 clip into a 9:16 short and the sides are wasted/letterboxed; the source has black bars (letterboxing baked into the file); you want to highlight one element from a busy motion graphic without re-rendering it. The renderer applies this crop BEFORE positioning the overlay into its destination rect, so you can stack overlay crop with overlay position+size freely.
 
 **Critical pairing rule.** Backdrop blur reads through the overlay's alpha. If the overlay is fully opaque (a regular MP4 motion graphic, an image without alpha, an unmasked video), the blur has no shape to mask and produces nothing visible. **Always pair backdropBlurStrength with a transparent / glassMode render.** When in doubt, set both `transparent: true` AND `backdropBlurStrength: 24` — the visual is the gold-standard "frosted-glass card on camera" look every modern editor (Premiere, CapCut, DaVinci) ships as a built-in effect.
 
