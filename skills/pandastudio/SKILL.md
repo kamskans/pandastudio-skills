@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.40.0 -->
+<!-- version: 2.41.0 -->
 
 # PandaStudio
 
@@ -204,6 +204,58 @@ pandastudio workspace.switch --id=$TARGET_WS --json
 # Then re-run any pre-flight that depends on workspace state
 # (license check, youtube account list, replicate key check)
 ```
+
+## Organising projects with folders (v1.26.9+)
+
+The Home page groups projects into flat folders (workspace-scoped, no nesting). A project's folder is stored on its `.pandastudio` file as `folder: "Tutorials"` and surfaced on every `project.list` row as `folder: string | null` (null = Unsorted).
+
+### When to use
+- User says "put this project in Tutorials" / "move these to Client X" / "organise my projects" / "label these so I can find them later".
+- After bulk-creating projects (e.g. an import workflow), categorise them into folders so the Home page stays readable.
+
+### Move a single project
+
+```bash
+# By id (preferred):
+pandastudio project.setFolder --id=$PID --folder="Tutorials" --json
+
+# By path:
+pandastudio project.setFolder --path="$P" --folder="Tutorials" --json
+
+# Clear the folder (move to Unsorted):
+pandastudio project.setFolder --id=$PID --folder="" --json
+```
+
+Returns `{ id, path, folder }` where `folder` is the trimmed, normalised label (or `null` for Unsorted).
+
+### Move many projects (e.g. all matching a search)
+
+```bash
+# Move every project whose name starts with "Tut" into a "Tutorials" folder.
+pandastudio project.list --json | \
+  jq -r '.projects[] | select(.name | startswith("Tut")) | .id' | \
+  while read pid; do
+    pandastudio project.setFolder --id=$pid --folder="Tutorials" --json
+  done
+```
+
+### Read folder during listing
+
+`project.list` rows now carry `folder`. Group locally:
+
+```bash
+pandastudio project.list --json | jq '
+  .projects
+  | group_by(.folder // "Unsorted")
+  | map({folder: .[0].folder, count: length, ids: map(.id)})
+'
+```
+
+### Caveats
+- Folders are case-sensitive: "Tutorials" and "tutorials" are different folders. Use consistent casing.
+- No nesting. `folder: "A/B"` is a single folder literally named `"A/B"` — it does NOT create a nested hierarchy.
+- Folders are workspace-scoped: switching workspace shows a different set of folders (because the underlying project files differ).
+- Renaming a folder is "move every project from old name → new name". There's no single rename verb yet; loop over `project.list` filtered by the old folder.
 
 ## Publishing to YouTube (v1.19+)
 
