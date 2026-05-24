@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.41.0 -->
+<!-- version: 2.42.0 -->
 
 # PandaStudio
 
@@ -256,6 +256,51 @@ pandastudio project.list --json | jq '
 - No nesting. `folder: "A/B"` is a single folder literally named `"A/B"` — it does NOT create a nested hierarchy.
 - Folders are workspace-scoped: switching workspace shows a different set of folders (because the underlying project files differ).
 - Renaming a folder is "move every project from old name → new name". There's no single rename verb yet; loop over `project.list` filtered by the old folder.
+
+## Transcription languages (v1.27.0+)
+
+PandaStudio ships two transcription engines under the hood:
+
+- **Parakeet TDT v3** (default, "auto") — auto-detects English + 25 European languages, word-level timestamps native, ~473 MB model, ~30× realtime on CPU. Preserves filler words ("um", "uh", repeats) which is critical for the transcript-based editor. Bundled download on first use.
+- **Whisper Large-v3-turbo** — for Chinese, Japanese, Korean, Hindi, Arabic, Thai. ~1.1 GB Q5_0 GGUF, lazy-downloaded on first non-European language selection. Same word-level-timestamps contract via `set_token_timestamps + set_max_len(1) + set_split_on_word`.
+
+The setting is **workspace-scoped**: a user can run an English channel in one workspace and a Mandarin channel in another without crosstalk.
+
+### Check + switch from agent
+
+```bash
+# Read the active engine.
+pandastudio system.getTranscriptionLanguage --json
+# → { language: "auto" }
+
+# Before switching to a non-European language, make sure the model is on disk.
+pandastudio system.isWhisperModelDownloaded --json
+# → { downloaded: false }
+
+# If false, ask the user to open Settings and click "Download Whisper model"
+# (~1.1 GB). The agent cannot trigger the download itself — the IPC requires
+# main-window context. Once they confirm it's downloaded, proceed.
+
+# Switch.
+pandastudio system.setTranscriptionLanguage --language=chinese --json
+# → { language: "chinese" }
+
+# Now `transcript.transcribe` (or the editor's Transcribe button) will use
+# Whisper instead of Parakeet for every call until the language is changed
+# back.
+```
+
+### When to call this
+
+- **User asks for a non-European transcription**: "transcribe this Chinese video", "give me the Japanese transcript", etc. → check + switch.
+- **Project content suggests a language mismatch**: clip filenames or metadata indicate a non-European language but the current setting is "auto". Surface to the user before flipping the setting yourself.
+- **Restoring "auto" after a one-off job**: if you switched for a specific clip, switch back when you're done so subsequent English/European transcriptions get Parakeet's faster + filler-preserving path.
+
+### Caveats
+
+- Whisper's seq2seq decoder smooths over fillers. That's fine for Chinese/Japanese/Korean where fillers behave differently anyway, but DO NOT switch to Whisper for English projects — the editor's "Remove Filler Words" / "Remove Silences" features depend on Parakeet's CTC honesty.
+- Language hint is locked, not auto-detected, when Whisper is active. If the user picks "chinese" and then transcribes a Japanese file, the output is garbage. Match the setting to the actual source language.
+- `system.setTranscriptionLanguage` only writes the setting — it does not download the Whisper model. The download is a Settings-UI-only action because it streams ~1.1 GB and surfaces a progress modal.
 
 ## Publishing to YouTube (v1.19+)
 
