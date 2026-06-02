@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.51.0 -->
+<!-- version: 2.55.0 -->
 
 # PandaStudio
 
@@ -49,42 +49,30 @@ description: Edit videos in PandaStudio — a desktop video editor for YouTube, 
 > like `asset.list-music`, `asset.list-luts`, and `project.set-clip-lut`
 > do not exist in older versions.
 
-> ## ⚠️ Motion graphics: you are NOT a template-filler
+> ## Motion graphics: use the bundled templates first
 >
-> PandaStudio's motion-graphic pipeline is HTML-based (HyperFrames +
-> Puppeteer under the hood). As an AI agent **your only motion-graphic
-> tool is `motion_render_html`** — you author HTML/CSS/JS yourself and
-> render it through HyperFrames.
+> PandaStudio ships a curated set of **YouTube-creator motion-graphic
+> templates** — title cards, lower thirds, stat reveals, checklists,
+> comparisons, a host+panel split, animated-title overlays. They are
+> production-grade and **the primary path** for an agent:
 >
-> The bundled-template tools (`motion_generate`, `motion_list`,
-> `motion_themes`) **do not exist on your MCP surface as of v1.31.0**
-> — they were removed because their mere presence in the tool list
-> kept luring agents into picking them over the architecturally-correct
-> custom-HTML path. The bundled templates were always intended for the
-> in-app Gemma E2B local model (which can't author HTML); they don't
-> meet the aesthetic bar regardless of who's filling them. If you've
-> seen these tool names referenced in older docs or example pastes,
-> ignore them — call `motion_render_html` instead.
+> 1. `motion_list` → see every template, its editable slots, and whether
+>    it's an overlay (sits over the video with alpha).
+> 2. `motion_generate { templateId, slots, background }` → render it with
+>    your own text/colors. Returns a `jobId`.
+> 3. `job_wait` → then `project_add_motion_graphic { fromJob }` (or
+>    `project_add_designed_segment` for `split-panel`).
 >
-> The aesthetic baseline is the **Hyperframes example gallery** —
-> <https://hyperframes.heygen.com/examples> — covering kinetic-type,
-> chrome-gradient sweep, perspective grid, light-streak transitions,
-> object morph, energy pulse, slide-up reveal. Those are the **minimum
-> bar**, not aspirational maxes. Whatever the user asks for ("title
-> card", "intro", "stat reveal", "lower third", "logo reveal"), build
-> at or above that bar.
+> Everything editable — text, colors, list items, and the **background
+> mode** (`solid` / `transparent` / `glass`) — is controlled through
+> `slots` + `background`. The full catalog (when to use each, what's
+> editable) is in the **"Motion graphics"** section below.
 >
-> **Use three.js where it raises the bar.** Particle fields, 3D type
-> extrusion, perspective camera dollies, true 3D logo reveals, depth
-> parallax — these produce the "highly professional" look. Don't
-> default to flat 2D when 3D would land harder. three.js is loaded
-> identically to GSAP (CDN script tag in your HTML); the seek protocol
-> is documented in `reference/motion-philosophy.md` §3.7.
->
-> **Always load `reference/motion-philosophy.md` BEFORE authoring** —
-> it has the 11 Laws, the visual vocabulary catalog, the canonical
-> composition shell, and the deterministic-seek requirements. Skipping
-> it produces "correctly rendered but forgettable" output.
+> **Only author custom HTML (`motion_render_html`) when no bundled
+> template fits the brief** — a bespoke one-off, an unusual layout, a
+> brand-specific 3D treatment. That path is documented under "Custom
+> motion graphics — HTML authoring"; load
+> `reference/motion-philosophy.md` before authoring.
 
 ## Quickstart
 
@@ -103,16 +91,18 @@ pandastudio system.status --json
 #    MCP equivalent: call `system_list_commands`.
 pandastudio commands
 
-# 3. Render a motion graphic. As an agent you AUTHOR HTML — you don't
-#    fill templates. See the "Motion graphics" section for the full
-#    contract; the canonical shell lives in reference/motion-philosophy.md.
-JOB=$(pandastudio motion.render-html \
-  --htmlPath=/tmp/title-card.html \
-  --durationMs=4000 \
+# 3. Render a motion graphic from a bundled template (the primary path).
+#    See the "Motion graphics" section for the full catalog.
+JOB=$(pandastudio motion.generate \
+  --templateId=creator-card \
+  --slots='{"headline":"live demo","eyebrow":"now","brandColor":"#2563EB"}' \
   --aspectRatio=16:9 \
   --json | jq -r '.data.jobId')
 
 pandastudio job.wait --id="$JOB" --json | jq '.data.job.result'
+
+# 4. Add the rendered clip to the timeline at the playhead / a given time.
+pandastudio project.add-motion-graphic --id="$PROJECT" --fromJob="$JOB" --durationMs=4500
 ```
 
 That's the whole loop: probe → discover → call → (if async) wait. Every richer workflow is a composition of those four steps.
@@ -256,6 +246,17 @@ pandastudio project.list --json | jq '
 - No nesting. `folder: "A/B"` is a single folder literally named `"A/B"` — it does NOT create a nested hierarchy.
 - Folders are workspace-scoped: switching workspace shows a different set of folders (because the underlying project files differ).
 - Renaming a folder is "move every project from old name → new name". There's no single rename verb yet; loop over `project.list` filtered by the old folder.
+
+## Renaming a project (v1.40.0+)
+
+`project.rename` sets the display name shown in the editor title bar and the Home grid. Identify by `id` (preferred) or `path`; pass the new `name` (trimmed, must be non-empty). The on-disk **filename does not change** (project files are keyed by id), so this is safe to call even while the project is open in the editor.
+
+```bash
+pandastudio project.rename --id=$PID --name="How I Built MyAgentMail" --json
+# Returns { id, path, name }.
+```
+
+Use when the user says "rename this project", "call it X", or after `llm.generate-title` if they want the project itself (not just the export) to carry the new title. This is separate from the YouTube video title set at export time.
 
 ## Transcription languages (v1.27.0+)
 
@@ -450,7 +451,7 @@ The profile is the source of truth for every default below. See the [Video editi
 
    Don't fabricate a name. Don't invent a job title. Skip this question entirely for the `shorts` and `loom` profiles — they don't use lower thirds.
 
-**3. Brand / style direction.** If the user named a style ("MrBeast" / "MKBHD" / "Vox" / "Kurzgesagt" / "Veritasium" / "Linear" / "Infinite"), interpret it as a style reference for authoring HTML — translate their palette, typography, and motion vocabulary into a composition built against [`reference/motion-philosophy.md`](reference/motion-philosophy.md) §1. Do NOT call `motion.themes` / `motion.generate` — those route to bundled templates which are not on your surface. If they gave no style reference AND there are multiple source clips that suggest a brand context, ASK ONE QUESTION:
+**3. Brand / style direction.** If the user named a style ("MrBeast" / "MKBHD" / "Vox" / "Kurzgesagt" / "Veritasium" / "Linear" / "Infinite"), first see whether a bundled template fits and set its colors via `slots` (most accept brand / ink / accent colors). Only when no template matches the named look, author custom HTML — translate their palette, typography, and motion vocabulary into a composition built against [`reference/motion-philosophy.md`](reference/motion-philosophy.md) §1. If they gave no style reference AND there are multiple source clips that suggest a brand context, ASK ONE QUESTION:
    > "Any brand colors, fonts, or visual references — or default look?"
 
 If all three are clear (or already specified), proceed without asking. Combine multiple asks into a single message when possible.
@@ -470,7 +471,8 @@ For these operations, run them without asking and tell the user what you did in 
 
 - `transcribed: true` → skip `transcript.transcribe` for that clip — it already has a transcript. Running it again would overwrite any manual word edits the user made in the app.
 - `audioCleaned: true` → skip `audio.clean` for that clip — the `.cleaned.wav` already exists.
-- `kind` → how the clip was captured: `"camera"` (talking-head — a PandaStudio camera-only recording), `"screen"` (screen recording, maybe with a webcam PiP), or `"upload"` (external import). **This is the authoritative signal for your visual strategy — use it, don't guess from aspect ratio:** `kind === "camera"` → mid-video graphics default to designed segments (`project.add-designed-segment`); `kind === "screen"` → use cursor-telemetry zooms, never clip-transform splits. Absent on pre-v1.28 projects / unknown-origin clips — then fall back to inferring from aspect ratio + the presence of cursor telemetry.
+- `kind` → how the clip was captured: `"camera"` (talking-head — a PandaStudio camera-only recording), `"screen"` (screen recording, maybe with a webcam PiP), or `"upload"` (external import). **This is the authoritative signal for your visual strategy — use it, don't guess from aspect ratio:** `kind === "camera"` → mid-video graphics default to designed segments (`project.add-designed-segment`); `kind === "screen"` → use cursor-telemetry zooms, never clip-transform splits. On v1.28+ recordings this is stamped at capture time. On older projects it's no longer absent — `project.read` now **infers** it from on-disk signals (a paired webcam track or cursor telemetry → `screen`; media in the managed recordings dir → `camera`; anything else → `upload`) and sets `kindInferred: true` alongside it. Treat an inferred `kind` as a strong hint, not gospel: if it conflicts with what you can see (aspect ratio, whether there's a cursor on screen), trust your eyes.
+- `contentIssues` (top-level on the `project.read` result, not per-clip) → a count summary `{ total, duplicateTakes, falseStarts, adjacentRepeats }`, present only when something is transcribed. If `total > 0`, run `transcript.find-issues` during the polish pass to see the actual candidates.
 
 Only pass un-processed clips to each operation. If every clip is already transcribed, go straight to `transcript.get`.
 
@@ -478,9 +480,10 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 |---|---|
 | `transcript.transcribe` | Run only on clips where `clipStates[i].transcribed === false`. Skip the rest. |
 | `transcript.remove-fillers` | Auto-remove "um/uh/like/you know/i mean" + immediately-repeated words. Trim regions; fully reversible. |
-| `transcript.remove-silences` | Run after remove-fillers. Default threshold 700ms. Trims leading, between-word, and trailing silence per clip. |
+| `transcript.find-issues` | Run after remove-fillers. Surfaces re-takes (`duplicate-take`), abandoned restarts (`false-start`), and stutters (`adjacent-repeat`) as candidates — each with the `wordIds` of the discarded attempt. **Read-only — it never edits.** Review each candidate against context (some repeats are intentional), then feed the `wordIds` you accept into `transcript.delete-words`. Don't blind-apply all of them. |
+| `transcript.remove-silences` | Run after the content cleanup. Default threshold 700ms. Trims leading, between-word, and trailing silence per clip. |
 | `audio.clean` | Denoise only clips where `clipStates[i].audioCleaned === false`. Writes a sibling `.cleaned.wav`; original audio untouched. |
-| `caption.set-template` (when user said "add captions" without naming a style) | Default to `bold`. Tell user 8 other templates exist (`classic, modern, minimal, spotlight, boxed, neon, colored, texture`). `texture` fills large uppercase words with a flowing texture mask — pick the texture (lava/marble/metal/wood/concrete/rock, default lava) via `caption.set-style --texture=marble`. |
+| `caption.set-template` (when user said "add captions" without naming a style) | Default to `bold`. Tell user other templates exist (`classic, modern, minimal, spotlight, boxed, neon, colored, texture, editorial`). `texture` fills large uppercase words with a flowing texture mask — pick the texture (lava/marble/metal/wood/concrete/rock, default lava) via `caption.set-style --texture=marble`. `editorial` is magazine-style emphasis — the currently-spoken word renders big + accent while the rest of the line shrinks, so emphasis sweeps the line. |
 | `llm.generate-title` / `llm.generate-description` / `llm.generate-timestamps` | Generate after the edit pass. Show the user; let them say "regenerate" or "use this exact title" or edit inline. |
 | Specific zoom moments | Heuristically pick from the transcript ("you said 'click here' at 12.4s — adding a zoom"). Don't pre-ask. Iterate via preview. |
 | Specific FX placement | Heuristically pick at clip boundaries or transcript hints ("a film-burn between clip 1 and 2"). Don't pre-ask. |
@@ -768,9 +771,9 @@ pandastudio project.set-region-sound \
   --id=<uuid> --regionType=lowerThird --regionId=lt-1 \
   --soundUrl=none  # mute this one
 
-# YouTube-style lower third — author HTML, render, overlay.
-# Do NOT use motion.generate. Author HTML with chrome-gradient text, halo
-# glow, and slide-in from edge. See reference/motion-philosophy.md §1.4
+# YouTube-style lower third — prefer the `yt-lower-third` template
+# (motion.generate). Author custom HTML only for a bespoke look —
+# chrome-gradient text, halo glow, slide-in. See reference/motion-philosophy.md §1.4
 # and §7 for the canonical shell.
 JOB=$(pandastudio motion.render-html \
   --htmlPath=/tmp/lower-third.html \
@@ -786,6 +789,25 @@ pandastudio project.remove-region \
 pandastudio project.remove-region \
   --id=<uuid> --regionType=audio-overlay --regionId=audio-1
 # regionType: zoom | trim | speed | annotation | fx | lower-third | overlay | audio-overlay
+
+# CLEAR ALL EDITS — one atomic call. Use this whenever the user says "start
+# over", "clear all edits", "reset the timeline", or wants a clean slate to
+# re-edit from. Do NOT loop project.remove-region for this — that N-tuples
+# revisions, multiplies failure points, and is slow.
+#
+# Wipes every time-based region (trim, speed, zoom, motion-graphic,
+# lower-third, fx, annotation, clip-transform) + all audio overlays + flips
+# captions off (keeping the template + style overrides so re-enabling
+# restores the user's chosen look). Clips, transcripts, cleaned audio, and
+# the project aspect ratio are KEPT — this resets the EDIT, not the recording.
+#
+# Returns a `cleared` object summarising what was removed; narrate it to the
+# user so they know exactly what was wiped.
+pandastudio project.clear-edits --id=<uuid>
+
+# Blank-canvas variant — ALSO clears per-clip LUTs + crops + webcam layout +
+# wallpaper. Use only when the user explicitly wants the full reset (rare).
+pandastudio project.clear-edits --id=<uuid> --full=true
 ```
 
 ### Conflict-safe save
@@ -842,89 +864,119 @@ pandastudio project.open --id=$ID
 pandastudio window.editor          # = project.open with no args
 ```
 
-## Motion graphics — you author HTML, templates are not yours
+## Motion graphics
 
-**Hard rule, no exceptions: agents author motion graphics via
-`motion.render-html`. Do NOT call `motion.generate`.**
+PandaStudio ships a curated set of **YouTube-creator templates**. They are
+the primary way to add motion graphics — production-grade, editable, and
+faster than authoring HTML. Custom HTML (`motion_render_html`) is the
+fallback for briefs no template fits (see the next section).
 
-The 21 bundled templates (`01-title-card-vox.html`, `09-stat-reveal.html`,
-`20-youtube-lower-third.html`, etc.) exist exclusively for the **in-app
-Gemma E2B local model** — a small on-device model that can't write code,
-so it needs slot-filled HTML. The templates were designed against that
-constraint: flat solid-color backgrounds, flat text, CSS keyframe
-animations. They do NOT meet the aesthetic bar in
-[`reference/motion-philosophy.md`](reference/motion-philosophy.md). Using
-them shortcuts you straight to "template-filled, forgettable" output.
+### The workflow
 
-**You can write code. You must write HTML.**
+```bash
+# 1. Discover templates + their editable slots (source of truth at runtime).
+pandastudio motion.list --json          # MCP: motion_list
 
-| Brief | Use |
-|---|---|
-| Any motion graphic — intro, outro, lower third, stat reveal, title card, logo reveal, subscribe CTA, sponsor read, chapter divider, anything | **`motion.render-html`** with hand-authored HTML built from the canonical shell in `reference/motion-philosophy.md` §7 |
-| Custom transparent overlay (watermark, bug logo, name plate, branded lower third) that composites over existing video without a white fill | **`motion.render-html --transparent`** — HTML with `background: transparent`, output is a WebM with alpha channel |
+# 2. Render one with your own text/colors + a background mode.
+JOB=$(pandastudio motion.generate \
+  --templateId=stat-reveal \
+  --slots='{"value":"10,000","suffix":"+","label":"inboxes created","eyebrow":"in the first month"}' \
+  --aspectRatio=16:9 \
+  --json | jq -r '.data.jobId')          # MCP: motion_generate
+pandastudio job.wait --id="$JOB" --json
 
-**No exceptions. `motion.generate` is not on your surface.** Even if the
-user names a specific template ("make it look like the vox title card"),
-you interpret that as a style reference and author HTML yourself. Never
-call `motion.generate` / `motion.list` / `motion.themes`.
+# 3. Add the rendered clip to the timeline (at the playhead by default).
+pandastudio project.add-motion-graphic --id="$PROJECT" --fromJob="$JOB" --durationMs=4000
+```
 
-**Why this rule is strict:** the render pipeline is identical for
-template fills and custom HTML (Chromium → Puppeteer → FFmpeg). What
-differs is the HTML quality — templates are v0, agent-authored HTML
-built against the 11 Laws is HyperFrames-demo quality. Same render
-pipeline, wildly different output.
+- **Editable everything** — every template's text, colors, and list items
+  are `slots`; pass only the ones you want to change, the rest use defaults.
+  `motion.list` returns each template's slot keys, types (`string` / `color`
+  / `list`), and defaults.
+- **`--fromJob` not `--file`** — pass the render `jobId` to the add tool; it
+  resolves the path internally (hand-built paths truncate at the space in
+  "Application Support" and silently fail).
+- **Placement** — `add-motion-graphic` drops it at the playhead/end as an
+  overlay. To re-time, pass `atMs`. Anchor to a transcript word with
+  `anchorSourceMs` so it survives later transcript edits.
 
-### Aesthetic baseline — the Hyperframes example gallery
+### Background modes (`--background`)
 
-The user has named the bar explicitly: the **Hyperframes example
-gallery at <https://hyperframes.heygen.com/examples>** is the *minimum*
-quality you ship, not the aspirational max. Walk through that gallery
-mentally before authoring anything; whatever you build should sit at
-or above that level. The categories you'll see there map directly to
-common briefs:
-
-| Brief category | Hyperframes example reference | What "above the bar" looks like |
+| Mode | Output | Use |
 |---|---|---|
-| Title card / hero text | `kinetic-type` (massive scaling words, chrome-gradient sweep, halo glow, motion-blurred whips between words) | Three.js perspective camera dollying through 3D extruded type, chrome materials baked into geometry |
-| Stat / number reveal | `kinetic-type` + count-up tween | Three.js particle cloud assembling into the stat, glow halo, depth blur |
-| Logo reveal / outro | `chrome-gradient sweep` + held hero shot | Three.js logo with chrome material, key + rim lighting, perspective grid floor reflecting the logo |
-| Lower third | `slide-up phone reveal` style — accent rule, halo on emphasis, slide from edge | Animated chrome accent bar, micro-shimmer on hero text during hold, subtle 3D parallax on background |
-| Section / chapter divider | `cut-the-curve vertical whip` between scenes | Same whip + a 3D environment cube that rotates 90° as if changing rooms |
-| Energy / data flow | `energy pulse along path` (glow travels SVG path, target node lights up) | Three.js particle stream along a 3D bezier path through space |
-| Object morph (A → B) | `object morph drift` + light-streak whip hides the swap | Three.js mesh morph (vertex morph targets) with depth-of-field defocus during the morph |
+| `solid` | hard full-frame card | opaque templates (cards, stat, checklist, comparison) — the default for those |
+| `transparent` | alpha; camera shows through un-painted pixels | overlay templates — the default for those |
+| `glass` | alpha + frosted blur of the camera behind the content | overlay templates when you want the modern frosted look; also pass `--backdropBlurStrength=24` on `add-motion-graphic` |
 
-**The point of this table is not "copy these specifically."** Use it
-as proof-of-existence — these moves are the *baseline* of what's
-possible inside `motion.render-html`. If your output is flat 2D text
-fading in, you've shipped *below* the gallery. Re-author.
+Omit `--background` to use the template's natural mode. **Never force
+`solid` on an overlay template** — its see-through region renders black.
+Overlay templates are flagged `overlay: true` in `motion.list`.
 
-### Use three.js where 3D raises the bar
+### Designed segments (host on one half, panel on the other)
 
-The Hyperframes engine ships an authoritative three.js adapter — three.js
-loads from CDN exactly like GSAP, and the seek protocol is documented in
-`reference/motion-philosophy.md` §3.7 (`__hfThreeTime` global drives
-deterministic frame capture). Use three.js when:
+`split-panel` is a "designed segment": an opaque brand panel fills one half,
+the other half is transparent for the host. Add it with
+**`project.add-designed-segment`** instead of `add-motion-graphic` — that
+one atomic call also repositions the camera into the open half (a
+`cam-{side}-50` clip-transform) over the same span, so host + panel can't
+drift. Set the panel's `side` slot; the camera takes the opposite side.
 
-- The user asks for a "premium" / "professional" / "cinematic" look
-- The brief mentions logos, products, or hero objects (3D extrusion + materials beat 2D every time)
-- A 2D animation would feel flat (kinetic-type, stat reveals, logo reveals are all stronger in 3D)
-- The user references brand work (Hyperframes / HeyGen / Apple keynote / Vox launch reels — these all use 3D)
+```bash
+JOB=$(pandastudio motion.generate --templateId=split-panel \
+  --slots='{"side":"left","headline":"What MyAgentMail handles:","items":[{"label":"inbox creation"},{"label":"sending & replies"},{"label":"webhooks"}]}' \
+  --background=transparent --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$JOB" --json
+pandastudio project.add-designed-segment --id="$PROJECT" --fromJob="$JOB" \
+  --durationMs=6000 --cameraSide=right
+```
 
-Don't use three.js when:
-- The brief is a simple lower-third or chyron over a host
-- The motion graphic is < 2 seconds (3D needs hold time to read)
-- The aspect ratio is 9:16 portrait and the 3D scene wouldn't compose well
+### Template catalog
 
-**Default to 3D unless one of those exclusions clearly applies.** A
-flat 2D motion graphic where 3D would have landed harder is a missed
-opportunity.
+Pick by brief. Slots in **bold** are required; the rest are optional
+(colors default to PandaStudio's electric-blue brand `#2563EB` where unset).
+All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay (transparent-capable).
 
-## Custom motion graphics — HTML authoring
+**Titles & chapter cards**
+- `creator-card` (4.5s) — full-bleed brand title / chapter card with a live dot. Bold YouTube-creator look. Slots: **headline**, eyebrow, brandColor, inkColor, dotColor.
+- `transitions-3d` `O` (4.5s) — editorial title that flips in with a 3D rotate: small lead / HUGE word / small trail. Slots: lead, **emphasis**, trail, textColor, accentColor.
+- `grain-overlay` `O` (5s) — bold uppercase headline + kicker with a flickering film-grain texture over the footage. Slots: kicker, **headline**, textColor.
+- `transitions-destruction` `O` (5s) — headline assembles from slabs, holds, then shatters apart. Dramatic reveal/transition. Slots: kicker, **headline**, accentColor, textColor.
+- `caption-parallax-layers` `O` (5s) — one word stacked in 5 depth layers (solid front + receding ghosts) that enters with a vertical stretch and parallaxes. Slots: eyebrow, **headline**, frontColor, ghostColor.
+
+**Lower third**
+- `yt-lower-third` `O` (4.5s) — subscribe lower-third: avatar + name + title + red Subscribe pill, slides in bottom-left. Slots: **name**, title, accentColor, cardColor, inkColor.
+
+**Data & explainer**
+- `stat-reveal` (4s) — a huge number that counts up, with eyebrow + optional prefix/suffix + label. "10,000+ subscribers", "3× faster". Slots: eyebrow, prefix, **value**, suffix, **label**, brandColor, inkColor, accentColor.
+- `key-takeaways` (6s) — titled checklist; points reveal one-by-one with drawn ticks. The "here's what you need to know" recap. Slots: **title**, items[label], bgColor, accentColor, inkColor.
+- `comparison` (5s) — two labeled panels slide in with a VS badge; the right (winning) panel pulses. Before/after, old-way/new-way. Slots: leftTag, **leftHeading**, leftCaption, rightTag, **rightHeading**, rightCaption, bgColor, leftColor, rightColor, inkColor.
+- `flowchart` (6s) — horizontal node cards joined by drawn arrows, revealed step by step. Process / workflow. Slots: nodes[label], brandColor, cardColor, inkColor, accentColor.
+
+**Reveals & recaps**
+- `parallax-zoom` (5s) — a center hero card zooms to fill while four corner satellites parallax out. Hero reveal / intro. Slots: **headline**, items[label], brandColor, cardColor, inkColor.
+- `parallax-unzoom` (4.5s) — a focus card unzooms to reveal a 2×2 grid as the others parallax in. "ways to use it" / features recap. Slots: items[label], brandColor, cardColor, inkColor.
+
+**Host + panel split**
+- `split-panel` `O` (6s, 16:9 / 1:1) — opaque brand panel on one half (headline + bullet list), transparent on the other for the host. Add via `project.add-designed-segment` (see above). Slots: side (`left`/`right`), **headline**, items[label], brandColor, inkColor.
+
+> List slots (`items`, `nodes`) take an array of objects, e.g.
+> `"items":[{"label":"first"},{"label":"second"}]`. `motion.screenshot`
+> renders a single frame of any template+slots combo if you want to preview
+> before committing to a full render.
+
+## Custom motion graphics — HTML authoring (fallback — only when no template fits)
+
+> Reach for this **only when no bundled template fits the brief** (a bespoke
+> one-off, an unusual layout, a brand-specific 3D treatment). For the common
+> cases — titles, lower thirds, stats, checklists, comparisons, host+panel
+> splits — use the templates above; they're faster and already designed.
+> three.js is available here too (loads from CDN like GSAP; seek protocol in
+> `reference/motion-philosophy.md` §3.7) when 3D raises the bar.
 
 > **BEFORE WRITING ANY MOTION GRAPHIC**, load two reference files:
 >
 > 1. **[`reference/motion-philosophy.md`](reference/motion-philosophy.md)** —
->    the 11 Laws of motion design, visual vocabulary catalog, easing
+>    the Laws of motion design, visual vocabulary catalog, easing
 >    dictionary by purpose, pacing discipline, pre-flight checklist,
 >    canonical composition template. This is the aesthetic contract.
 >    Mechanics without this = "correctly rendered but forgettable."
@@ -2492,8 +2544,9 @@ Key patterns:
 **Single rendered scene → add directly. Multiple scenes → concat first, then add.**
 
 ```bash
-# Single title card — author HTML, render, add directly.
-# (Do NOT use motion.generate; write the HTML from reference/motion-philosophy.md §7.)
+# Single title card — fastest path is the `creator-card` template
+# (motion.generate). This example shows the custom-HTML fallback for a
+# bespoke card; see reference/motion-philosophy.md §7.
 TITLE=$(pandastudio motion.render-html \
   --htmlPath=/tmp/title-card.html \
   --durationMs=3000 --aspectRatio=16:9 --json | jq -r '.data.jobId')
@@ -2582,7 +2635,10 @@ pandastudio caption.set-style --id=$ID --color="#fff" --highlightColor="#34B27B"
   --strokeWidth=3 --strokeColor="#000" --positionY=85
 ```
 
-Templates: `classic | modern | minimal | bold | spotlight | boxed | neon | colored`. Captions read words from the project's merged transcript — so you must transcribe first.
+Templates: `classic | modern | minimal | bold | spotlight | boxed | neon | colored | texture | editorial`. Captions read words from the project's merged transcript — so you must transcribe first.
+
+- `texture` fills large uppercase words with a flowing texture mask (lava/marble/metal/wood/concrete/rock) — pick the texture via `caption.set-style --texture=marble` (default lava).
+- `editorial` is a magazine-emphasis style: the word being spoken RIGHT NOW renders large (and takes an accent color) while the rest of the line shrinks, so one big word sweeps across the line in time with the speech. Best with short `--wordsPerLine` (4-6) so each line reads as a headline. Great for talking-head explainers and punchy hooks.
 
 ## AI metadata (uses bundled local LLM)
 
@@ -2846,6 +2902,19 @@ pandastudio transcript.transcribe --id=$ID               # skip if transcribed
 AUDIO_CLEAN_JOB=$(pandastudio audio.clean --id=$ID --json | jq -r '.data.jobId // empty')
 
 pandastudio transcript.remove-fillers --id=$ID
+
+# Content cleanup — surface re-takes, false starts, and stutters, then cut
+# the ones that are genuinely flubs. find-issues is READ-ONLY: it returns
+# candidates with the wordIds of the DISCARDED attempt. Review them (a
+# repeated phrase can be deliberate emphasis) and delete only what you
+# accept. For a hands-off "edit this" pass, auto-apply the high-severity
+# duplicate-takes and obvious stutters; leave medium/low for the user if
+# they're reviewing. NOTE: delete the discarded attempt, keep the clean one.
+ISSUES=$(pandastudio transcript.find-issues --id=$ID --json | jq -c '.data.issues')
+# e.g. accept all duplicate-takes (re-records) + adjacent-repeats (stutters):
+DROP=$(echo "$ISSUES" | jq -c '[.[] | select(.type=="duplicate-take" or .type=="adjacent-repeat") | .wordIds[]]')
+[ "$DROP" != "[]" ] && pandastudio transcript.delete-words --id=$ID --wordIds="$DROP"
+
 SILENCE_MS=$([ "$PROFILE" = "loom" ] && echo 300 || echo 500)
 pandastudio transcript.remove-silences --id=$ID --minSilenceMs=$SILENCE_MS
 
@@ -2921,8 +2990,8 @@ pandastudio project.add-zoom --id=$ID --clipId=$CLIP_ID \
 #    - `linkedin`: skip 3d (no music)
 
 # 3a. Intro title card (youtube-long: 2-4s, linkedin: 2-3s)
-# Author HTML from reference/motion-philosophy.md §7 canonical shell.
-# Do NOT use motion.generate — templates are not on your surface.
+# Fastest: the `creator-card` template via motion.generate. Author custom
+# HTML (reference/motion-philosophy.md §7) only for a bespoke intro.
 if [ "$PROFILE" = "youtube-long" ] || [ "$PROFILE" = "linkedin" ]; then
   JOB=$(pandastudio motion.render-html \
     --htmlPath=/tmp/intro-title.html \
@@ -3125,5 +3194,5 @@ collect ALL such questions in a single message — never one-at-a-time.
 - [`reference/commands.md`](reference/commands.md) — every verb.noun with arg schema and a one-line example.
 - [`reference/examples.md`](reference/examples.md) — multi-step recipes: "make a 30 s intro card", "browse exports and pick the best title", "render a Shorts (9:16) lower-third".
 - [`reference/templates.md`](reference/templates.md) — what each motion-graphic template looks like, with the slots it accepts and which aspect ratios it supports.
-- [`reference/motion-philosophy.md`](reference/motion-philosophy.md) — **the aesthetic contract.** 11 Laws, visual vocabulary, easing dictionary, canonical shell, pre-flight checklist. Load this BEFORE authoring any motion graphic. This is what raises output from "template-filled" to "HyperFrames-quality".
+- [`reference/motion-philosophy.md`](reference/motion-philosophy.md) — **the aesthetic contract.** Laws, visual vocabulary, easing dictionary, canonical shell, pre-flight checklist. Load this BEFORE authoring any motion graphic. This is what raises output from "template-filled" to "HyperFrames-quality".
 - [`reference/video-authoring.md`](reference/video-authoring.md) — **3-mode delivery playbook.** Mode A (9:16 camera-only), Mode B (9:16 screen-rec + PiP face — PandaStudio's unique mode), Mode C (16:9 YouTube side-overlay). Face choreography, caption safe zones, audio-sync protocol, frame verification. Load this for any shorts/YouTube authoring task.

@@ -23,60 +23,170 @@ decide whether the result looks premium or looks like default AI output.
 > - [Animation-library adapters (gsap, three, anime, lottie, waapi, css)](https://github.com/heygen-com/hyperframes/tree/main/skills)
 >
 > If a motion-graphic render comes out static or off-by-frames, 9 times out of
-> 10 you violated one of the rules in §0 (the 11 laws) or §6 (anti-patterns).
+> 10 you violated one of the rules in §0 (the laws) or §6 (anti-patterns).
 > Re-read those before debugging deeper.
 
-The bar we're aiming for: the HeyGen HyperFrames launch aesthetic and the
-Infinite Global Payments spot (`x-XTeSJ-DKx63uB4.mp4`, 1920×1080, 30fps,
-900 frames). Black canvas, chrome-gradient type, motion-blurred whips,
-object callbacks, held hero moments. One idea per beat, kinetic not still.
+The bar we're aiming for is reference-grade work in **whatever aesthetic the
+content calls for** — the bright, bold YouTube-creator look for a tutorial; the
+HeyGen HyperFrames launch aesthetic (black canvas, chrome type, motion-blurred
+whips) for a branded promo; the restrained Linear/Vercel keynote look for a
+product announcement. These are three different *looks* (the **tracks** in §0.5),
+not three quality bars. The quality bar is constant: kinetic, intentional,
+frame-perfect.
 
 If you don't know what "good" looks like, the short answer is: **static text
-fading in on a flat background is the lowest tier of motion graphics.** If
-that's what you're about to author, stop and read this file.
+fading in on a flat background is the lowest tier of motion graphics — in any
+track.** If that's what you're about to author, stop and read this file.
 
 ---
 
-## 0 · The 11 Laws (memorize)
+## 0 · The Laws (memorize)
 
-1. **One idea per beat. Cut fast.** Average scene length ≈ 1.5 seconds in
-   a reference-quality piece. Each visual lands ONE word or concept and
-   moves on. If a scene is saying two things, split it.
-2. **Black is the canvas.** ~90% of every frame is black or near-black.
-   Negative space is the design. Color earns its place by carrying a
-   message — decorative color cheapens.
-3. **Light is the brand, not color.** Chrome gradients on type, soft halos,
-   vignettes, light beams. The piece is *lit*, not *colored*. Light reads
-   as premium.
-4. **Camera never sleeps.** Even on "still" frames, the grid recedes,
-   particles drift, the vignette breathes, the logo shimmers. Static =
-   death. Every hold beat needs at least one micro-motion layer.
-5. **Motion blur is a feature.** Every transition uses a streak / blur
-   trail — to convey energy AND to mask the cut. Hard cuts and crossfades
-   feel cheap; whip-streaks feel expensive.
-6. **Object metaphors carry meaning.** A prop that appears early returns
-   later — the same coin, the same card, the same icon. Visual continuity
-   = brand. One callback minimum per piece.
-7. **Palette is symbolic, not decorative.** ≤ 5 active hues across the
-   whole piece, each one owning a concept. Don't add a color because it
-   "looks nice" — assign it a meaning.
-8. **Type is a character.** Words SCALE (8× for hero moments), MORPH,
-   COMPRESS, GLOW. Typography drives ~60% of the storytelling. A
-   text-only beat can be the strongest beat. Never fade flat text in and
-   call it done.
-9. **Hold the hero shot.** Logo reveal = 1.5–2s of stillness (with
-   micro-shimmer). Outro card = 4–6s. Speed earns space for stillness to
-   land. Kinetic chaos → calm = catharsis.
-10. **One unifying texture across everything.** Reference pieces use a
-    perspective grid + crosshair markers + vignette + grain on every
-    scene. Even when invisible, that grid is the spine of the whole
-    piece. Without a unifying texture you don't have a piece — you have
-    clips.
-11. **Timelines must fill their slots.** HyperFrames hides a
-    sub-composition the moment `timeline.duration() < data-duration` →
-    black-frame flash. Every GSAP timeline ends with
-    `tl.to({}, { duration: SLOT_DURATION }, 0)` as a no-op duration
-    anchor. Non-negotiable. Recipe + diagnostic in §4.
+> **Read this honestly.** This list was originally written ("the 11 Laws") when
+> PandaStudio shipped only the dark-premium launch look, so several "laws" were
+> really that look's *styling* dressed up as universal truth: *black is the
+> canvas*, *light not color*, *perspective grid on every scene*. They are NOT
+> universal — apply them to a bright YouTube-creator graphic and you get exactly
+> the failure we keep hitting (a moody black chrome-gradient card where the
+> creator wanted bold and bright). So each law below now states the **universal
+> principle first**, then — where the original was track-specific — names how
+> each track (A · YouTube-creator, B · dark-premium, C · product-launch; see
+> §0.5) expresses it. The numbering is preserved because other docs reference
+> "Law #4" and "Law #11" by number.
+
+1. **One idea per beat.** Each visual lands ONE word or concept, then moves on.
+   If a scene is saying two things, split it. *Pacing differs by context:* a
+   hero/promo beat averages ≈1.5s (Track B); a companion graphic over a talking
+   host holds far longer (§1.6) because the viewer is split between voice and
+   graphic. Fast-cut energy is Track B's default, not a universal speed.
+2. **Commit to a canvas and protect its negative space.** Pick the frame's
+   ground and defend it — don't crowd it. *Track-specific:* **A** = a full-bleed
+   saturated brand color (or bright off-white) edge to edge; **B** = black /
+   near-black, ~90% negative space; **C** = a calm tinted solid or soft off-white
+   with generous breathing room. (The old "black is the canvas" is Track B only.)
+3. **Production value is the brand — the right kind per track.** The frame should
+   read as *made on purpose*, not defaulted. *Track-specific:* **A** = bold,
+   confident, high-contrast, instantly legible; **B** = *lit* not colored — chrome
+   gradients, halos, light beams; **C** = precise, spacious, understated. (The old
+   "light is the brand, not color" is Track B's finish, not a universal ban on
+   color — Track A is deliberately color-forward.)
+4. **Camera never sleeps.** Even on "still" frames something moves — a drift, a
+   shimmer, a breathing vignette, a slow scale. Static = death. Every hold beat
+   needs at least one micro-motion layer. *(Universal.)*
+5. **No naked cuts — every transition carries motion.** Hard cuts and plain
+   crossfades feel cheap. *The technique is track-specific:* **B** = motion-blur
+   whip-streaks; **A** = snappy pops, slides, grid/pixelate wipes (§3.8); **C** =
+   clean directional slides and masks. Motion blur is ONE option, not the law.
+6. **For multi-scene pieces, callbacks beat novelty.** A prop/icon/shape that
+   appears early returns later — visual continuity reads as intentional. *N/A for
+   a single lower third or one-shot card;* it's a law for pieces with ≥3 scenes.
+7. **Intentional, limited, brand-derived palette.** ≤5 active hues, each owning a
+   concept; usually fewer (Track A often runs one dominant brand hue + a near-black
+   ink). Never add a color because it "looks nice," and **never default to the
+   PandaStudio editor's green/cyan** — derive the palette from the *creator* (§0.5).
+   *(Universal.)*
+8. **Type is a character.** Words SCALE, MOVE, COMPRESS, GLOW — typography drives
+   most of the storytelling and a text-only beat can be the strongest beat. Never
+   fade flat text in and call it done. *(Universal; the treatment — chrome+halo vs
+   solid heavy fill vs clean restrained — is per track.)*
+9. **Hold the hero shot.** A reveal or outro earns stillness (with micro-motion):
+   logo/hero ≈1.5–2s, outro/CTA ≈4–6s. Speed earns space for stillness to land.
+   *(Universal.)*
+10. **One unifying system across scenes.** A multi-scene piece needs a spine that
+    ties scenes together. *The spine is track-specific:* **B** = perspective grid +
+    crosshair markers + vignette + grain on every scene; **A** = a consistent type
+    system + color-block language + a repeated motion signature; **C** = a fixed
+    spatial grid + consistent easing + restraint. (The old "perspective grid on
+    everything" is Track B's spine — do NOT put it under a bright Track A graphic.)
+11. **Timelines must fill their slots.** HyperFrames hides a sub-composition the
+    moment `timeline.duration() < data-duration` → black-frame flash. Every GSAP
+    timeline ends with `tl.to({}, { duration: SLOT_DURATION }, 0)` as a no-op
+    duration anchor. Non-negotiable, every track. Recipe + diagnostic in §4.
+12. **Determinism is law.** No `Math.random` / `Date.now` / `performance.now`, no
+    `repeat: -1`, no `setInterval`/`setTimeout`/async in the render body. Renders
+    must be bit-identical frame-to-frame because HyperFrames seeks deterministically.
+    Seed any randomness; drive everything off the paused timeline. *(Universal — was
+    buried in §6 anti-patterns; it's a law.)*
+
+---
+
+## 0.5 · Aesthetic tracks — choose the look BEFORE you author
+
+**Read this before §1.** §0's laws fold in *where* they're track-specific (canvas,
+finish, transition technique, unifying spine). This section is where you actually
+**pick the track** — do it first, before you write a line of HTML, because it
+decides canvas color, type treatment, and motion language. Picking wrong is the
+single most common motion-graphic failure: a YouTube tutorial gets a moody black
+chrome-gradient title card when it wanted bold, bright, and full-bleed.
+
+The universal laws (#1, #4, #6–#9, #11, #12) hold no matter which track you pick.
+The track decides the rest:
+
+**Choose ONE track per piece and commit to it:**
+
+| Track | Canvas | Type | Color | When |
+|---|---|---|---|---|
+| **A · YouTube-creator** | FULL-BLEED saturated brand color, or bright off-white. Edge-to-edge, no letterboxed card floating in black. | Huge, heavy (800–900 weight), often lowercase, tight tracking. Solid fills, not chrome. | One dominant brand hue carrying the whole frame + a near-black ink for text. Bold and legible at a glance. | The default for tutorials, vlogs, talking-head explainers, "how I built X", reaction/commentary. **Most PandaStudio edits.** |
+| **B · Dark-premium** | Black / near-black, ~90% negative space. The §0 laws apply verbatim. | Chrome-gradient, haloed, scales to 8×. | ≤5 hues, light-as-brand, perspective grid + crosshairs + vignette + grain. | Branded promos, launch films, sizzle reels, anything cinematic with no host talking. |
+| **C · Product-launch / keynote** | Deep-tinted solid or soft off-white. Calm, lots of breathing room. Linear/Vercel/Apple-keynote energy. | Clean sans, medium-heavy, restrained scale. Subtle gradient emphasis on ONE word max. | 2–3 hues, low saturation, generous neutrals. Precision over energy. | Feature announcements, changelog reels, B2B/SaaS, "introducing X". |
+
+### Profile → default track
+
+| Destination profile | Default track | Notes |
+|---|---|---|
+| `youtube-long`, `shorts`, `tiktok`, `reels` | **A · YouTube-creator** | Unless the creator's own brand is explicitly dark/cinematic. |
+| `linkedin` | **C · Product-launch** | Professional, restrained. A also fine for personal-brand creators. |
+| `loom` / internal | minimal — captions + zooms; graphics only if asked | Don't over-produce a screen-share walkthrough. |
+| Branded promo / sizzle / no host on screen | **B · Dark-premium** | The §0 laws are the bar here. |
+
+The profile picks the *default*; the **creator's brand always overrides it**. If
+you can see the channel's palette (thumbnail, logo, set, lighting, prior graphics),
+match THAT. A creator whose brand is hot-pink-on-cream gets hot-pink-on-cream
+graphics regardless of profile.
+
+### Brand-first color — and the editor-green trap
+
+**Derive the palette from the CREATOR, never from the PandaStudio editor UI.**
+PandaStudio's interface brand color is a green (`#34B27B`) and a cyan
+(`#0BC0F0`). Those belong to the *tool*, not to the user's *content*. Defaulting
+a user's graphic to editor-green is the equivalent of Final Cut stamping its
+icon color into every export — it's an anti-pattern (see §6). Sources for the
+real palette, in priority order:
+1. An explicit brand color the user gave you.
+2. The channel's thumbnails / logo / recurring graphics.
+3. The set + lighting in the recording itself.
+4. A neutral, track-appropriate default (Track A: a confident saturated hue you
+   pick *with a reason* — not green-because-it-was-on-screen; Track B: black +
+   chrome; Track C: off-white + one restrained accent).
+
+When you don't know the brand, say so and pick a defensible neutral — don't
+reach for the editor's chrome.
+
+### Scene graphic vs companion graphic (opaque vs transparent)
+
+Two structurally different things, often confused:
+
+- **Scene graphic (opaque, full-frame):** the host steps away and the graphic
+  OWNS the frame — a title card, a chapter divider, a stat reveal, an outro. Render
+  OPAQUE (mp4, or a webm with a solid background). It fills 1920×1080 edge to
+  edge. **It is not a small ribbon floating over the camera.** Use it when the
+  voiceover pauses or the script hits a section break. Tracks A/B/C all do scene
+  graphics.
+- **Companion graphic (transparent, alongside host):** the host keeps talking and
+  the graphic shares the frame — a lower third, a side panel of bullet points, a
+  concept callout, a designed split segment. Render TRANSPARENT (`motion.render-html
+  --transparent` → VP9-alpha webm) so the camera shows through. Pace it slower
+  (§1.6) because the viewer is split between voice and graphic.
+
+A layered scene graphic (Track A or B) is built like the canonical shell: a
+full-frame background plate, then content on top, then ambient texture. A
+companion graphic has a transparent background and only paints its panel.
+
+**You do NOT need transparency for a scene graphic.** When the host is silent and
+the graphic owns the frame, an opaque full-frame plate is correct and simpler —
+start the graphic as the voiceover pauses. Reserve transparent renders for
+companion graphics that genuinely share the frame with live footage. (If the user
+explicitly wants a transparent overlay, honor that.)
 
 ---
 
@@ -175,18 +285,34 @@ animation looks cheap.
 
 ### 1.3 Color Story
 
-5 hues maximum per piece, each with a meaning. A working palette:
+≤5 hues per piece, each with a meaning, **derived from the creator's brand — not
+the PandaStudio editor's green/cyan** (Law #7, §0.5). The palette shape depends on
+the track.
+
+**Track A (YouTube-creator)** — usually just TWO that do the heavy lifting:
+
+| Role | Example | When |
+|---|---|---|
+| Brand fill | one confident saturated hue (the creator's) | The full-bleed canvas + accents |
+| Ink | near-black (`#06141a`) or near-white depending on fill | All heavy headline type |
+| (optional) live/alert | `#ff2d2d` | A pulsing "live"/"new" dot, sparingly |
+
+**Track B (dark-premium)** — the lit, symbolic palette:
 
 | Role | Example hex | When |
 |---|---|---|
-| Canvas | `#000` / `#0a0a0a` | Always, every frame |
+| Canvas | `#000` / `#0a0a0a` | Every frame |
 | Brand primary (chrome) | `#fff → #999` gradient | All headline type |
 | Accent 1 (problem / alert) | `#e10b1f` red | Thing we're solving |
 | Accent 2 (solution / brand core) | `#33d4c8` teal | The answer / product |
-| Accent 3 (energy / speed) | `#a155ff` magenta | High-velocity beats, API feel |
+| Accent 3 (energy / speed) | `#a155ff` magenta | High-velocity beats |
 
-Rule: when adding a new scene, ask "what's the one color carrying this
-beat?" If you can't name it, you haven't earned it. Kill the color.
+**Track C (product-launch)** — 2–3 low-saturation hues over generous neutrals
+(off-white/deep-tint canvas, one restrained accent on a single emphasized word).
+
+Rule: when adding a new scene, ask "what's the one color carrying this beat, and
+does it come from the creator's brand?" If you can't name it, or it's
+green-because-it-was-on-screen, you haven't earned it. Kill it.
 
 ### 1.4 Motion Vocabulary (named moves with GSAP recipes)
 
@@ -577,6 +703,84 @@ clearcoat/transmission until verified working in headless.
 - Post-processing: only `EffectComposer` with `BloomPass` for hero
   shots; everything else is too slow for offline render to justify
 
+### 3.8 Track-A scene graphic — full-bleed creator title/chapter card
+
+The YouTube-creator workhorse: the host pauses, an opaque full-frame card owns
+the screen for 2–3s, then the host returns. **Opaque, edge-to-edge, brand color,
+heavy type — no grid, no chrome, no black.** Render opaque (mp4) since it owns
+the frame. Pick the brand hue from the creator (§0.5), not the editor.
+
+```html
+<div id="root" data-composition-id="chapter" data-width="1920" data-height="1080" data-duration="3.0"
+     style="position:relative;width:1920px;height:1080px;background:#0BC0F0;overflow:hidden;
+            font-family:Inter,sans-serif">
+  <!-- BRAND fills the frame. Swap #0BC0F0 for the creator's hue. -->
+  <div class="scene" style="position:absolute;inset:0;display:flex;flex-direction:column;
+       align-items:center;justify-content:center;gap:18px">
+    <div class="eyebrow" style="display:inline-flex;align-items:center;gap:18px;font-size:30px;
+         font-weight:700;letter-spacing:0.35em;text-transform:uppercase;color:#062a33">
+      <span class="livedot" style="width:20px;height:20px;border-radius:50%;background:#ff2d2d;
+            box-shadow:0 0 22px rgba(255,45,45,.6)"></span><span>Part 2 · Live</span></div>
+    <!-- HEAVY, near-black ink on the brand color. Lowercase reads modern. -->
+    <div class="headline" style="font-size:200px;font-weight:900;color:#06141a;
+         letter-spacing:-0.04em;line-height:0.9;text-transform:lowercase">live demo</div>
+  </div>
+  <div id="grid" style="position:absolute;inset:0;display:grid;
+       grid-template-columns:repeat(16,1fr);grid-template-rows:repeat(9,1fr)"></div>
+</div>
+<script>
+  const grid=document.getElementById("grid");
+  for(let i=0;i<16*9;i++){const c=document.createElement("div");c.className="cell";
+    c.style.cssText="background:#06141a;transform:scale(0);transform-origin:center";grid.appendChild(c);}
+  const tl=gsap.timeline({paused:true});
+  // grid-pixelate-wipe IN (cover from center) then OUT (reveal to edges)
+  tl.to("#grid .cell",{scale:1,duration:0.5,stagger:{amount:0.4,from:"center"},ease:"power2.inOut"},0);
+  tl.to("#grid .cell",{scale:0,duration:0.5,stagger:{amount:0.4,from:"edges"},ease:"power2.inOut"},0.55);
+  tl.from(".headline",{y:30,opacity:0,duration:0.5,ease:"power3.out"},0.7);
+  tl.from(".eyebrow",{opacity:0,duration:0.4},0.85);
+  tl.fromTo(".livedot",{scale:0.8},{scale:1.2,duration:0.5,ease:"sine.inOut",yoyo:true,repeat:3},1.0);
+  tl.to({},{duration:3.0},0);                 // Law #11 anchor
+  window.__timelines=window.__timelines||{};window.__timelines["chapter"]=tl;
+</script>
+```
+
+### 3.9 Catalog plate moves (parallax-zoom / parallax-unzoom / grid-pixelate-wipe)
+
+Three entrance/exit techniques lifted from the HyperFrames catalog. They work in
+ANY track — they're *motion*, not *styling* — so layer text on top of whatever
+canvas the track calls for. Each is a self-contained block plus its GSAP tween.
+
+**grid-pixelate-wipe** — the frame dissolves into a grid of cells that scale in
+from the center (cover) and out to the edges (reveal). The cleanest way to mask a
+cut or stamp content onto the frame. Full recipe inline in §3.8 above.
+
+**parallax-zoom (push-in reveal)** — a background plate scales up slowly while
+foreground content rises and settles. Reads as a confident "lean in." Use for a
+title landing or a stat reveal.
+
+```js
+// .plate = full-frame bg image/color; .fg = the headline/stat on top.
+const tl = gsap.timeline({ paused: true });
+tl.fromTo(".plate", { scale: 1.0 }, { scale: 1.12, duration: SLOT, ease: "power1.inOut" }, 0); // slow drift the WHOLE slot
+tl.from(".fg",      { y: 60, opacity: 0, duration: 0.7, ease: "power3.out" }, 0.25);
+tl.from(".fg .sub", { y: 24, opacity: 0, duration: 0.5, ease: "power2.out" }, 0.5);
+tl.to({}, { duration: SLOT }, 0);            // Law #11
+```
+
+**parallax-unzoom (pull-back reveal)** — the inverse: the plate starts pushed in
+and eases back out to 1.0 while content settles. Reads as "stepping back to show
+the whole picture" — good for an outro or a "here's everything" summary card.
+
+```js
+const tl = gsap.timeline({ paused: true });
+tl.fromTo(".plate", { scale: 1.14 }, { scale: 1.0, duration: SLOT, ease: "power1.out" }, 0);
+tl.from(".fg",      { scale: 0.92, opacity: 0, duration: 0.7, ease: "power3.out" }, 0.2);
+tl.to({}, { duration: SLOT }, 0);
+```
+
+Determinism note: a continuous plate drift over the whole slot needs NO repeat —
+it's a single tween spanning `SLOT`, so it's already seek-safe. Don't loop it.
+
 ---
 
 ## 4 · Pre-flight checklist — run BEFORE claiming done
@@ -584,24 +788,25 @@ clearcoat/transmission until verified working in headless.
 No motion graphic ships without every one of these passing. If you can't
 tick a box, fix it before calling `export.start`.
 
-- [ ] **Average scene length ≤ 2s** in mid-section (intro/outro may hold longer)
-- [ ] **No dead air > 1s** anywhere except deliberate hold moments
-- [ ] **Every transition uses motion** (whip, morph, slide, recolor — no hard fades)
-- [ ] **Color palette ≤ 5 active hues**, each with a meaning
-- [ ] **All headline text uses chrome gradient + halo** — no flat white
-- [ ] **Background grid + crosshairs present in ≥ 60% of scenes**
-- [ ] **Vignette layer on top of every scene**
-- [ ] **Grain overlay on every scene** (subtle but there)
-- [ ] **≥ 1 callback** — a visual element that returns later
-- [ ] **Outro holds ≥ 4 seconds** with micro-motion (shimmer, breath)
+**Universal (every track):**
+- [ ] **Picked a track (§0.5) and the look matches it** — bright/full-bleed for A, black/chrome for B, calm/tinted for C. The single most important check.
+- [ ] **Palette is brand-derived, ≤5 hues, NOT the editor's green/cyan** unless that's genuinely the creator's brand
+- [ ] **No dead air** beyond deliberate holds; pacing fits the mode (fast for hero/promo, slower for companion-over-host §1.6)
+- [ ] **Every transition carries motion** (whip / wipe / slide / recolor — no hard fades), in the track's technique
+- [ ] **Type scales/moves on reveal** — never a flat fade-in
+- [ ] **Scene graphics fill the frame; companion graphics are transparent** (§0.5) — a scene graphic is NOT a small ribbon floating in empty space
+- [ ] **Outro/hero holds** with micro-motion (shimmer / breath / slow scale)
 - [ ] **Every sub-composition timeline ends with the Law #11 anchor**
-- [ ] **All tween end-times snap to multiples of `1/fps`** (at 30fps:
-      0.0333, 0.0667, 0.1, 0.1333… — steep-tail eases like `expo.in`
-      alias visibly at sub-frame boundaries)
+- [ ] **Determinism (Law #12):** no `Math.random`/`Date.now`, no `repeat:-1`
+- [ ] **All tween end-times snap to multiples of `1/fps`** (at 30fps: 0.0333, 0.0667, 0.1… — steep-tail eases like `expo.in` alias at sub-frame boundaries)
 - [ ] **Ran the timeline-duration diagnostic** (see below)
-- [ ] **Extracted frames and actually looked at them** — see
-      `motion.verify-frames` verb. Lint passing ≠ design working. No
-      ship without frame inspection.
+- [ ] **Extracted frames and actually looked at them** — see `motion.verify-frames`. Lint passing ≠ design working. No ship without frame inspection.
+
+**Track B (dark-premium) — additionally:**
+- [ ] **Average scene length ≤ 2s** in mid-section (intro/outro may hold longer)
+- [ ] **Headlines use chrome gradient + halo** — no flat white
+- [ ] **Perspective grid + crosshairs in ≥60% of scenes**, vignette + grain on every scene
+- [ ] **≥1 callback** — a visual element that returns later (multi-scene pieces)
 
 ### Timeline-duration diagnostic
 
@@ -638,12 +843,53 @@ Before you ship any motion graphic, ask:
 
 ## 6 · Anti-patterns (what NOT to do)
 
+**The track / color failures (the ones we actually keep hitting):**
+
+- ❌ **Defaulting a user's graphic to the PandaStudio editor's green (`#34B27B`)
+  or cyan (`#0BC0F0`).** Those are the *tool's* brand, not the *creator's*. Seeing
+  green on screen in the editor is not a reason to put green in the content — it's
+  the equivalent of Final Cut stamping its logo color into every export. Derive the
+  palette from the creator (§0.5, Law #7). When you don't know it, pick a defensible
+  neutral *with a stated reason* — never green-by-accident.
+- ❌ **Shipping the dark-premium look (black canvas, chrome type, perspective grid)
+  on YouTube-creator content.** That's Track B applied where Track A belongs. A
+  tutorial/vlog/explainer wants bright, bold, full-bleed brand color and heavy solid
+  type — not a moody black card. Pick the track FIRST (§0.5).
+- ❌ **Shrinking a scene graphic into a small ribbon floating in empty space.** When
+  the host steps away and the graphic owns the frame, it must FILL the frame
+  (1920×1080, edge to edge). A tiny centered pill on a vast empty background reads as
+  unfinished. (A small ribbon is only correct as a *companion* lower-third over live
+  footage — different thing, §0.5.)
+- ❌ **Reaching for a transparent render when the graphic owns the frame.** Scene
+  graphics are opaque and full-bleed; transparency is for companion graphics that
+  share the frame with live footage. Don't add alpha you don't need.
+- ❌ **One-aesthetic-fits-all.** Authoring every piece in the same look regardless of
+  destination and creator brand. The track is a per-piece decision.
+
+**Process trap — verifying a transparent render:**
+
+- ❌ **Trusting `ffprobe`'s `pix_fmt` or an `ffmpeg overlay` composite to judge
+  whether a transparent render "has alpha".** VP9-alpha webm stores alpha as a
+  separate side-stream: `ffprobe` reports the main plane as `yuv420p` *even when
+  alpha is present*, and ffmpeg's default decoder / `overlay` filter silently drop
+  the alpha (so a transparent overlay composites as **black**). Neither is a bug.
+  **A `yuv420p` reading is EXPECTED and not evidence of a problem.** To actually
+  verify alpha: check the `ALPHA_MODE=1` stream tag (`ffprobe -show_entries
+  stream_tags`), decode with an explicit `-c:v libvpx-vp9`, or just composite in
+  Chromium (which is what PandaStudio's renderer uses and it decodes VP9 alpha
+  correctly). This exact trap once produced a false "critical transparency
+  regression" alarm — the alpha was fine the whole time.
+
+**The craft failures:**
+
 - ❌ **Centered, axis-aligned, motionless text fades.** This is the lowest
   motion-graphics tier. Always add scale, blur, or directional energy.
 - ❌ **Hard cuts between scenes.** Every cut needs a transition element
   bridging it (streak, morph, wipe, shader).
-- ❌ **Flat white text on flat black background.** Use chrome gradient +
-  halo glow. Costs nothing. Looks 10× more expensive.
+- ❌ **Untreated default type.** Flat white on black with no treatment is the
+  Track-B tell (use chrome gradient + halo there). Track A wants heavy solid fills
+  with real weight contrast; Track C wants a clean restrained face with at most one
+  gradient-emphasized word. The anti-pattern is *defaulting*, not the specific fill.
 - ❌ **6+ colors across the piece.** You're decorating, not communicating.
 - ❌ **No callbacks.** A visual element that appears once and never
   returns wastes its setup.
@@ -716,22 +962,28 @@ templates are v0 quality and do not meet the bar in this document.
 For every motion graphic, regardless of type or complexity:
 
 1. Load this doc (if not already loaded).
-2. If authoring for a specific delivery format (9:16 shorts, 16:9
+2. **Pick the track (§0.5)** from the destination + the creator's brand. This
+   decides canvas, type, color, and motion language before you write any HTML.
+3. If authoring for a specific delivery format (9:16 shorts, 16:9
    YouTube side-overlay), also load `reference/video-authoring.md`.
-3. Start from the canonical shell below — grid + vignette + grain + Law
-   #11 anchor are mandatory, not optional.
-4. Add scene content on tracks 2–8. Use vocabulary from §1.4. Pick
-   eases from §2. Respect pacing floors from §1.5.
-5. After rendering, run `motion.verify-frames` and READ each frame.
-6. Run the pre-flight checklist (§4) before declaring done.
+4. Start from the right shell for the track: **Track A** → the full-bleed creator
+   shell in §3.8; **Track B** → the dark-premium canonical shell below (grid +
+   vignette + grain); **Track C** → a calm tinted/off-white frame with restrained
+   type. The **Law #11 anchor and Law #12 determinism are mandatory in every
+   track**; the grid/vignette/grain are Track B's spine, NOT universal.
+5. Add scene content. Use motion vocabulary from §1.4 + plate moves from §3.8–3.9.
+   Pick eases from §2. Respect the track's pacing (§1.5 hero/promo, §1.6 companion).
+6. After rendering, run `motion.verify-frames` and READ each frame.
+7. Run the pre-flight checklist (§4) before declaring done.
 
-Same applies for any scene: lower thirds, intro cards, stat reveals,
-sponsor reads, chapter dividers, subscribe CTAs, outro cards, spotlight
-rings, reaction bursts. Every one gets the 11 Laws treatment. No
-"this is just a small lower third, I'll skip the grid" — the grid is
-cheap and it's what separates template-filled from reference-quality.
+Same applies for any scene: lower thirds, intro cards, stat reveals, sponsor
+reads, chapter dividers, subscribe CTAs, outro cards, spotlight rings, reaction
+bursts. Every one gets the Laws treatment **in its track** — no "this is just a
+small lower third, I'll skip the craft." But "gets the treatment" does NOT mean
+"gets the perspective grid": a bright Track-A card with the Track-B grid jammed
+under it is exactly the failure §0.5 warns about.
 
-### Canonical composition template (use verbatim)
+### Canonical composition template — the Track-B (dark-premium) shell
 
 ```html
 <!doctype html>
@@ -825,17 +1077,20 @@ cheap and it's what separates template-filled from reference-quality.
 </html>
 ```
 
-Start every bespoke composition from this template. The grid, vignette,
-and grain are mandatory. The anchor tween is mandatory. Add content on
-tracks 2–8.
+Use this shell for **Track-B (dark-premium)** pieces — the grid, vignette, and
+grain are mandatory *there*. For **Track A** start from §3.8 instead (full-bleed
+brand color, heavy type, NO grid/vignette/grain). For **Track C** use a calm
+tinted or off-white frame with restrained type. The anchor tween (Law #11) and
+determinism (Law #12) are mandatory in every track.
 
 ---
 
 ## 8 · TL;DR — the philosophy in one sentence
 
-> **One idea per beat, lit not colored, kinetic not still, callbacks not
-> novelty, hold the hero, breathe the outro — the grid is always under
-> everything, every timeline fills its slot, every exit snaps to a frame
-> boundary, and every cut hides inside a motion-blurred whip.**
+> **Pick the track for the content (bright creator A / dark-premium B / keynote
+> C), derive color from the creator not the editor, then: one idea per beat,
+> kinetic not still, type that moves, hold the hero, breathe the outro — every
+> timeline fills its slot, every render is deterministic, every exit snaps to a
+> frame boundary, and no cut is ever naked.**
 
 Load this when you load motion-philosophy.md. Then go build.

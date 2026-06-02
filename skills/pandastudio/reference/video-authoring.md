@@ -7,7 +7,7 @@ governs *where things go* and *how audio, face, screen, captions, and
 motion graphics compose* in each aspect ratio.
 
 **Prerequisites:** load `reference/motion-philosophy.md` first. This
-playbook assumes the 11 Laws, visual vocabulary, and easing dictionary
+playbook assumes the Laws, visual vocabulary, and easing dictionary
 are in context.
 
 ---
@@ -716,7 +716,7 @@ HyperFrames-level.
 
 ## 7 · Final sanity check — all modes
 
-Before you say "done", re-read the 11 Laws (motion-philosophy §0). If
+Before you say "done", re-read the Laws (motion-philosophy §0). If
 your piece doesn't honour at least 9 of them, it's not done. The two
 you can skip (maybe) are #10 (unifying texture — if the piece is a
 one-scene short) and #6 (callback — if it's under 15s). Every other
