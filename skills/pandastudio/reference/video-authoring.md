@@ -619,6 +619,7 @@ boundaries. The verb supports `anchor.sourceMs` (passes through
 | `cam-left-portrait` | 16:9 Mode C mirror — camera on left, graphic on right. Less common; only when the user specifies. |
 | `cam-bottom-right-quarter` | 16:9 brand corner — camera in a small bottom-right quarter while the rest is graphic-driven (logo reveals, big stat reveals). |
 | `cam-bottom-left-quarter` | Mirror of the above. |
+| `cam-right-55` / `cam-left-55` / `cam-right-50` / `cam-left-50` | 16:9 **full-bleed split** — camera fills its half **edge-to-edge** (a hard rectangle, NOT a floating portrait card), the other half is a solid panel graphic. The number is the camera's width share (55% reference split, or 50% balanced). This is the "designed segment" look. **Don't wire these by hand — use `project.add-designed-segment` (§5b.5), which places the camera AND the panel graphic together so they can't mismatch.** |
 
 ### 5b.3 The pattern
 
@@ -642,6 +643,39 @@ Match the region timestamps to the motion graphic's. The 320 ms
 ease-in/out at boundaries means the camera glides into the portrait
 card just before the graphic starts and glides back to full-frame just
 after it ends — feels intentional, not snapped.
+
+### 5b.5 Designed segments — one-call full-bleed split (preferred)
+
+For the **full-bleed split** look (host fills one half edge-to-edge, a solid
+motion-graphic panel fills the other — the Vox / MKBHD "creators are burning
+hours in: …" beat), use **`project.add-designed-segment`** instead of wiring a
+`cam-*-55/50` clip-transform and a motion graphic separately. One call places
+both over the same window, with the same transition and source anchor, so the
+camera and panel can never drift or mismatch.
+
+```bash
+# 1. Author the PANEL GRAPHIC as a FULL-FRAME 1920x1080 TRANSPARENT render.
+#    Paint the opaque panel + content on the panel side; leave the camera's
+#    half FULLY TRANSPARENT — that half reveals the repositioned host.
+JOB=$(pandastudio motion.render-html --htmlPath=/tmp/panel.html --transparent \
+  --width=1920 --height=1080 --durationMs=6000 --json | jq -r .jobId)
+pandastudio job.wait --jobId=$JOB
+
+# 2. One call: camera → right 55%, transparent panel → left 45%, coordinated.
+pandastudio project.add-designed-segment \
+  --fromJob=$JOB --durationMs=6000 --atMs=12000 \
+  --cameraSide=right --cameraRatio=55     # ratio 55 (reference) or 50 (balanced)
+```
+
+**The authoring contract (do this exactly or it won't composite):**
+
+- The panel graphic is **full-frame 1920×1080** and **transparent** (`motion.render-html --transparent` → WebM/VP9+alpha). It is NOT authored at the panel's size.
+- Paint the **opaque panel + all content on the panel side only**. For `cameraSide=right --cameraRatio=55`, the panel is the **left 45%** (x: 0 → 864px); everything right of 864px must be fully transparent.
+- The camera is cover-cropped to fill its half (a 16:9 host center-crops to a clean portrait fill — correctly proportioned, no letterbox). The panel's opaque edge IS the visual split line; let the camera sit behind it.
+- Match the panel's opaque width to `cameraRatio`: ratio 55 → panel 45% (864px), ratio 50 → panel 50% (960px). Mirror the x-origin for `cameraSide=left` (panel on the right).
+- Use the **slower overlay pacing** from `motion-philosophy.md` §1.6 — the viewer is split-attention between host and panel.
+
+This stays entirely in the live compositor: the host footage is full-quality and scrubbable, nothing is baked. You can still layer a `project.add-zoom` on the host within the same window if a beat needs emphasis.
 
 ### 5b.4 What clip-transform is NOT for
 

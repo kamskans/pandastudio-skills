@@ -106,9 +106,24 @@ Typography does more storytelling than any other element. Get this right
 and mediocre animation still reads premium. Get it wrong and the best
 animation looks cheap.
 
-- **Single sans-serif throughout a piece.** Geometric, generous tracking.
-  `Inter`, `Suisse Int'l`, `SF Pro`, `Geist`, `Space Grotesk`. Per-beat
-  font switching is an advanced technique — don't use it on v1.
+- **Single geometric sans-serif throughout a piece.** Generous tracking.
+  Pick ONE and commit. Per-beat font switching is advanced — don't use it on v1.
+  - **CRITICAL — only use fonts the renderer can actually load.** HyperFrames
+    renders headless and resolves type by fetching the declared family from
+    Google Fonts, then caching it deterministically. A family that is NOT on
+    Google Fonts — `SF Pro`, `Suisse Int'l`, `-apple-system`, `system-ui`, or a
+    bare `sans-serif` — fails that fetch and SILENTLY falls back to whatever the
+    host OS happens to have. That is the single most common reason a graphic
+    "looks cheap": the premium typeface you specified never actually rendered.
+    Never use those as the primary family.
+  - **Guaranteed set (bundled with the engine, offline-safe):** `Inter`,
+    `Montserrat`, `Outfit`, `Oswald`, `Archivo Black`, `League Gothic`,
+    `Nunito`. Any other Google Fonts family also works (fetched on first use) —
+    e.g. `Space Grotesk`, `Sora`, `Manrope`, `Inter Tight`, `Archivo`. When in
+    doubt, use `Inter`.
+  - **Declare it explicitly.** Put a Google Fonts `<link>` for the exact family
+    and weights in `<head>`, then set `font-family: "<Family>", sans-serif`. The
+    trailing generic is a last-ditch fallback, never part of the design.
 - **All headline text uses chrome gradient:**
   ```css
   background: linear-gradient(180deg, #ffffff 0%, #999999 60%, #cccccc 100%);

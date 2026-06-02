@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.42.0 -->
+<!-- version: 2.51.0 -->
 
 # PandaStudio
 
@@ -465,11 +465,12 @@ For these operations, run them without asking and tell the user what you did in 
 ```json
 { "clipId": "clip-1", "mediaPath": "...", "durationMs": 62400,
   "transcribed": true, "wordCount": 312,
-  "audioCleaned": false }
+  "audioCleaned": false, "kind": "camera" }
 ```
 
 - `transcribed: true` → skip `transcript.transcribe` for that clip — it already has a transcript. Running it again would overwrite any manual word edits the user made in the app.
 - `audioCleaned: true` → skip `audio.clean` for that clip — the `.cleaned.wav` already exists.
+- `kind` → how the clip was captured: `"camera"` (talking-head — a PandaStudio camera-only recording), `"screen"` (screen recording, maybe with a webcam PiP), or `"upload"` (external import). **This is the authoritative signal for your visual strategy — use it, don't guess from aspect ratio:** `kind === "camera"` → mid-video graphics default to designed segments (`project.add-designed-segment`); `kind === "screen"` → use cursor-telemetry zooms, never clip-transform splits. Absent on pre-v1.28 projects / unknown-origin clips — then fall back to inferring from aspect ratio + the presence of cursor telemetry.
 
 Only pass un-processed clips to each operation. If every clip is already transcribed, go straight to `transcript.get`.
 
@@ -479,7 +480,7 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 | `transcript.remove-fillers` | Auto-remove "um/uh/like/you know/i mean" + immediately-repeated words. Trim regions; fully reversible. |
 | `transcript.remove-silences` | Run after remove-fillers. Default threshold 700ms. Trims leading, between-word, and trailing silence per clip. |
 | `audio.clean` | Denoise only clips where `clipStates[i].audioCleaned === false`. Writes a sibling `.cleaned.wav`; original audio untouched. |
-| `caption.set-template` (when user said "add captions" without naming a style) | Default to `bold`. Tell user 7 other templates exist (`classic, modern, minimal, spotlight, boxed, neon, colored`). |
+| `caption.set-template` (when user said "add captions" without naming a style) | Default to `bold`. Tell user 8 other templates exist (`classic, modern, minimal, spotlight, boxed, neon, colored, texture`). `texture` fills large uppercase words with a flowing texture mask — pick the texture (lava/marble/metal/wood/concrete/rock, default lava) via `caption.set-style --texture=marble`. |
 | `llm.generate-title` / `llm.generate-description` / `llm.generate-timestamps` | Generate after the edit pass. Show the user; let them say "regenerate" or "use this exact title" or edit inline. |
 | Specific zoom moments | Heuristically pick from the transcript ("you said 'click here' at 12.4s — adding a zoom"). Don't pre-ask. Iterate via preview. |
 | Specific FX placement | Heuristically pick at clip boundaries or transcript hints ("a film-burn between clip 1 and 2"). Don't pre-ask. |
@@ -491,7 +492,7 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 > • Removed 14 fillers + 3 repeats. Trim regions are reversible — say 'undo fillers' if you want any back.
 > • Cleaned audio with DeepFilter on both clips.
 > • Added a zoom at 12.4s where you said 'click here'.
-> • Captions enabled with the bold template (7 other styles available).
+> • Captions enabled with the bold template (8 other styles available).
 > • Generated a title: *'How I Built This in 24 Hours'* — say if you want a different angle.
 >
 > Opening preview now."
@@ -580,6 +581,12 @@ pandastudio project.show --id=<uuid>
 pandastudio project.read --id=<uuid> --json
 ```
 
+**Response shape:** clips at `project.mainTrack.clips[]`, overlays at
+`project.editor.mediaOverlayRegions[]`, aspect ratio at
+`project.editor.aspectRatio`. New fields: `editedDurationMs` (post-trim
+duration), `sourceDurationMs` (raw sum of clip durations), `totalTrimmedMs`
+(sourceDurationMs - editedDurationMs), `trimCount` (number of trim regions).
+
 ### Target "what the user is working on"
 
 When the user says "edit the project I'm working on" / "what's open right
@@ -613,47 +620,113 @@ pandastudio project.remove-clip --id=<uuid> --clipId=clip-2
 pandastudio project.delete --id=<uuid>  # ⚠ permanent, no trash
 
 pandastudio project.add-motion-graphic \
-  --id=<uuid> --file=/path/intro.mp4 --durationMs=2500 --atMs=0
+  --id=<uuid> --file="$FILE" --durationMs=2500 --atMs=0
 # Optional SFX (no default — motion graphics are silent unless you ask)
 pandastudio project.add-motion-graphic \
-  --id=<uuid> --file=/path/intro.mp4 --durationMs=2500 --atMs=0 \
+  --id=<uuid> --file="$FILE" --durationMs=2500 --atMs=0 \
   --soundUrl=bundled:sound/message-pop --soundVolume=0.9
 
-# ⚠ NEVER HAND-AUTHOR THE --file PATH.
-# The only valid value for --file is the exact `outputPath` returned by
-# a prior `motion.render-html` (or `motion.generate`, `motion.concat`,
-# `motion.screenshot`) job. Always wire it through:
+# ✅ PREFERRED: USE --fromJob, NOT --file, FOR RENDER OUTPUTS.
+# add-motion-graphic accepts --fromJob=<jobId>. Pass the jobId from the
+# render and the server resolves the outputPath internally — you never
+# touch the path string, so it CANNOT be truncated. Safest + shortest:
 #
-#   JOB=$(pandastudio motion.render-html --htmlPath=… --durationMs=… \
-#       --aspectRatio=16:9 --json | jq -r '.data.jobId')
-#   FILE=$(pandastudio job.wait --id="$JOB" --json | jq -r '.data.job.result.outputPath')
-#   pandastudio project.add-motion-graphic --id=<uuid> --file="$FILE" --durationMs=…
+#   JOB=$(pandastudio motion.render-html --htmlPath=/tmp/card.html \
+#       --durationMs=4000 --aspectRatio=16:9 --json | jq -r '.data.jobId')
+#   pandastudio job.wait --id="$JOB" --json   # wait for the render to finish
+#   pandastudio project.add-motion-graphic --id=<uuid> --fromJob="$JOB" --durationMs=4000
 #
-# Do not guess paths from the recordings directory, the project bundle,
-# or training-data memory. Hand-authored paths land on disk as broken
-# `file:///Users/<you>/Library/Application` (the space in "Application
-# Support" is where guesses get truncated) — the timeline shows a brief
-# flicker and nothing plays. If you don't have an `outputPath` in hand,
-# render one first; never invent one.
+# --fromJob requires the job to have SUCCEEDED (job.wait first) and to be
+# a render job (motion.render-html / motion.generate / motion.concat).
+#
+# ⚠ ONLY use --file for EXTERNAL files (user uploads), and ALWAYS QUOTE IT.
+# Render outputs live under:
+#   /Users/<you>/Library/Application Support/pandastudio/recordings/
+# That path contains a SPACE ("Application Support"). In a shell an
+# UNQUOTED variable with a space is word-split:
+#       --file=$FILE          ← WRONG: truncates to ".../Application"
+#       --file="$FILE"        ← RIGHT (but --fromJob is better)
+# A truncated path is the #1 cause of dead overlays — the graphic shows on
+# the timeline but never renders in preview OR export. add-motion-graphic
+# now REJECTS a non-existent path with a loud error instead of silently
+# writing a dead overlay; --fromJob avoids the hazard entirely.
 
-# ⚠ DEFAULT PAIRING: when the project is camera-only (talking-head,
-# user-uploaded recording, no screen recording) and you're dropping a
-# motion graphic mid-video, you MUST also add a clip-transform-region
-# over the same window. Otherwise the graphic covers the host's face —
-# which is the worst version of this edit. The clip-transform shrinks
-# the camera so the graphic plays alongside it, then returns to full
-# frame. Skipping this is a bug, not a stylistic choice.
+# ── PLACING MOTION GRAPHICS IN AN EDITED (TRIMMED) TIMELINE ──────────────
 #
-#  9:16 talking-head Short → preset=cam-bottom-half
-#                            (graphic in top half, camera bottom half)
-#  16:9 single-host explainer (Ali-Abdaal-style) → preset=cam-right-portrait
-#                            (graphic in left half, camera as right portrait card)
+# When the project has existing trim regions (silence removal, filler cuts,
+# manual edits), the `startMs` you pass to `add-motion-graphic` must be in
+# SOURCE time — the coordinate system of the original recording, BEFORE any
+# trims. The editor remaps overlay positions to output time at export.
 #
-# DO NOT use clip-transform on screen recordings — those use cursor-
-# telemetry zooms (project.add-zoom). See reference/video-authoring.md
-# §5b for all six presets and the full pairing pattern.
-pandastudio project.add-clip-transform-region \
-  --id=<uuid> --startMs=2000 --endMs=8000 --preset=cam-right-portrait
+# DO NOT pass edited/output-time values to add-motion-graphic. If you use
+# the effective post-trim duration as `startMs`, the graphic will be placed
+# at the wrong point and may land inside a trimmed region (invisible).
+#
+# The safest way to place a graphic on a spoken word or phrase:
+#
+#   1. Get the transcript (transcript.get) — each word now carries both:
+#        startMs      — SOURCE time (use this for add-motion-graphic)
+#        editedStartMs — edited/output time (use for planning, UI display)
+#        editedStartMs: null means the word is inside a trimmed region → skip it
+#
+#   2. Pick the target word. Use its SOURCE-time startMs for placement:
+ID=$(pandastudio project.current --json | jq -r '.id')
+WORDS=$(pandastudio transcript.get --id=$ID --json | jq '.segments[].words[]')
+# Find the first visible occurrence of "Claude Code" in source time:
+WORD=$(echo "$WORDS" | jq -s 'map(select(.editedStartMs != null and (.text | ascii_downcase | contains("claude")))) | first')
+SOURCE_MS=$(echo "$WORD" | jq '.startMs')       # ← pass to add-motion-graphic
+EDITED_MS=$(echo "$WORD" | jq '.editedStartMs') # ← for your planning only
+echo "Word at source $SOURCE_MS ms (appears at $EDITED_MS ms in final video)"
+#
+#   3. Place the graphic using SOURCE time:
+pandastudio project.add-motion-graphic \
+  --id=$ID --file="$FILE" --durationMs=3000 --startMs="$SOURCE_MS"
+#
+# If you have a source-time position from somewhere other than transcript.get
+# and need to know whether it's visible and what its output position is:
+pandastudio timeline.source-to-edited --id=$ID --sourceMs=45000
+# → { editedMs: 31240 }  (visible, lands at 31.2s in final video)
+# → { editedMs: null }   (inside a trim — don't place here)
+#
+# project.read now returns editedDurationMs (post-trim length) alongside
+# sourceDurationMs. Always use editedDurationMs for planning spread/cadence.
+ID=$(pandastudio project.current --json | jq -r '.id')
+DURATION=$(pandastudio project.read --id=$ID --json | jq '.editedDurationMs')
+echo "Edited video is ${DURATION}ms long"
+
+# ⚠ DEFAULT for mid-video graphics on a CAMERA-ONLY project — i.e. when
+# project.read's clipStates[i].kind === "camera" (talking-head; fall back to
+# aspect-ratio inference only if kind is absent on an older project): NEVER
+# drop a full-frame graphic that covers the host. Put the host and the graphic
+# SIDE BY SIDE for the beat, then return to full frame. How, by shape:
+#
+#  16:9 single-host explainer (the youtube-long default — Vox / MKBHD look):
+#    → project.add-designed-segment. ONE call places the host in one half
+#      (cover-cropped, full-bleed) AND a full-frame TRANSPARENT panel graphic
+#      in the other, coordinated over the same window so they can't mismatch.
+#      This is the default YouTube/talking-head mid-video beat. Author the
+#      panel as a full-frame 1920x1080 --transparent render, opaque ONLY on
+#      the panel side (match --cameraRatio). See video-authoring.md §5b.5.
+#
+#  9:16 talking-head Short → project.add-clip-transform-region
+#      preset=cam-bottom-half + a motion graphic in the top half. (The
+#      designed-segment verb is 16:9; for 9:16 pair these manually — §5b.3.)
+#
+#  Floating portrait-card look (host as a small right card, not a full-bleed
+#  half) → clip-transform preset=cam-right-portrait + a left-half graphic,
+#  paired manually (§5b.3). Use only when the user asks for the card look.
+#
+# Letting the graphic cover the host's face is a bug, not a style choice.
+# DO NOT use any of this on screen recordings — those use cursor-telemetry
+# zooms (project.add-zoom).
+
+# 16:9 designed segment — host right 55%, transparent panel left 45%, one call:
+JOB=$(pandastudio motion.render-html --htmlPath=/tmp/panel.html --transparent \
+  --width=1920 --height=1080 --durationMs=6000 --json | jq -r .jobId)
+pandastudio job.wait --jobId=$JOB
+pandastudio project.add-designed-segment \
+  --id=<uuid> --fromJob=$JOB --durationMs=6000 --atMs=12000 \
+  --cameraSide=right --cameraRatio=55
 
 pandastudio project.add-fx \
   --id=<uuid> --fxId=film-burn --atMs=5000
@@ -1267,8 +1340,10 @@ JOB=$(pandastudio motion.render-html \
 WEBM=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
 
 # 3. Drop into the project at the matching transcript moment
+#    (--file MUST be quoted — the path contains a space, see the
+#     "ALWAYS QUOTE THE --file PATH" warning above)
 pandastudio project.add-motion-graphic \
-  --id=$PID --file=$WEBM --atMs=$BEAT_MS --durationMs=4000
+  --id="$PID" --file="$WEBM" --atMs=$BEAT_MS --durationMs=4000
 ```
 
 ### Canonical B-roll HTML shell
@@ -1453,16 +1528,10 @@ When the user wants a promo video with no recorded footage — only rendered sce
 P=$(pandastudio project.new --name="WritePanda Promo" --json)
 ID=$(echo "$P" | jq -r '.data.id')
 
-# STEP 2: Render scenes IN PARALLEL — fire them all, wait on each jobId.
-# Since v1.17 each render spawns its own Chromium OS process via
-# Puppeteer (no shared BrowserWindow / no global lock). Measured on
-# Apple Silicon: 3 concurrent renders complete in the time of one
-# (35s → 6.9s, a 5× speedup vs. sequential). `isRenderBusy` always
-# returns false; there's nothing to serialise against.
-#
-# Fire every scene with `&` (shell background) OR collect jobIds first
-# and job.wait each in turn — the second call doesn't block the first.
-# Don't `job.wait` between fires; that serialises for no reason.
+# STEP 2: Render scenes — renders are serialized by a mutex, so only
+# one motion.render-html runs at a time. Always use job.wait after each
+# render before starting the next. RENDER_BUSY means a render is already
+# in progress; retry after job.wait completes.
 JOB1=$(pandastudio motion.render-html \
   --htmlPath=/tmp/scene1.html --durationMs=4000 --json | jq -r '.data.jobId')
 JOB2=$(pandastudio motion.render-html \
@@ -1652,7 +1721,7 @@ OUTRO=$(pandastudio    job.wait --id=$OUTRO_JOB    --json | jq -r '.data.job.res
 # zooming into a different UI element on each beat.
 pandastudio project.add-clip --id=$ID --media="$UI_REC" --json
 CLIP_ID=$(pandastudio project.read --id=$ID --json \
-  | jq -r '.data.project.clips[-1].id')
+  | jq -r '.data.project.mainTrack.clips[-1].id')
 
 # Apply LUT for the saturated gradient aesthetic
 pandastudio project.set-clip-lut --id=$ID --clipId="$CLIP_ID" \
@@ -2114,7 +2183,7 @@ pandastudio asset.list-luts --json | jq '.data.presets'
 
 # 2. Read the project to get clip IDs
 CLIP_ID=$(pandastudio project.read --id=$ID --json \
-  | jq -r '.data.project.clips[0].id')
+  | jq -r '.data.project.mainTrack.clips[0].id')
 
 # 3. Apply a LUT to a clip
 pandastudio project.set-clip-lut \
@@ -2165,7 +2234,7 @@ no re-encode needed.
 P=$(pandastudio project.new --name="Cinematic Short" \
   --withMedia='["/path/footage.mp4"]' --json)
 ID=$(echo "$P" | jq -r '.data.id')
-CLIP=$(echo "$P" | jq -r '.data.project.clips[0].id')
+CLIP=$(echo "$P" | jq -r '.data.project.mainTrack.clips[0].id')
 
 # Apply cinematic teal-orange grade
 pandastudio project.set-clip-lut \
@@ -2290,18 +2359,16 @@ work.**
 ### Assembling multi-scene motion graphics — always use motion.concat
 
 **This is the mandatory last step whenever you render more than one scene.**
-Render every scene **in parallel** (each `motion.render-html` call spawns
-its own Chromium OS process — no shared lock, no RENDER_BUSY error),
-then join them into one final MP4 with `motion.concat` before touching
-the project timeline. The concat is a lossless stream copy — no
+Render every scene **sequentially** (renders are serialized by a mutex —
+only one motion.render-html runs at a time; always call job.wait between
+renders), then join them into one final MP4 with `motion.concat` before
+touching the project timeline. The concat is a lossless stream copy — no
 re-encode, completes in < 1 second.
 
-**Why parallel is correct:** since v1.17 the renderer uses Puppeteer
-against standalone Chromium. Three concurrent renders complete in the
-time of one (35s → 6.9s on Apple Silicon, a 5× speedup vs. firing them
-sequentially). There is no `RENDER_BUSY` — `isRenderBusy()` always
-returns false. If you wait-between-fires you're paying the cost of
-every render end-to-end for no reason.
+**Renders are serialized by a mutex — only one motion.render-html runs
+at a time.** Always use job.wait after each render before starting the
+next. RENDER_BUSY means a render is already in progress; retry after
+job.wait completes.
 
 ```bash
 # 1. Fire every scene in parallel. Collect jobIds first, then job.wait
@@ -2732,6 +2799,12 @@ no matter how much you trim.
 **Free-floating is OK** — when the user explicitly placed a region by edited
 time (e.g. an outro card at "the last 5 seconds of the timeline"), omit the
 anchor. The region stays where you put it regardless of subsequent edits.
+
+**anchorSourceMs is global source-time (ms from recording start).** In
+multi-clip projects, sum the preceding clips' `sourceDurationMs` to convert
+an in-clip offset to global source time before passing as `--anchorSourceMs`.
+Use `timeline.source-to-edited` to verify where a source-time position falls
+on the edited timeline.
 
 **The runbook below already orders pacing FIRST, then regions.** That's safe
 even without anchors — regions land on the post-trim timeline. But: any
