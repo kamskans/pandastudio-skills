@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.66.0 -->
+<!-- version: 2.67.0 -->
 
 # PandaStudio
 
@@ -789,13 +789,21 @@ one atomic call also repositions the camera into the open half (a
 `cam-{side}-50` clip-transform) over the same span, so host + panel can't
 drift. Set the panel's `side` slot; the camera takes the opposite side.
 
+**`--durationMs` is how long the panel stays** — set it to the length of the
+topic it covers, not a fixed few seconds. The panel **reveals once and holds**:
+it has no exit animation, and the overlay holds its last frame for the whole
+region (it does NOT loop), so a 30-second explainer beat is just
+`--durationMs=30000`. The region end is what removes it. (Same for any overlay:
+play-once + hold; size the region/durationMs to the on-screen time you want.)
+
 ```bash
 JOB=$(pandastudio motion.generate --templateId=split-panel \
   --slots='{"side":"left","headline":"What MyAgentMail handles:","items":[{"label":"inbox creation"},{"label":"sending & replies"},{"label":"webhooks"}]}' \
   --background=transparent --json | jq -r '.data.jobId')
 pandastudio job.wait --id="$JOB" --json
+# durationMs = full length of the topic the panel explains (here 28s):
 pandastudio project.add-designed-segment --id="$PROJECT" --fromJob="$JOB" \
-  --durationMs=6000 --cameraSide=right
+  --durationMs=28000 --cameraSide=right
 ```
 
 ### Template catalog
@@ -825,7 +833,7 @@ All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay (transparent-capable).
 - `parallax-unzoom` (4.5s) — a focus card unzooms to reveal a 2×2 grid as the others parallax in. "ways to use it" / features recap. Slots: items[label], brandColor, cardColor, inkColor.
 
 **Host + panel split**
-- `split-panel` `O` (6s, 16:9 / 1:1) — opaque brand panel on one half (headline + bullet list), transparent on the other for the host. Add via `project.add-designed-segment` (see above). Slots: side (`left`/`right`), **headline**, items[label], brandColor, inkColor.
+- `split-panel` `O` (16:9 / 1:1) — opaque brand panel on one half (headline + bullet list), transparent on the other for the host. **Reveals once and holds** (no exit) — set `--durationMs` to the topic length; it holds for exactly that long. Add via `project.add-designed-segment` (see above). Slots: side (`left`/`right`), **headline**, items[label], brandColor, inkColor.
 
 > List slots (`items`, `nodes`) take an array of objects, e.g.
 > `"items":[{"label":"first"},{"label":"second"}]`. `motion.screenshot`
