@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.56.0 -->
+<!-- version: 2.57.0 -->
 
 # PandaStudio
 
@@ -471,7 +471,7 @@ For these operations, run them without asking and tell the user what you did in 
 
 - `transcribed: true` → skip `transcript.transcribe` for that clip — it already has a transcript. Running it again would overwrite any manual word edits the user made in the app.
 - `audioCleaned: true` → skip `audio.clean` for that clip — the `.cleaned.wav` already exists.
-- `kind` → how the clip was captured: `"camera"` (talking-head — a PandaStudio camera-only recording), `"screen"` (screen recording, maybe with a webcam PiP), or `"upload"` (external import). **This is the authoritative signal for your visual strategy — use it, don't guess from aspect ratio:** `kind === "camera"` → mid-video graphics default to designed segments (`project.add-designed-segment`); `kind === "screen"` → use cursor-telemetry zooms, never clip-transform splits. On v1.28+ recordings this is stamped at capture time. On older projects it's no longer absent — `project.read` now **infers** it from on-disk signals (a paired webcam track or cursor telemetry → `screen`; media in the managed recordings dir → `camera`; anything else → `upload`) and sets `kindInferred: true` alongside it. Treat an inferred `kind` as a strong hint, not gospel: if it conflicts with what you can see (aspect ratio, whether there's a cursor on screen), trust your eyes.
+- `kind` → how the clip was captured: `"camera"` (talking-head — a PandaStudio camera-only recording), `"screen"` (screen recording, maybe with a webcam PiP), or `"upload"` (external import). **This is the authoritative signal for your visual strategy — use it, don't guess from aspect ratio:** `kind === "camera"` (talking-head) OR `kind === "upload"` (imported video) → there's no screen to zoom into, so **lead with `split-panel` designed segments** (`project.add-designed-segment`) as the default for explainer beats; it's the highest-leverage way to make static footage look produced (see the Motion-graphics "Rules" §4). `kind === "screen"` → use cursor-telemetry zooms, never clip-transform splits. On v1.28+ recordings this is stamped at capture time. On older projects it's no longer absent — `project.read` now **infers** it from on-disk signals (a paired webcam track or cursor telemetry → `screen`; media in the managed recordings dir → `camera`; anything else → `upload`) and sets `kindInferred: true` alongside it. Treat an inferred `kind` as a strong hint, not gospel: if it conflicts with what you can see (aspect ratio, whether there's a cursor on screen), trust your eyes.
 - `contentIssues` (top-level on the `project.read` result, not per-clip) → a count summary `{ total, duplicateTakes, falseStarts, adjacentRepeats }`, present only when something is transcribed. If `total > 0`, run `transcript.find-issues` during the polish pass to see the actual candidates.
 
 Only pass un-processed clips to each operation. If every clip is already transcribed, go straight to `transcript.get`.
@@ -887,6 +887,19 @@ fallback for briefs no template fits (see the next section).
    last time, stop and pick a different, more appropriate one.
 3. **Match the template to the moment, not to convenience.** The simplest
    template to fill is rarely the right one. Pick by meaning.
+4. **Camera-only and imported footage → lead with `split-panel` designed
+   segments.** When the clip's `kind` is `"camera"` (talking-head) or
+   `"upload"` (imported video) there is no screen content to zoom into, so a
+   static frame is what makes such videos look flat. The **split-panel
+   designed segment** (host on one half, live brand panel on the other, added
+   via `project.add-designed-segment`) is the single highest-leverage fix and
+   should be your **default** for every explainer / point-driven beat in this
+   footage — it instantly makes a plain talking head look produced. Reach for
+   it liberally on these clips (alternating the panel side and varying the
+   panel's headline + bullet content), and still sprinkle the other templates
+   (title to open, lower-third to introduce, stat reveal for a number, recap
+   to close) around it. For `kind === "screen"` recordings, prefer
+   cursor-telemetry zooms instead and do NOT split the frame.
 
 ### Selection guide (beat → template)
 
@@ -899,7 +912,7 @@ fallback for briefs no template fits (see the next section).
 | This vs that / before vs after / old way vs new | `comparison` |
 | A process / steps / workflow | `flowchart` |
 | Feature montage / "ways to use it" | `parallax-unzoom`, `parallax-zoom` |
-| Talking-head explainer with points beside the host | `split-panel` (designed segment — see below) |
+| Explainer beat on **camera-only or imported** footage (host + points) | `split-panel` (designed segment — the DEFAULT for this footage; use liberally, see Rules §4) |
 
 ### The workflow
 
