@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.55.0 -->
+<!-- version: 2.56.0 -->
 
 # PandaStudio
 
@@ -871,16 +871,49 @@ the primary way to add motion graphics — production-grade, editable, and
 faster than authoring HTML. Custom HTML (`motion_render_html`) is the
 fallback for briefs no template fits (see the next section).
 
+### Rules — read before generating anything
+
+1. **`motion_list` FIRST, every time.** Never generate from memory or copy a
+   templateId out of an example below. Call `motion_list`, read the catalog,
+   then choose. (`stat-reveal` is NOT a default — it is only for a single
+   numeric metric.)
+2. **One beat, one well-matched template — and VARY them.** Match each insert
+   to what's actually on screen/being said using the selection guide below.
+   Across a video, use a *spread* of templates: a title card to open, a
+   lower-third to introduce, a checklist or comparison for explainer beats, a
+   stat reveal only when there's a real number, a recap near the end. **Using
+   the same template for every insert is the #1 failure — don't do it.** If
+   you're about to call `motion_generate` with the same `templateId` you used
+   last time, stop and pick a different, more appropriate one.
+3. **Match the template to the moment, not to convenience.** The simplest
+   template to fill is rarely the right one. Pick by meaning.
+
+### Selection guide (beat → template)
+
+| What's happening in the video | Reach for |
+|---|---|
+| Open / chapter divider / segment title | `creator-card`, `transitions-3d`, `grain-overlay`, `transitions-destruction`, `caption-parallax-layers` |
+| Introduce a person / channel / "subscribe" | `yt-lower-third` |
+| A real number / metric / result | `stat-reveal` (ONLY here) |
+| "Here are the N things…" / key points / recap | `key-takeaways` |
+| This vs that / before vs after / old way vs new | `comparison` |
+| A process / steps / workflow | `flowchart` |
+| Feature montage / "ways to use it" | `parallax-unzoom`, `parallax-zoom` |
+| Talking-head explainer with points beside the host | `split-panel` (designed segment — see below) |
+
 ### The workflow
 
 ```bash
-# 1. Discover templates + their editable slots (source of truth at runtime).
+# 1. ALWAYS discover first — templates + editable slots (runtime source of truth).
 pandastudio motion.list --json          # MCP: motion_list
 
-# 2. Render one with your own text/colors + a background mode.
+# 2. Pick the template that fits THIS beat (see the selection guide), then
+#    render it with your own text/colors + a background mode.
+#    Replace <TEMPLATE_ID> + slots with the chosen template's — do NOT
+#    hardcode one template for every insert.
 JOB=$(pandastudio motion.generate \
-  --templateId=stat-reveal \
-  --slots='{"value":"10,000","suffix":"+","label":"inboxes created","eyebrow":"in the first month"}' \
+  --templateId=<TEMPLATE_ID> \
+  --slots='{ ...the chosen template's slots from motion.list... }' \
   --aspectRatio=16:9 \
   --json | jq -r '.data.jobId')          # MCP: motion_generate
 pandastudio job.wait --id="$JOB" --json
