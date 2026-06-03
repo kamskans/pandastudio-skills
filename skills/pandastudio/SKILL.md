@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.64.0 -->
+<!-- version: 2.65.0 -->
 
 # PandaStudio
 
@@ -571,306 +571,75 @@ Every response: `{ ok: boolean, data?: ..., error?: string, details?: ... }`.
   - `unknown command` — typo; run `pandastudio commands` to recover
   - `invalid or out-of-tree project path` — project paths must live under the user's recordings dir; never pass arbitrary absolute paths
 
-## Composing a real edit (the v1.9.1 surface)
+## Composing a real edit
 
-Beyond `motion.generate`, you can build complete projects from the CLI. The flow is **always**: create or open a project → add things → save (with revision) → preview.
+Flow is always: **create or open a project → add things → save (conflict-safe)
+→ preview.** Every verb's arg schema is discoverable at runtime — call
+`system_list_commands` (MCP) or `pandastudio commands` (CLI), or see
+`reference/commands.md`. So this section is the *judgment* the schema can't give
+you: which verb, in what order, and the non-obvious gotchas.
 
-### Create a project pre-loaded with media
+### Target the right project
 
-```bash
-pandastudio project.new \
-  --name="Q4 Recap" \
-  --withMedia='["/path/clip-a.mp4","/path/clip-b.mp4"]' \
-  --json
-# → { id, path, project } — durations are FFmpeg-probed automatically
-```
+- **`project.new --withMedia='["/a.mp4","/b.mp4"]'`** — create pre-loaded; clip
+  durations are FFmpeg-probed automatically.
+- **`project.current`** → the open editor project (`{id,path,name,revision,clipCount}`
+  or `null`). Use it when the user says "this one" / "what's open" — don't ask
+  for an id. `null` ≠ "no projects exist"; fall back to `project.list`.
+- **`project.read --id`** → full state. Key fields the schema won't spell out:
+  clips at `mainTrack.clips[]`, overlays at `editor.mediaOverlayRegions[]`;
+  `editedDurationMs` (post-trim — use for cadence planning), `sourceDurationMs`,
+  `trimCount`, and per-clip `clipStates[].kind` (`camera` / `screen` / `upload`,
+  your visual-strategy signal). Pass `--includeTranscript=false` after the first
+  read.
 
-### Look up a project by stable id (preferred over paths)
+### Adding things — the gotchas (call discovery for the arg schemas)
 
-```bash
-pandastudio project.show --id=<uuid>
-pandastudio project.read --id=<uuid> --json
-```
-
-**Response shape:** clips at `project.mainTrack.clips[]`, overlays at
-`project.editor.mediaOverlayRegions[]`, aspect ratio at
-`project.editor.aspectRatio`. New fields: `editedDurationMs` (post-trim
-duration), `sourceDurationMs` (raw sum of clip durations), `totalTrimmedMs`
-(sourceDurationMs - editedDurationMs), `trimCount` (number of trim regions).
-
-### Target "what the user is working on"
-
-When the user says "edit the project I'm working on" / "what's open right
-now" / "this one", don't ask them for an id — just call `project.current`:
-
-```bash
-# Returns { project: { id, path, name, revision, clipCount } | null }
-pandastudio project.current --json
-
-# Typical pattern in an agent script:
-ID=$(pandastudio project.current --json | jq -r '.data.project.id // empty')
-if [ -z "$ID" ]; then
-  # No editor window open — fall back to the most-recent project
-  ID=$(pandastudio project.list --json | jq -r '.data.projects[0].id')
-fi
-pandastudio project.read --id=$ID --json
-```
-
-`project: null` means no editor window is open yet or the user hasn't
-loaded a project. Never assume that means "no projects exist" — list
-first.
-
-### Edit primitives (no schema knowledge needed)
-
-```bash
-pandastudio project.add-clip --id=<uuid> --media=/path/new-clip.mp4
-pandastudio project.add-clip --id=<uuid> --media=/path/title.mp4 --atIndex=0  # prepend
-pandastudio project.move-clip --id=<uuid> --clipId=clip-2 --toIndex=0  # reorder
-pandastudio project.split-clip --id=<uuid> --clipId=clip-1 --atSourceMs=4000
-pandastudio project.remove-clip --id=<uuid> --clipId=clip-2
-pandastudio project.delete --id=<uuid>  # ⚠ permanent, no trash
-
-pandastudio project.add-motion-graphic \
-  --id=<uuid> --file="$FILE" --durationMs=2500 --atMs=0
-# Optional SFX (no default — motion graphics are silent unless you ask)
-pandastudio project.add-motion-graphic \
-  --id=<uuid> --file="$FILE" --durationMs=2500 --atMs=0 \
-  --soundUrl=bundled:sound/message-pop --soundVolume=0.9
-
-# ✅ PREFERRED: USE --fromJob, NOT --file, FOR RENDER OUTPUTS.
-# add-motion-graphic accepts --fromJob=<jobId>. Pass the jobId from the
-# render and the server resolves the outputPath internally — you never
-# touch the path string, so it CANNOT be truncated. Safest + shortest:
-#
-#   JOB=$(pandastudio motion.render-html --htmlPath=/tmp/card.html \
-#       --durationMs=4000 --aspectRatio=16:9 --json | jq -r '.data.jobId')
-#   pandastudio job.wait --id="$JOB" --json   # wait for the render to finish
-#   pandastudio project.add-motion-graphic --id=<uuid> --fromJob="$JOB" --durationMs=4000
-#
-# --fromJob requires the job to have SUCCEEDED (job.wait first) and to be
-# a render job (motion.render-html / motion.generate / motion.concat).
-#
-# ⚠ ONLY use --file for EXTERNAL files (user uploads), and ALWAYS QUOTE IT.
-# Render outputs live under:
-#   /Users/<you>/Library/Application Support/pandastudio/recordings/
-# That path contains a SPACE ("Application Support"). In a shell an
-# UNQUOTED variable with a space is word-split:
-#       --file=$FILE          ← WRONG: truncates to ".../Application"
-#       --file="$FILE"        ← RIGHT (but --fromJob is better)
-# A truncated path is the #1 cause of dead overlays — the graphic shows on
-# the timeline but never renders in preview OR export. add-motion-graphic
-# now REJECTS a non-existent path with a loud error instead of silently
-# writing a dead overlay; --fromJob avoids the hazard entirely.
-
-# ── PLACING MOTION GRAPHICS IN AN EDITED (TRIMMED) TIMELINE ──────────────
-#
-# When the project has existing trim regions (silence removal, filler cuts,
-# manual edits), the `startMs` you pass to `add-motion-graphic` must be in
-# SOURCE time — the coordinate system of the original recording, BEFORE any
-# trims. The editor remaps overlay positions to output time at export.
-#
-# DO NOT pass edited/output-time values to add-motion-graphic. If you use
-# the effective post-trim duration as `startMs`, the graphic will be placed
-# at the wrong point and may land inside a trimmed region (invisible).
-#
-# The safest way to place a graphic on a spoken word or phrase:
-#
-#   1. Get the transcript (transcript.get) — each word now carries both:
-#        startMs      — SOURCE time (use this for add-motion-graphic)
-#        editedStartMs — edited/output time (use for planning, UI display)
-#        editedStartMs: null means the word is inside a trimmed region → skip it
-#
-#   2. Pick the target word. Use its SOURCE-time startMs for placement:
-ID=$(pandastudio project.current --json | jq -r '.id')
-WORDS=$(pandastudio transcript.get --id=$ID --json | jq '.segments[].words[]')
-# Find the first visible occurrence of "Claude Code" in source time:
-WORD=$(echo "$WORDS" | jq -s 'map(select(.editedStartMs != null and (.text | ascii_downcase | contains("claude")))) | first')
-SOURCE_MS=$(echo "$WORD" | jq '.startMs')       # ← pass to add-motion-graphic
-EDITED_MS=$(echo "$WORD" | jq '.editedStartMs') # ← for your planning only
-echo "Word at source $SOURCE_MS ms (appears at $EDITED_MS ms in final video)"
-#
-#   3. Place the graphic using SOURCE time:
-pandastudio project.add-motion-graphic \
-  --id=$ID --file="$FILE" --durationMs=3000 --startMs="$SOURCE_MS"
-#
-# If you have a source-time position from somewhere other than transcript.get
-# and need to know whether it's visible and what its output position is:
-pandastudio timeline.source-to-edited --id=$ID --sourceMs=45000
-# → { editedMs: 31240 }  (visible, lands at 31.2s in final video)
-# → { editedMs: null }   (inside a trim — don't place here)
-#
-# project.read now returns editedDurationMs (post-trim length) alongside
-# sourceDurationMs. Always use editedDurationMs for planning spread/cadence.
-ID=$(pandastudio project.current --json | jq -r '.id')
-DURATION=$(pandastudio project.read --id=$ID --json | jq '.editedDurationMs')
-echo "Edited video is ${DURATION}ms long"
-
-# ⚠ DEFAULT for mid-video graphics on a CAMERA-ONLY project — i.e. when
-# project.read's clipStates[i].kind === "camera" (talking-head; fall back to
-# aspect-ratio inference only if kind is absent on an older project): NEVER
-# drop a full-frame graphic that covers the host. Put the host and the graphic
-# SIDE BY SIDE for the beat, then return to full frame. How, by shape:
-#
-#  16:9 single-host explainer (the youtube-long default — Vox / MKBHD look):
-#    → project.add-designed-segment. ONE call places the host in one half
-#      (cover-cropped, full-bleed) AND a full-frame TRANSPARENT panel graphic
-#      in the other, coordinated over the same window so they can't mismatch.
-#      This is the default YouTube/talking-head mid-video beat. Author the
-#      panel as a full-frame 1920x1080 --transparent render, opaque ONLY on
-#      the panel side (match --cameraRatio). See video-authoring.md §5b.5.
-#
-#  9:16 talking-head Short → project.add-clip-transform-region
-#      preset=cam-bottom-half + a motion graphic in the top half. (The
-#      designed-segment verb is 16:9; for 9:16 pair these manually — §5b.3.)
-#
-#  Floating portrait-card look (host as a small right card, not a full-bleed
-#  half) → clip-transform preset=cam-right-portrait + a left-half graphic,
-#  paired manually (§5b.3). Use only when the user asks for the card look.
-#
-# Letting the graphic cover the host's face is a bug, not a style choice.
-# DO NOT use any of this on screen recordings — those use cursor-telemetry
-# zooms (project.add-zoom).
-
-# 16:9 designed segment — host right 55%, transparent panel left 45%, one call:
-JOB=$(pandastudio motion.render-html --htmlPath=/tmp/panel.html --transparent \
-  --width=1920 --height=1080 --durationMs=6000 --json | jq -r .jobId)
-pandastudio job.wait --jobId=$JOB
-pandastudio project.add-designed-segment \
-  --id=<uuid> --fromJob=$JOB --durationMs=6000 --atMs=12000 \
-  --cameraSide=right --cameraRatio=55
-
-pandastudio project.add-fx \
-  --id=<uuid> --fxId=film-burn --atMs=5000
-
-# Zoom — ships with a default swoosh SFX (bundled:sound/swoosh-fast)
-# and a default depth of 2 (1.5×, soft modern feel). Override with
-# --depth (3-4 = emphasis, 5-6 = punch-in) or --soundUrl=none to silence.
-pandastudio project.add-zoom \
-  --id=<uuid> --atMs=12000 --durationMs=1500
-pandastudio project.add-zoom \
-  --id=<uuid> --atMs=12000 --durationMs=1500 --depth=4
-pandastudio project.add-zoom \
-  --id=<uuid> --atMs=12000 --durationMs=1500 --soundUrl=none
-pandastudio project.add-zoom \
-  --id=<uuid> --atMs=12000 --durationMs=1500 \
-  --soundUrl=bundled:sound/whoosh-transition --soundVolume=0.7
-
-# Lower third — full style control.
-# --designType: slash-reveal | center-stack | split-horizontal | name-bar |
-#               border-frame | minimal-underline | box-reveal | corner-brackets
-#   Default: slash-reveal
-# Ships with a default mouse-click SFX; pass --soundUrl=none to silence.
-pandastudio project.add-lower-third \
-  --id=<uuid> --content="Kamal" --subtitle="Founder" --atMs=2000 \
-  --accentColor="#34B27B" --textColor="#ffffff" \
-  --backgroundColor="rgba(0,0,0,0.85)" --backgroundRadius=12 \
-  --fontSize=32 --fontFamily="Inter"
-
-# Swap / clear the SFX on an existing region (any of: zoom, motionGraphic,
-# lowerThird, fx). Use this to retune the default sound after inspecting
-# the project with project.read.
-pandastudio project.set-region-sound \
-  --id=<uuid> --regionType=zoom --regionId=zoom-1 \
-  --soundUrl=bundled:sound/whoosh-transition --soundVolume=0.6
-pandastudio project.set-region-sound \
-  --id=<uuid> --regionType=motionGraphic --regionId=overlay-1 \
-  --soundUrl=bundled:sound/success-chime
-pandastudio project.set-region-sound \
-  --id=<uuid> --regionType=lowerThird --regionId=lt-1 \
-  --soundUrl=none  # mute this one
-
-# YouTube-style lower third — prefer the `yt-lower-third` template
-# (motion.generate). Author custom HTML only for a bespoke look —
-# chrome-gradient text, halo glow, slide-in. See reference/motion-philosophy.md §1.4
-# and §7 for the canonical shell.
-JOB=$(pandastudio motion.render-html \
-  --htmlPath=/tmp/lower-third.html \
-  --durationMs=5000 \
-  --aspectRatio=16:9 --json | jq -r '.data.jobId')
-pandastudio job.wait --id="$JOB" --json
-
-# Remove any region by type + id (use project.read to find region ids)
-pandastudio project.remove-region \
-  --id=<uuid> --regionType=lower-third --regionId=lt-1
-pandastudio project.remove-region \
-  --id=<uuid> --regionType=zoom --regionId=zoom-2
-pandastudio project.remove-region \
-  --id=<uuid> --regionType=audio-overlay --regionId=audio-1
-# regionType: zoom | trim | speed | annotation | fx | lower-third | overlay | audio-overlay
-
-# CLEAR ALL EDITS — one atomic call. Use this whenever the user says "start
-# over", "clear all edits", "reset the timeline", or wants a clean slate to
-# re-edit from. Do NOT loop project.remove-region for this — that N-tuples
-# revisions, multiplies failure points, and is slow.
-#
-# Wipes every time-based region (trim, speed, zoom, motion-graphic,
-# lower-third, fx, annotation, clip-transform) + all audio overlays + flips
-# captions off (keeping the template + style overrides so re-enabling
-# restores the user's chosen look). Clips, transcripts, cleaned audio, and
-# the project aspect ratio are KEPT — this resets the EDIT, not the recording.
-#
-# Returns a `cleared` object summarising what was removed; narrate it to the
-# user so they know exactly what was wiped.
-pandastudio project.clear-edits --id=<uuid>
-
-# Blank-canvas variant — ALSO clears per-clip LUTs + crops + webcam layout +
-# wallpaper. Use only when the user explicitly wants the full reset (rare).
-pandastudio project.clear-edits --id=<uuid> --full=true
-```
+- **Clips:** `add-clip` (`--atIndex=0` prepends), `move-clip`, `split-clip`,
+  `remove-clip`. **`project.delete` is permanent — no trash.**
+- **Motion graphics — use `--fromJob`, NOT `--file`, for render outputs.** Pass
+  the render `jobId` (after `job.wait`); the server resolves the path itself:
+  ```bash
+  JOB=$(pandastudio motion.render-html --htmlPath=/tmp/card.html --durationMs=4000 --json | jq -r '.data.jobId')
+  pandastudio job.wait --id="$JOB" --json
+  pandastudio project.add-motion-graphic --id=$ID --fromJob="$JOB" --durationMs=4000
+  ```
+  `--file` is only for external uploads and **must be quoted** — render outputs
+  live under `…/Application Support/…` (a space); an unquoted path truncates and
+  silently produces a dead overlay (shows on the timeline, never renders).
+- **Placing on a spoken word in a trimmed timeline:** trims make source-time ≠
+  output-time. From `transcript.get`, each word has `startMs` (source) and
+  `editedStartMs` (output; `null` = inside a trim → skip it). Pass the **source**
+  `startMs` as the position **and** `--anchorSourceMs=<same>` so the region
+  re-anchors when later cleanup trims shift the timeline. `timeline.source-to-edited
+  --sourceMs=N` returns the output time (or `null` if trimmed).
+- **Mid-video graphic on camera / upload footage:** don't cover the host — use
+  **`project.add-designed-segment`** (the split-panel beat; see Motion-graphics
+  Rules §5). Screen recordings use `project.add-zoom` instead, never a split.
+- **Zoom / lower-third / fx / SFX:** `add-zoom` (default depth 2 + swoosh SFX;
+  `--soundUrl=none` to silence), `add-lower-third` (8 `--designType`s), `add-fx`,
+  `set-region-sound` (retune/clear a placed region's SFX). Arg values: discovery.
+- **Reset:** **`project.clear-edits`** — one atomic call wipes every region +
+  audio overlays + turns captions off (keeps clips, transcript, aspect ratio;
+  `--full=true` also resets LUT/crop/webcam/wallpaper). Use it for "start over";
+  do NOT loop `project.remove-region` (that's for removing ONE region by
+  `--regionType` + `--regionId`).
 
 ### Conflict-safe save
 
-The editor autosaves periodically, so two writers (you + the editor; or you + another agent) racing to save the same project will silently overwrite each other unless you use `expectedRevision`.
-
-```bash
-# Read project — note the revision
-P=$(pandastudio project.read --id=<uuid> --json)
-REV=$(echo "$P" | jq -r '.data.project.revision')
-
-# Mutate locally
-NEXT=$(echo "$P" | jq -c '.data.project | .name = "New Name"')
-
-# Save with conflict detection
-pandastudio project.save --id=<uuid> --project="$NEXT" --expectedRevision="$REV" --json
-# → on conflict: { ok:false, details:{ code:"revision_conflict", expected, actual, onDiskProject } }
-# → recover by re-reading and re-applying your mutation against the new revision
-```
-
-The edit primitives (`project.add-*`) all accept `--expectedRevision` and surface the same `revision_conflict` shape.
+The editor autosaves, so two writers (you + the editor, or two agents) overwrite
+each other silently unless you pass **`--expectedRevision`** (from
+`project.read`'s `revision`). On conflict you get
+`{ code:"revision_conflict", expected, actual, onDiskProject }` — re-read,
+re-apply your change, retry. All `project.add-*` verbs accept it too.
 
 ### Preview without exporting
 
-Full export takes 30-90s. For "show the user what you just did," use the **preview overlay** — a small floating, always-on-top window that mounts the editor's live WYSIWYG canvas (the same one the in-app preview pane uses). 1-2s boot. Re-callable; `preview.show` against a different project navigates the same window.
-
-```bash
-# Pop up the overlay (top-right corner, ~800x450, autoplay on)
-pandastudio preview.show --id=$ID
-
-# Start at a specific moment
-pandastudio preview.show --id=$ID --atMs=12000 --autoplay=false
-
-# Move the playhead in the open overlay (no-op if closed)
-pandastudio preview.seek --atMs=20000
-
-# Close it
-pandastudio preview.hide
-
-# Inspect state
-pandastudio preview.list
-# → { open: true, size: { width, height }, position: { x, y } }
-```
-
-**Idiomatic agent workflow**: call `preview.show` after every significant edit (added a clip, dropped a motion graphic, removed fillers) so the user sees the change live without leaving Claude Cowork. The window stays put across edits — same project state reloads automatically since it reads from disk.
-
-For agents that need a still snapshot to send inline in chat (vs an open window the user has to look at), v1.9.3 adds `preview.frame --id=$ID --atMs=N` returning a base64 PNG. Today, take a screenshot of the overlay window if you must.
-
-Other window verbs (less useful for previewing, kept for parity with v1.9.0):
-
-```bash
-# Open the FULL editor focused on a project (heavy — for handoff to user)
-pandastudio project.open --id=$ID
-pandastudio window.editor          # = project.open with no args
-```
+`preview.show --id` pops the live WYSIWYG overlay (~1–2s boot; `--atMs`,
+`--autoplay`). `preview.seek --atMs` moves the playhead; `preview.hide` closes;
+`preview.list` inspects it. **Call `preview.show` after every significant edit**
+so the user sees the change live without leaving the chat. (`project.open` opens
+the full editor — heavy, for handing off to the user.)
 
 ## Motion graphics
 
