@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.67.0 -->
+<!-- version: 2.68.0 -->
 
 # PandaStudio
 
@@ -348,7 +348,8 @@ specific operation, this is the intended end-to-end pipeline, in order:
    `transcript.delete-words`. If a candidate is genuinely ambiguous (the
    repeat might be intentional emphasis, or you can't tell which take is
    better), **ask the user which take to keep** rather than guessing.
-5. **Remove silences** (`transcript.remove-silences`, 700ms default) — after
+5. **Remove silences** (`transcript.remove-silences`, 500ms default — same as
+   the UI Remove Silences button) — after
    content cleanup so it tightens the final timing. The verb returns
    `removedCount` + the new `revision` (synchronous — you'll know immediately
    how many it cut). **Every transcript cleanup step (2, 4, 5) ADDS trims and
@@ -488,7 +489,7 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 | `transcript.transcribe` | Run only on clips where `clipStates[i].transcribed === false`. Skip the rest. |
 | `transcript.remove-fillers` | Auto-remove "um/uh/like/you know/i mean" + immediately-repeated words. Trim regions; fully reversible. |
 | `transcript.find-issues` | Run after remove-fillers. Surfaces re-takes (`duplicate-take`), abandoned restarts (`false-start`), and stutters (`adjacent-repeat`) as candidates — each with the `wordIds` of the discarded attempt. **Read-only — it never edits.** **Default: keep the most recent (last) take and delete the earlier attempt** by feeding the candidate's `wordIds` into `transcript.delete-words`. Review against context first — if a repeat looks intentional (emphasis) or you can't tell which take is cleaner, ask the user which to keep rather than blind-applying. |
-| `transcript.remove-silences` | Run after the content cleanup. Default threshold 700ms. Trims leading, between-word, and trailing silence per clip. |
+| `transcript.remove-silences` | Run after the content cleanup. Default threshold 500ms — the SAME threshold as the UI Remove Silences button, so your pass removes the same silences a manual click would. Don't hand-pick a higher value (e.g. 700) "to be safe" — that leaves dead air the user expects gone. Trims leading, between-word, and trailing silence per clip. |
 | `audio.clean` | Denoise only clips where `clipStates[i].audioCleaned === false`. Writes a sibling `.cleaned.wav`; original audio untouched. |
 | `caption.set-template` (when user said "add captions" without naming a style) | Default to `bold`. Tell user other templates exist (`classic, modern, minimal, spotlight, boxed, neon, colored, texture, editorial`). `texture` fills large uppercase words with a flowing texture mask — pick the texture (lava/marble/metal/wood/concrete/rock, default lava) via `caption.set-style --texture=marble`. `editorial` is magazine-style emphasis — the currently-spoken word renders big + accent while the rest of the line shrinks, so emphasis sweeps the line. |
 | `llm.generate-title` / `llm.generate-description` / `llm.generate-timestamps` | Generate after the edit pass. Show the user; let them say "regenerate" or "use this exact title" or edit inline. |
@@ -501,7 +502,7 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 > • Transcribed both clips (136 words).
 > • Removed 14 fillers + 3 repeats. Trim regions are reversible — say 'undo fillers' if you want any back.
 > • Cut 2 bad takes (kept the cleaner second attempt each time).
-> • Removed 67 silences (>700ms), tightening ~48s of dead air.
+> • Removed 67 silences (>500ms), tightening ~48s of dead air.
 > • Cleaned audio with DeepFilter on both clips.
 > • Added a zoom at 12.4s where you said 'click here'.
 > • Captions enabled with the bold template (8 other styles available).
@@ -992,8 +993,9 @@ pandastudio transcript.get --id=$ID --json | jq '.data.words[0:20]'
 pandastudio transcript.remove-fillers --id=$ID --json
 # → returns { removedCount, fillersRemoved, repeatsRemoved, trimsAdded }
 
-# 3b. Remove long silences (default ≥700ms; covers leading/trailing/between-word)
-pandastudio transcript.remove-silences --id=$ID --thresholdMs=700 --json
+# 3b. Remove silences (default ≥500ms = the UI button; covers leading/trailing/between-word)
+#     Omit --thresholdMs to use the 500ms default; only pass it to override.
+pandastudio transcript.remove-silences --id=$ID --json
 # → returns { removedCount, totalTrimmedMs }
 
 # 3c. Fix STT errors — NEVER use project.read → JSON mutation → project.save for this.
@@ -1514,7 +1516,7 @@ ISSUES=$(pandastudio transcript.find-issues --id=$ID --json | jq -c '.data.issue
 DROP=$(echo "$ISSUES" | jq -c '[.[] | select(.type=="duplicate-take" or .type=="adjacent-repeat") | .wordIds[]]')
 [ "$DROP" != "[]" ] && pandastudio transcript.delete-words --id=$ID --wordIds="$DROP"
 SILENCE_MS=$([ "$PROFILE" = "loom" ] && echo 300 || echo 500)
-pandastudio transcript.remove-silences --id=$ID --minSilenceMs=$SILENCE_MS   # NEVER skip
+pandastudio transcript.remove-silences --id=$ID --thresholdMs=$SILENCE_MS   # NEVER skip; arg is thresholdMs (500ms = UI default)
 
 # 2. EMPHASIS — zooms (skip for `loom`). Cadence comes from the profile table.
 #
