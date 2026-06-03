@@ -1101,3 +1101,72 @@ Key patterns:
 - Fade out at the end? Add a final keyframe: `99% { opacity: 1; } 100% { opacity: 0; }` with `animation-fill-mode: forwards`
 - Loop an element infinitely: `animation-iteration-count: infinite`
 - For smooth scene transitions (fade-to-black between clips), end the HTML with `body { animation: fadeOut 0.5s ease 4.5s forwards; } @keyframes fadeOut { to { opacity: 0; } }` and match `durationMs` to 5000
+
+---
+
+## Authored graphic recipe — logo / brand-card row (content-specific, not a UI template)
+
+Use for "we use X, Y, Z", tool / partner / integration mentions — N rounded
+white cards, each a logo, popping in over the host's lower third. This is NOT a
+slot-fill template (the logos depend on what's being said); you author + render
+it per use and adapt the cards. Stage the logo PNG/SVGs with `--assets` and
+reference them by basename.
+
+```html
+<!doctype html><html><head><meta charset="utf-8" />
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  /* TRANSPARENT — composites over the host. Cards sit in the lower band. */
+  html, body { width: 100%; height: 100%; background: transparent; font-family: Inter, system-ui, sans-serif; }
+  .stage { position: absolute; inset: 0; }
+  .row { position: absolute; left: 0; right: 0; bottom: 8vh;
+         display: flex; justify-content: center; gap: 3vw; }
+  .card { width: 22vw; max-width: 360px; aspect-ratio: 16/10;
+          background: #fff; border-radius: 1.4vw;
+          box-shadow: 0 1.2vw 3vw rgba(0,0,0,.28);
+          display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1vw;
+          will-change: transform, opacity; }
+  .card img { height: 34%; object-fit: contain; }
+  .card .label { font-size: 1.9vw; font-weight: 800; color: #08101f; }
+</style></head>
+<body>
+  <!-- duration in SECONDS. Adapt the cards: one .card per logo. -->
+  <div class="stage" data-composition-id="logo-row" data-width="1920" data-height="1080" data-duration="5">
+    <div class="row">
+      <div class="card"><img src="heygen.png"      alt="" /><span class="label">HeyGen</span></div>
+      <div class="card"><img src="claude-code.png" alt="" /><span class="label">Claude Code</span></div>
+      <div class="card"><img src="hyperframes.png" alt="" /><span class="label">Hyperframes</span></div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // Cards pop in with a staggered back-ease; exit before the end.
+    tl.from(".card", { y: "4vh", scale: 0.8, opacity: 0, duration: 0.5,
+                       ease: "back.out(1.7)", stagger: 0.12 }, 0.1);
+    tl.to(".card", { opacity: 0, y: "2vh", duration: 0.4, ease: "power2.in",
+                     stagger: 0.06 }, 4.4);
+    tl.to({}, { duration: 5 }, 0);           // Law #11 anchor — full duration
+    window.__timelines = (window.__timelines || {});
+    window.__timelines["logo-row"] = tl;     // key === data-composition-id
+  </script>
+</body></html>
+```
+
+```bash
+# Render transparent (alpha), staging the logo images by basename:
+JOB=$(pandastudio motion.render-html --htmlPath=/tmp/logo-row.html --transparent \
+  --durationMs=5000 \
+  --assets='["/path/heygen.png","/path/claude-code.png","/path/hyperframes.png"]' \
+  --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$JOB" --json
+# Add as an overlay at the moment the host names the tools (anchor to that word):
+pandastudio project.add-motion-graphic --id=$ID --fromJob="$JOB" --durationMs=5000 \
+  --atMs=<wordMs> --anchorSourceMs=<wordMs>
+```
+
+Adapt freely: 2–4 cards, swap logos for app icons or avatars, change the card
+fill / accent, or move the row to a side rail. Pre-flight with
+`motion.screenshot --htmlPath=… --atMs=1500` before the full render. The same
+approach (transparent overlay + `--assets`) covers screenshot showcases and
+icon callouts — author the HTML, render `--transparent`, add as an overlay.

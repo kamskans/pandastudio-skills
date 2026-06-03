@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.61.0 -->
+<!-- version: 2.62.0 -->
 
 # PandaStudio
 
@@ -961,48 +961,88 @@ the primary way to add motion graphics — production-grade, editable, and
 faster than authoring HTML. Custom HTML (`motion_render_html`) is the
 fallback for briefs no template fits (see the next section).
 
-### Rules — read before generating anything
+### Rules — recommendations, not rigid law (bias toward DOING)
 
-1. **`motion_list` FIRST, every time.** Never generate from memory or copy a
-   templateId out of an example below. Call `motion_list`, read the catalog,
-   then choose. (`stat-reveal` is NOT a default — it is only for a single
-   numeric metric.)
-2. **One beat, one well-matched template — and VARY them.** Match each insert
-   to what's actually on screen/being said using the selection guide below.
-   Across a video, use a *spread* of templates: a title card to open, a
-   lower-third to introduce, a checklist or comparison for explainer beats, a
-   stat reveal only when there's a real number, a recap near the end. **Using
-   the same template for every insert is the #1 failure — don't do it.** If
-   you're about to call `motion_generate` with the same `templateId` you used
-   last time, stop and pick a different, more appropriate one.
-3. **Match the template to the moment, not to convenience.** The simplest
-   template to fill is rarely the right one. Pick by meaning.
-4. **Camera-only and imported footage → lead with `split-panel` designed
-   segments.** When the clip's `kind` is `"camera"` (talking-head) or
-   `"upload"` (imported video) there is no screen content to zoom into, so a
-   static frame is what makes such videos look flat. The **split-panel
-   designed segment** (host on one half, live brand panel on the other, added
-   via `project.add-designed-segment`) is the single highest-leverage fix and
-   should be your **default** for every explainer / point-driven beat in this
-   footage — it instantly makes a plain talking head look produced. Reach for
-   it liberally on these clips (alternating the panel side and varying the
-   panel's headline + bullet content), and still sprinkle the other templates
-   (title to open, lower-third to introduce, stat reveal for a number, recap
-   to close) around it. For `kind === "screen"` recordings, prefer
-   cursor-telemetry zooms instead and do NOT split the frame.
+These are strong defaults, not handcuffs — use your judgment. The worst outcome
+is a near-empty timeline because you were being cautious. **A video full of
+points should be full of graphics.**
+
+1. **`motion_list` FIRST, every time.** Discover the catalog + each template's
+   editable slots at runtime; don't generate from memory or copy a templateId
+   out of an example.
+2. **Add a graphic on most meaningful beats — don't be shy.** Name-drops,
+   claims, numbers, lists, comparisons, tool/product mentions, section changes
+   — each is a candidate. If a 5-minute video has ten clear points, ~ten
+   graphics is reasonable. **Under-graphicking is as much a failure as the
+   wrong graphic** — when a beat clearly wants a visual, add one.
+3. **Repetition is good — it creates consistency.** Reusing one title style for
+   every chapter, or `split-panel` across many explainer beats, makes a video
+   feel *designed*, not random. Never skip a template just because you already
+   used it. (The earlier "don't repeat" guidance was wrong — ignore it.)
+4. **The ONE hard line: never misuse a purpose-specific template.** A few
+   templates *mean* something — use them only when the content matches:
+   `stat-reveal` → a real number (never a generic title) · `comparison` →
+   exactly two things contrasted · `flowchart` → an actual sequence of steps ·
+   `key-takeaways` → a list of points · `yt-lower-third` → introducing a
+   person/channel. Everything else (the title family, `split-panel`, the
+   parallax reveals) is **generic — reuse freely.** See the class column below.
+5. **Camera-only / imported footage → lead with `split-panel`.** When the
+   clip's `kind` is `"camera"` (talking-head) or `"upload"` (imported), there's
+   no screen to zoom into, so a static frame is what makes it look flat. The
+   `split-panel` designed segment (host one half, brand panel the other, via
+   `project.add-designed-segment`) is the highest-leverage fix and your
+   **default workhorse** for explainer beats on this footage — use it liberally
+   (alternate side + content), with the other templates sprinkled around it.
+   For `kind === "screen"`, prefer cursor-telemetry zooms; don't split the frame.
+6. **Text isn't your only option.** When a beat wants a *visual* — logos for the
+   tools being named, a product screenshot, an animated diagram — author a
+   custom graphic (see "Authored graphics" below). Don't force every beat into a
+   text template.
 
 ### Selection guide (beat → template)
 
-| What's happening in the video | Reach for |
-|---|---|
-| Open / chapter divider / segment title | `creator-card`, `transitions-3d`, `grain-overlay`, `transitions-destruction`, `caption-parallax-layers` |
-| Introduce a person / channel / "subscribe" | `yt-lower-third` |
-| A real number / metric / result | `stat-reveal` (ONLY here) |
-| "Here are the N things…" / key points / recap | `key-takeaways` |
-| This vs that / before vs after / old way vs new | `comparison` |
-| A process / steps / workflow | `flowchart` |
-| Feature montage / "ways to use it" | `parallax-unzoom`, `parallax-zoom` |
-| Explainer beat on **camera-only or imported** footage (host + points) | `split-panel` (designed segment — the DEFAULT for this footage; use liberally, see Rules §4) |
+"Class" tells you how freely to reuse it: **Generic** = reuse anytime · **Purpose**
+= only when the content matches · **Semi-generic** = reusable, has a natural fit.
+
+| What's happening in the video | Reach for | Class |
+|---|---|---|
+| Open / chapter / section title | `creator-card`, `transitions-3d`, `grain-overlay`, `transitions-destruction`, `caption-parallax-layers` — pick a look, reuse it per section | **Generic** — repeat freely |
+| Explainer beat, host on camera/imported footage | `split-panel` | **Generic workhorse** — repeat freely |
+| Hero reveal / intro / "ways to use it" recap | `parallax-zoom`, `parallax-unzoom` | Semi-generic |
+| Introduce a person / channel / "subscribe" | `yt-lower-third` | Purpose |
+| A real number / metric / result | `stat-reveal` | **Purpose — numbers only** |
+| "Here are the N things…" / key points / recap | `key-takeaways` | Purpose |
+| This vs that / before vs after / old vs new | `comparison` | Purpose |
+| A process / steps / workflow | `flowchart` | Purpose |
+| Logos / tools / partners · a screenshot · a diagram (a VISUAL, not text) | **Author a custom graphic** — see "Authored graphics" below | Authored (not a UI template) |
+
+### Authored graphics — your repertoire is bigger than the gallery
+
+The 13 templates above are the **UI gallery**: fixed-structure, slot-fill. But
+your repertoire is larger — you can also **author content-specific graphics**
+that *can't* be slot-templated because what they show depends on what's being
+discussed. Build these as transparent overlays with `motion.render-html`; they
+composite over the host exactly like an overlay template. Reach for one whenever
+a beat needs a *visual* rather than words:
+
+- **Logo / brand-card row** — N rounded white cards, each a logo, popped in over
+  the lower third. For "we use X, Y, Z", tool / partner / integration mentions
+  (e.g. HeyGen · Claude Code · Hyperframes).
+- **Image / screenshot showcase** — real images via `--assets` (product shots,
+  UI grabs) in a framed or tilted card.
+- **Animated diagram / chart** — data-driven SVG (a flow, a metric building, a
+  bar) when the point is structural, not a single number.
+- **Icon / emoji concept callout** — a glyph + short label punched on a concept.
+- **Reuse a template's shell, swap text → graphics** — take the *look* of an
+  overlay template (the lower-band card, the side panel, the depth stack) and
+  put logos / images / animated SVG where the text would go.
+
+These never appear in the UI gallery (they're not in the manifest) — they're
+yours to consider whenever a slot-fill template doesn't capture the beat.
+Copy-able recipes (logo-card row, etc.) live in
+[`reference/examples.md`](reference/examples.md); the authoring contract (page
+shell, deterministic seek, transparent overlays) is in
+[`reference/motion-philosophy.md`](reference/motion-philosophy.md).
 
 ### The workflow
 
