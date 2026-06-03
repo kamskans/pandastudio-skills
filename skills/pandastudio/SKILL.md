@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.57.0 -->
+<!-- version: 2.58.0 -->
 
 # PandaStudio
 
@@ -425,6 +425,64 @@ Video editing is a creative task with hundreds of small decisions. Asking the us
 
 **Ask only when the answer is genuinely user-specific AND can't be inferred AND is hard to reverse.** Default everything else, narrate what you did, and iterate via preview.
 
+### The default edit pipeline (vague "edit my video", no specifics)
+
+When the user asks to **edit / polish / clean up** a video without naming a
+specific operation, this is the intended end-to-end pipeline, in order:
+
+1. **Transcribe** any clip where `clipStates[i].transcribed === false` (`transcript.transcribe`).
+2. **Remove filler words + immediate repeats** (`transcript.remove-fillers`).
+3. **Fix transcript spelling / STT errors.** Read the transcript and correct
+   obvious misspellings — *especially* product, brand, person, and technical
+   names the speech-to-text got wrong (e.g. "Right Panda" → "WritePanda") —
+   with `transcript.find-replace` (patches the word text in place, keeps
+   timing). Do this BEFORE captions, motion graphics, or title generation —
+   they all derive their text from the transcript, so a typo propagates.
+4. **Cut bad takes.** Run `transcript.find-issues` (read-only — it never
+   edits). For each `duplicate-take` / `false-start`, the **default is to keep
+   the most recent (last, cleaner) take and delete the earlier attempt** —
+   feed the candidate's `wordIds` (which point at the discarded attempt) into
+   `transcript.delete-words`. If a candidate is genuinely ambiguous (the
+   repeat might be intentional emphasis, or you can't tell which take is
+   better), **ask the user which take to keep** rather than guessing.
+5. **Remove silences** (`transcript.remove-silences`, 700ms default) — after
+   content cleanup so it tightens the final timing.
+6. **Clean audio** (`audio.clean`) on clips where `audioCleaned === false`.
+7. **Add captions** — `caption.toggle` + `caption.set-template` (default `bold`
+   per profile; see the caption styles in "DO BY DEFAULT").
+8. **Add motion graphics** — follow the Motion-graphics **Rules** + selection
+   guide: `motion_list` first, vary templates by beat, and for **camera-only /
+   imported footage lead with `split-panel` designed segments**.
+9. **Add emphasis zooms** — punch in on the key beats for a dynamic, edited
+   feel (see "Emphasis zooms" just below).
+10. **Generate** title / description / timestamps, then **preview**.
+
+**Ask-first — exactly once, for scope.** Because this is a large, visible
+transformation, when the request is a vague "edit my video", confirm scope in
+ONE message before running it: list the pipeline above and ask *"Want me to do
+the full polish — remove fillers/repeats/silences, fix transcript typos, cut
+bad takes (keeping the latest), clean audio, add captions, motion graphics, and
+emphasis zooms? Or just some of it?"* Combine this with the destination-profile
+question if that's also unknown — one message, not two.
+- On **yes** (or if they said "just go" / "do everything" / "use defaults") →
+  run the whole pipeline without further per-step asking, then narrate.
+- If they **named a specific operation** ("just add captions", "only remove
+  silences", "add a lower third") → do exactly that and nothing else.
+
+### Emphasis zooms — punch in on the key beats
+
+A perfectly static frame reads as unedited. Adding `project.add-zoom` pushes on
+the moments the speaker emphasizes — the payoff word, a "look at this", a key
+number, a name reveal — gives the cut a dynamic, professionally-edited feel,
+and is part of the default polish. Find the beats from the transcript
+(emphatic phrasing, the point of a sentence, a stated result) and place a
+~1.5–2.5s zoom on each. Depth: modest (2–3) for talking-head emphasis; punchier
+(3–5) for a UI/detail reveal. **For `kind === "screen"` recordings, prefer
+cursor-telemetry-driven zooms; for `camera`/`upload`, place them on verbal
+emphasis.** Don't over-zoom — aim for a real beat roughly every 10–20s, not a
+constant push. (Don't pre-ask about zoom positions; infer and let the user
+redirect via preview.)
+
 ### MUST ASK (3 things, only when context is missing)
 
 <HARD-GATE>
@@ -480,7 +538,7 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 |---|---|
 | `transcript.transcribe` | Run only on clips where `clipStates[i].transcribed === false`. Skip the rest. |
 | `transcript.remove-fillers` | Auto-remove "um/uh/like/you know/i mean" + immediately-repeated words. Trim regions; fully reversible. |
-| `transcript.find-issues` | Run after remove-fillers. Surfaces re-takes (`duplicate-take`), abandoned restarts (`false-start`), and stutters (`adjacent-repeat`) as candidates — each with the `wordIds` of the discarded attempt. **Read-only — it never edits.** Review each candidate against context (some repeats are intentional), then feed the `wordIds` you accept into `transcript.delete-words`. Don't blind-apply all of them. |
+| `transcript.find-issues` | Run after remove-fillers. Surfaces re-takes (`duplicate-take`), abandoned restarts (`false-start`), and stutters (`adjacent-repeat`) as candidates — each with the `wordIds` of the discarded attempt. **Read-only — it never edits.** **Default: keep the most recent (last) take and delete the earlier attempt** by feeding the candidate's `wordIds` into `transcript.delete-words`. Review against context first — if a repeat looks intentional (emphasis) or you can't tell which take is cleaner, ask the user which to keep rather than blind-applying. |
 | `transcript.remove-silences` | Run after the content cleanup. Default threshold 700ms. Trims leading, between-word, and trailing silence per clip. |
 | `audio.clean` | Denoise only clips where `clipStates[i].audioCleaned === false`. Writes a sibling `.cleaned.wav`; original audio untouched. |
 | `caption.set-template` (when user said "add captions" without naming a style) | Default to `bold`. Tell user other templates exist (`classic, modern, minimal, spotlight, boxed, neon, colored, texture, editorial`). `texture` fills large uppercase words with a flowing texture mask — pick the texture (lava/marble/metal/wood/concrete/rock, default lava) via `caption.set-style --texture=marble`. `editorial` is magazine-style emphasis — the currently-spoken word renders big + accent while the rest of the line shrinks, so emphasis sweeps the line. |
