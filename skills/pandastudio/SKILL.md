@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.63.0 -->
+<!-- version: 2.64.0 -->
 
 # PandaStudio
 
@@ -307,117 +307,20 @@ pandastudio system.setTranscriptionLanguage --language=chinese --json
 
 PandaStudio uploads directly to YouTube via the Google Data API v3 — no PandaStudio backend, no proxy. Each workspace has its own connected Google accounts; publishing is always scoped to the active workspace.
 
-### Before you touch any `youtube.*` verb
+**Flow** (only when the user asks to publish — never pre-emptively):
 
-```bash
-pandastudio youtube.is-configured --json | jq '.data.configured'
-# true → continue.  false → tell the user "this build can't publish to YouTube",
-#                   do NOT try the other verbs, they'll all fail.
-```
+1. **Gate:** `youtube.is-configured` → if `false`, tell the user this build can't publish and stop (the other verbs will all fail).
+2. **Connect if needed:** `youtube.list-accounts` → if empty, `youtube.connect` (opens the browser for OAuth, up to ~5 min; explicit consent — never on a schedule). Tokens are stored encrypted via `safeStorage`; they never leave the machine.
+3. **Publish an export:** `export.publish-youtube --id=$EID --accountId=… --channelId=… --title=… --description=… --tags='[…]' --privacyStatus=unlisted --setThumbnail=true`. Pull `--title`/`--description` from the export row (`generatedTitle`/`generatedDescription`). Returns `{ videoId, videoUrl }`. Check `export.get` first — if `youtubeVideoId` is already set, it's published.
+4. **List a channel's videos:** `export.list-youtube --accountId=… --max=50`.
 
-### Connection flow (interactive — only run when user asks)
+**Hard caveats:**
+- **`privacyStatus` defaults to `unlisted`** — never publish public without the user's explicit word; ask "Public, unlisted, or private?" before a first publish.
+- **Metadata edits are currently unavailable to agents** — `export.update-youtube` needs the `youtube.force-ssl` scope (pending Google review); it fails with "insufficient scope". Direct the user to YouTube Studio (`https://studio.youtube.com/video/<VID>/edit`). **Thumbnail replacement works now** via `export.update-youtube-thumbnail` (same `youtube.upload` scope).
+- **Quota:** on a `quotaExceeded` error, stop and surface it (resets daily) — don't retry blindly.
+- **Don't cross workspaces:** if the active workspace lacks the connected account, ASK before switching — publishing to the wrong client's channel is the worst mistake.
 
-```bash
-# Check what's already connected.
-pandastudio youtube.list-accounts --json | jq '.data'
-# → { accounts: [...], channels: [...] }
-
-# If empty or the user wants another account:
-pandastudio youtube.connect --json
-# This opens the user's BROWSER. Expect up to ~5 minutes while they
-# authenticate. Succeeds with { account, channels } or fails with
-# "OAuth timed out" / "user cancelled".
-#
-# Important: don't call youtube.connect on a schedule or pre-emptively.
-# It's explicit consent; only call when the user is sitting there.
-```
-
-Account is stored encrypted via `safeStorage` (Keychain on Mac, DPAPI on Windows, libsecret on Linux). Refresh tokens never leave the machine.
-
-### Publishing an export
-
-End-to-end recipe — assumes a transcribed export with a generated thumbnail already in the library:
-
-```bash
-EID="export-uuid-here"
-
-# 1. Sanity: already published?
-ALREADY=$(pandastudio export.get --id=$EID --json | jq -r '.data.entry.youtubeVideoId')
-if [ "$ALREADY" != "null" ]; then
-  echo "Already on YouTube as $ALREADY — use export.update-youtube to edit."
-  exit 0
-fi
-
-# 2. Pick the account + channel.
-ACCOUNTS=$(pandastudio youtube.list-accounts --json)
-ACC=$(echo "$ACCOUNTS" | jq -r '.data.accounts[0].id')
-CH=$(echo "$ACCOUNTS" | jq -r --arg A "$ACC" '.data.channels[] | select(.accountId == $A) | .id' | head -1)
-
-# 3. Pull existing metadata from the export row.
-ENTRY=$(pandastudio export.get --id=$EID --json)
-TITLE=$(echo "$ENTRY" | jq -r '.data.entry.generatedTitle // .data.entry.fileName')
-DESC=$(echo "$ENTRY" | jq -r '.data.entry.generatedDescription // ""')
-
-# 4. Publish. privacyStatus=unlisted is a safer default than public;
-#    use public only when the user explicitly says "publish publicly".
-pandastudio export.publish-youtube \
-  --id=$EID --accountId=$ACC --channelId=$CH \
-  --title="$TITLE" \
-  --description="$DESC" \
-  --tags='["tutorial","how-to"]' \
-  --privacyStatus=unlisted \
-  --setThumbnail=true \
-  --json
-# → { videoId: "abc...", videoUrl: "https://www.youtube.com/watch?v=abc..." }
-```
-
-**Expected wall-clock:** ~30 s per 100 MB of source video on a typical connection. Don't tear down the tool's connection to PandaStudio during this window.
-
-**`privacyStatus` default:** If the user didn't specify, use `unlisted`. Public-by-default risks a client seeing work-in-progress material on their channel. Agents should ask explicitly: *"Public, unlisted, or private?"* before first-ever publish.
-
-### Editing an already-published video
-
-**Metadata edits (title / description / tags / privacy) are temporarily unavailable from agents** — the `youtube.force-ssl` scope required for `videos.update` is pending Google review for this OAuth project. When `export.update-youtube` is called it will fail with an "insufficient scope" error. Until approval lands (flagged via `YOUTUBE_METADATA_EDIT_ENABLED` in the build), direct the user to **YouTube Studio** at `https://studio.youtube.com/video/<VID>/edit` for those changes.
-
-```bash
-# When the scope is approved this becomes the canonical path:
-pandastudio export.update-youtube \
-  --accountId=$ACC --videoId=$VID \
-  --title="Updated title" \
-  --description="Updated description" \
-  --privacyStatus=public \
-  --json
-# Until then: "open https://studio.youtube.com/video/$VID/edit in the browser"
-```
-
-**Thumbnail replacement works right now** — no extra scope needed. `export.update-youtube-thumbnail` uses the same `youtube.upload` scope that handled the original upload:
-
-```bash
-# Generate fresh thumbnail for the source export.
-pandastudio export.generate-thumbnail --id=$EID --prompt="..." --json | jq -r '.data.imagePath'
-# → /Users/…/thumbnails/<eid>/1745…-abcd.webp  (already 1280×720 after FFmpeg crop)
-
-pandastudio export.update-youtube-thumbnail \
-  --accountId=$ACC --videoId=$VID \
-  --imagePath=/Users/…/thumbnails/<eid>/1745…-abcd.webp \
-  --json
-```
-
-### Dashboard (listing existing videos)
-
-```bash
-pandastudio export.list-youtube --accountId=$ACC --max=50 --json \
-  | jq '.data.videos[] | {id, title, viewCount, publishedAt, privacyStatus}'
-```
-
-Not limited to PandaStudio-published videos — returns everything on the channel's uploads playlist.
-
-### Don't
-
-- **Don't publish public without the user's explicit word.** `unlisted` is the safe default.
-- **Don't call `youtube.connect` without the user asking.** It's interactive consent.
-- **Don't retry a failed upload blindly.** If `export.publish-youtube` fails with a quota error (`details.code = "quotaExceeded"` or similar), stop and surface it. YouTube upload quota resets daily.
-- **Don't cross workspaces.** If the user's active workspace doesn't have the YouTube account connected, ASK before switching — publishing to a different client's channel by mistake is the worst kind of mistake.
+(Full arg schemas for every `youtube.*` / `export.*-youtube` verb: `reference/commands.md`.)
 
 ## Editorial decisions — what to ask, what to assume, what NEVER to ask
 
@@ -1256,77 +1159,10 @@ pandastudio project.add-motion-graphic \
 
 ### Canonical B-roll HTML shell
 
-Drop the absolute file path of the generated image into `<<IMG_PATH>>`.
-The shell handles aspect cropping (`object-fit: cover`), slow Ken-Burns
-zoom, side vignette, and a subtle grain layer. Total duration is
-controlled by `--durationMs` on `motion.render-html`.
-
-```html
-<!doctype html>
-<html><head><style>
-  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
-  .stage { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
-  .broll {
-    position: absolute; inset: 0;
-    background: url("file://<<IMG_PATH>>") center/cover no-repeat;
-    transform-origin: 50% 50%;
-    will-change: transform, filter;
-    filter: saturate(1.05) contrast(1.04);
-  }
-  .vignette {
-    position: absolute; inset: 0;
-    background: radial-gradient(ellipse at center,
-      rgba(0,0,0,0) 55%,
-      rgba(0,0,0,0.35) 85%,
-      rgba(0,0,0,0.65) 100%);
-    pointer-events: none;
-  }
-  .grain {
-    position: absolute; inset: 0;
-    opacity: 0.06;
-    mix-blend-mode: overlay;
-    pointer-events: none;
-    background-image:
-      radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
-      radial-gradient(rgba(255,255,255,0.4) 1px, transparent 1px);
-    background-size: 3px 3px, 7px 7px;
-    background-position: 0 0, 1px 2px;
-  }
-</style></head>
-<body>
-  <div class="stage">
-    <div class="broll" id="broll"></div>
-    <div class="vignette"></div>
-    <div class="grain"></div>
-  </div>
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-  <script>
-    // HyperFrames sets data-duration on <body>; default 4s if absent.
-    const SLOT_DURATION = (document.body.dataset.duration | 0) || 4;
-    gsap.registerPlugin();
-    const tl = gsap.timeline({ paused: true });
-    // Slow linear push-in — cinematic Ken-Burns. Pick ONE direction
-    // randomly per render to avoid every B-roll feeling identical.
-    const dir = Math.random();
-    const startScale = 1.0, endScale = 1.08;
-    const tx = dir < 0.5 ? -1.5 : 1.5; // % horizontal drift
-    tl.fromTo("#broll",
-      { scale: startScale, x: "0%" },
-      { scale: endScale, x: tx + "%", duration: SLOT_DURATION, ease: "none" },
-      0
-    );
-    // Subtle final-second darken so the cut out feels intentional.
-    tl.to("#broll",
-      { filter: "saturate(0.95) contrast(1.02) brightness(0.92)", duration: 0.6, ease: "power2.in" },
-      SLOT_DURATION - 0.6
-    );
-    // No-op duration anchor — Law #11.
-    tl.to({}, { duration: SLOT_DURATION }, 0);
-    window.__timelines = window.__timelines || {};
-    window.__timelines.broll = tl;
-  </script>
-</body></html>
-```
+The Ken-Burns + vignette + grain shell that wraps a generated still (so it
+never reads as a flat photo) lives in [`reference/examples.md`](reference/examples.md)
+under "B-roll Ken-Burns shell" — copy it, drop the image path into `<<IMG_PATH>>`,
+render with `motion.render-html --durationMs=…`.
 
 ### When to reach for B-roll
 
@@ -1710,88 +1546,28 @@ These are READ-ONLY — they return text for you to display or stash on the expo
 
 PandaStudio can generate YouTube thumbnails via Replicate's `openai/gpt-image-2` model using **the user's own Replicate API key** — PandaStudio never pays for or proxies these calls. Before any thumbnail verb will work, the user must open **Settings → Integrations** and paste a key from https://replicate.com/account/api-tokens. The key is stored encrypted via the OS keychain (Keychain on macOS, DPAPI on Windows, libsecret on Linux).
 
-### Check whether the user has a key
+Requires a Replicate key set in **Settings → Integrations** (not via CLI — by
+design, so it never lands in shell history). If a verb returns "No Replicate API
+key set", tell the user to add one rather than looping.
 
-```bash
-# Any thumbnail verb will return a clean error if the key isn't set.
-# Don't guess — if the UI flow is driven by an agent, check first:
-pandastudio export.get --id=$EID --json | jq '.data.entry.thumbnailPath'
-```
+**Verbs:**
+- `export.generate-thumbnail --id=$EID` — local LLM writes a prompt from the
+  transcript → gpt-image-2 (3:2 WebP). Add `--prompt="…"` for control, or
+  `--referenceImagePath=…` to anchor on a face/logo. (Needs the export in the
+  library + a transcript.)
+- `export.edit-thumbnail --id=$EID --editPrompt="…"` — chat-style refine; **one
+  change per call** (runs at `low` quality). Each edit is reverable.
+- `export.set-thumbnail --id=$EID --sourcePath=…` — use a user-supplied file
+  (PNG/JPEG/WebP).
+- `export.revert-thumbnail --iterationId=…` / `export.clear-thumbnail` — history
+  is in `entry.thumbnailIterations[]` (via `export.get`).
 
-If `export.generate-thumbnail` returns `"No Replicate API key set. Open Settings → Integrations to add one."`, tell the user to set it rather than looping. Direct them to the Settings pane; PandaStudio does not accept keys via CLI on purpose (so they never end up in shell history or a file an agent could read).
+**Prompt shape that works** (gpt-image-2 rewards photo-language): one focal
+subject in photo terms ("extreme close-up of…"); specify lighting; **quote
+on-image text** (`reading "GAME OVER"` — its text rendering is sharp); on edits,
+lock what shouldn't change and iterate one thing at a time.
 
-### Generate from the transcript
-
-Requires `transcript.transcribe` + the export already in the library. By default, the local LLM writes a YouTube-art-director prompt from the transcript and feeds it to gpt-image-2 at `medium` quality, 3:2 aspect, WebP output.
-
-```bash
-pandastudio export.generate-thumbnail --id=$EID --json
-# → { success: true, imagePath: "/.../<entryId>/1745…-abcd.webp", prompt: "…", iterations: [] }
-```
-
-Pass an explicit prompt when you want control:
-
-```bash
-pandastudio export.generate-thumbnail --id=$EID \
-  --prompt="Bold close-up of a mechanical keyboard with neon RGB glow, \"ENDGAME BUILD\" in large white sans-serif overlay, shot with 50mm, cinematic lighting" \
-  --quality=medium --json
-```
-
-Pass a reference image when you want style transfer or to anchor on the creator's face/logo:
-
-```bash
-pandastudio export.generate-thumbnail --id=$EID \
-  --referenceImagePath=/Users/.../face.jpg \
-  --prompt="Apply the face from the reference image; add a shocked expression" --json
-```
-
-### Iterate via edit prompts (chat-style)
-
-Use after the first generation (or after a manual upload) to refine without starting over. Each edit pushes the previous thumbnail onto `entry.thumbnailIterations` so the user can revert.
-
-```bash
-pandastudio export.edit-thumbnail --id=$EID \
-  --editPrompt="Make the background color more saturated and move the text lower" --json
-
-pandastudio export.edit-thumbnail --id=$EID \
-  --editPrompt="Remove the logo in the bottom-right" --json
-```
-
-Good iteration prompts are **short and specific**. gpt-image-2 works best with one change at a time; if the user asks for three things, make three separate calls in sequence. Edits run at `low` quality (fast, cheap) — regenerate if the user wants the full-quality version back.
-
-### Manual upload
-
-When the user already has a thumbnail file they want to use:
-
-```bash
-pandastudio export.set-thumbnail --id=$EID \
-  --sourcePath=/path/to/thumbnail.png --json
-```
-
-Accepts PNG / JPEG / WebP. Copies into the managed thumbnails directory (`<userData>/thumbnails/<entryId>/`). Iteration history is cleared because the user is starting fresh. Once set, the user can still call `export.edit-thumbnail` to iterate from there.
-
-### Revert or clear
-
-```bash
-# Grab the iteration id from entry.thumbnailIterations[]
-pandastudio export.get --id=$EID --json \
-  | jq '.data.entry.thumbnailIterations[] | {id, createdAt, prompt}'
-
-pandastudio export.revert-thumbnail --id=$EID --iterationId=$ITER_ID --json
-
-# Wipe the thumbnail entirely
-pandastudio export.clear-thumbnail --id=$EID --json
-```
-
-### Prompt shape that works
-
-gpt-image-2 rewards photo-language and specificity. The LLM that auto-writes the prompt already follows these rules; when you write your own, mirror them:
-
-- **One focal subject.** Describe what's in the middle of the frame, in photo language: "extreme close-up of …", "over-the-shoulder of …".
-- **Specify lighting.** "Shot with 50mm, soft daylight, shallow depth of field" → photorealistic. "Bold graphic poster style, saturated, high contrast" → graphic. Don't mix unless that's the intent.
-- **Quote any on-image text.** `bold sans-serif overlay reading "GAME OVER"`. gpt-image-2's text-rendering is sharp — take advantage of it.
-- **Lock what shouldn't change** on edits. "Change ONLY the background color, keep the subject, composition, and text identical."
-- **Iterate small.** One change per `edit-thumbnail` call beats "make it 5 things at once".
+(Full arg schemas: `reference/commands.md`.)
 
 ## Export — produce the final MP4
 
@@ -1941,41 +1717,22 @@ ID=$(pandastudio project.current --json | jq -r '.data.project.id // empty')
 #   shorts                         → 9:16
 pandastudio project.set-aspect-ratio --id=$ID --aspect=$ASPECT
 
-# 1. PACING — always run. Loom uses aggressive silence removal.
-#
-#    PERFORMANCE: audio.clean takes 30-60s on a typical 5-min recording.
-#    Fire it in the BACKGROUND and let it run while you build motion
-#    graphics in step 5 below. Block on it ONLY before export.start in
-#    step 7. Net wall-clock saving: 30-60s.
-# First read: pull the full project once including transcripts (you
-# need them to scan for emphasis words in step 2). Subsequent reads
-# pass --includeTranscript=false to skip the 600+ KB transcript dump
-# — saves ~2-4s of JSON parse per re-read, which adds up across a
-# multi-step edit.
+# 1. PACING — the default cleanup pipeline (see "default edit pipeline" in
+#    Editorial decisions for the mandatory steps + report-counts rule). Run it
+#    in full — none of these is optional. audio.clean fires async; wait on it
+#    before export (step 5). First read pulls the transcript (needed for step 2);
+#    later reads pass --includeTranscript=false.
 pandastudio project.read --id=$ID --json
 pandastudio transcript.transcribe --id=$ID               # skip if transcribed
-
-# Fire audio.clean async — it's a 30-60s job and runs independently.
-# Capture the jobId; do NOT job.wait here. The clean completes in the
-# background while we author MGs.
-AUDIO_CLEAN_JOB=$(pandastudio audio.clean --id=$ID --json | jq -r '.data.jobId // empty')
-
-pandastudio transcript.remove-fillers --id=$ID
-
-# Content cleanup — surface re-takes, false starts, and stutters, then cut
-# the ones that are genuinely flubs. find-issues is READ-ONLY: it returns
-# candidates with the wordIds of the DISCARDED attempt. Review them (a
-# repeated phrase can be deliberate emphasis) and delete only what you
-# accept. For a hands-off "edit this" pass, auto-apply the high-severity
-# duplicate-takes and obvious stutters; leave medium/low for the user if
-# they're reviewing. NOTE: delete the discarded attempt, keep the clean one.
+AUDIO_CLEAN_JOB=$(pandastudio audio.clean --id=$ID --json | jq -r '.data.jobId // empty')  # async
+pandastudio transcript.remove-fillers --id=$ID           # fillers + immediate repeats
+# Bad takes + repeated phrases: find-issues is READ-ONLY — you MUST then delete
+# the discarded wordIds (keep the most recent take). Skipping the delete cuts nothing.
 ISSUES=$(pandastudio transcript.find-issues --id=$ID --json | jq -c '.data.issues')
-# e.g. accept all duplicate-takes (re-records) + adjacent-repeats (stutters):
 DROP=$(echo "$ISSUES" | jq -c '[.[] | select(.type=="duplicate-take" or .type=="adjacent-repeat") | .wordIds[]]')
 [ "$DROP" != "[]" ] && pandastudio transcript.delete-words --id=$ID --wordIds="$DROP"
-
 SILENCE_MS=$([ "$PROFILE" = "loom" ] && echo 300 || echo 500)
-pandastudio transcript.remove-silences --id=$ID --minSilenceMs=$SILENCE_MS
+pandastudio transcript.remove-silences --id=$ID --minSilenceMs=$SILENCE_MS   # NEVER skip
 
 # 2. EMPHASIS — zooms (skip for `loom`). Cadence comes from the profile table.
 #
@@ -2123,60 +1880,19 @@ pandastudio export.start --id=$ID --quality=$QUALITY --json | jq -r '.data.jobId
   xargs -I {} pandastudio job.wait --id={}
 ```
 
-### Performance — how to keep wall-clock minimal on a typical edit
+### Performance — keep wall-clock minimal
 
-A "make me an Ali-Abdaal-style YouTube edit" runs ~100–180s of useful
-work. The dominant costs in order:
-
-1. **Motion-graphic renders** (60–90s for 6 parallel scenes; 5× longer
-   if accidentally serialised). Already addressed: every
-   `motion.render-html` call spawns its own Chromium OS process — fire
-   them all in parallel, collect jobIds, THEN `job.wait` each. Never
-   `job.wait` between fires. (See "renders are parallel" in the Custom
-   Motion Graphics section.)
-
-2. **`audio.clean`** (30–60s on a 5-min recording). Fire it in the
-   BACKGROUND right after `transcript.transcribe`. It runs while you
-   author motion graphics + add zooms/captions/LUT. Block on it ONLY
-   before `export.start`. The runbook above already does this — capture
-   `$AUDIO_CLEAN_JOB`, do all your other work, `job.wait` at step 5.
-   Net saving: 30–60s of wall-clock that would otherwise serialise.
-
-3. **Re-renders due to layout bugs** (30–60s when one slips through).
-   Always pre-flight new motion-graphic HTML with `motion.screenshot`
-   at t=0.5s and at the hero moment BEFORE calling `motion.render-html`
-   (see "Pre-flight EVERY motion graphic" above). Two ~2s screenshots
-   beat one ~30–60s wasted render.
-
-4. **`project.read` parse overhead** (~2–4s per read on a 5-min
-   recording — transcripts are 600+ KB). After your first read, pass
-   `--includeTranscript=false` on subsequent reads. clipStates still
-   tells you transcribed/wordCount status; the transcript words
-   themselves are rarely needed after pacing is done.
-
-5. **Caching reads in skill state.** If you read the project to get
-   region ids for an update, hold that JSON in your context — don't
-   re-read after every mutation. The mutation handlers all return
-   `{ path, revision, project }` so the response IS the post-write
-   project; use that instead of a fresh read.
-
-6. **Verb-call round-trips.** Each verb is ~10-15ms localhost HTTP.
-   Don't sweat individual calls — batch tasks naturally fall into
-   parallel groups (renders, zooms, etc.) which already amortise.
-
-**Rough wall-clock budget for an Ali-Abdaal-style edit (5-min source,
-6 motion graphics, audio clean ON, captions ON):**
-
-- transcribe + clean fillers/silences:   3–5s
-- audio.clean (background, free):        0s wall-clock if launched right
-- 6 motion-graphic renders in parallel:  60–90s (the dominant cost)
-- region adds + LUT + captions:          5–10s
-- frame verification (24 frames):        5–10s
-- export.start + job.wait:               60–120s (FFmpeg final assembly)
-
-Total: 130–230s. The motion-graphic renders are the main lever.
-Anything else is rounding error — chase the renders if you want to
-shave more.
+Motion-graphic renders dominate (60–90s for ~6 scenes); everything else is
+rounding error. The levers:
+- **Fire all `motion.render-html` renders in parallel**, collect jobIds, then
+  `job.wait` each — never `job.wait` between fires.
+- **Run `audio.clean` in the background** (capture its jobId right after
+  transcribe; `job.wait` only before `export.start`).
+- **Pre-flight HTML with `motion.screenshot`** before a full render — a 2s
+  screenshot beats a 30–60s wasted render.
+- **Re-read sparingly**: pass `--includeTranscript=false` after the first
+  `project.read`, and reuse the `{ project }` each mutation returns instead of
+  re-reading.
 
 ### Anti-patterns (do NOT do these — all profiles)
 

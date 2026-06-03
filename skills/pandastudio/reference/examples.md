@@ -1170,3 +1170,82 @@ fill / accent, or move the row to a side rail. Pre-flight with
 `motion.screenshot --htmlPath=… --atMs=1500` before the full render. The same
 approach (transparent overlay + `--assets`) covers screenshot showcases and
 icon callouts — author the HTML, render `--transparent`, add as an overlay.
+
+---
+
+## B-roll Ken-Burns shell (moved from SKILL.md)
+
+Wrap a `media.generate-image` still in this shell so it has motion (Law #4 — camera never sleeps). Drop the absolute image path into `<<IMG_PATH>>`; duration is controlled by `--durationMs` on `motion.render-html`.
+
+Drop the absolute file path of the generated image into `<<IMG_PATH>>`.
+The shell handles aspect cropping (`object-fit: cover`), slow Ken-Burns
+zoom, side vignette, and a subtle grain layer. Total duration is
+controlled by `--durationMs` on `motion.render-html`.
+
+```html
+<!doctype html>
+<html><head><style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  .stage { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .broll {
+    position: absolute; inset: 0;
+    background: url("file://<<IMG_PATH>>") center/cover no-repeat;
+    transform-origin: 50% 50%;
+    will-change: transform, filter;
+    filter: saturate(1.05) contrast(1.04);
+  }
+  .vignette {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center,
+      rgba(0,0,0,0) 55%,
+      rgba(0,0,0,0.35) 85%,
+      rgba(0,0,0,0.65) 100%);
+    pointer-events: none;
+  }
+  .grain {
+    position: absolute; inset: 0;
+    opacity: 0.06;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+    background-image:
+      radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
+      radial-gradient(rgba(255,255,255,0.4) 1px, transparent 1px);
+    background-size: 3px 3px, 7px 7px;
+    background-position: 0 0, 1px 2px;
+  }
+</style></head>
+<body>
+  <div class="stage">
+    <div class="broll" id="broll"></div>
+    <div class="vignette"></div>
+    <div class="grain"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script>
+    // HyperFrames sets data-duration on <body>; default 4s if absent.
+    const SLOT_DURATION = (document.body.dataset.duration | 0) || 4;
+    gsap.registerPlugin();
+    const tl = gsap.timeline({ paused: true });
+    // Slow linear push-in — cinematic Ken-Burns. Pick ONE direction
+    // randomly per render to avoid every B-roll feeling identical.
+    const dir = Math.random();
+    const startScale = 1.0, endScale = 1.08;
+    const tx = dir < 0.5 ? -1.5 : 1.5; // % horizontal drift
+    tl.fromTo("#broll",
+      { scale: startScale, x: "0%" },
+      { scale: endScale, x: tx + "%", duration: SLOT_DURATION, ease: "none" },
+      0
+    );
+    // Subtle final-second darken so the cut out feels intentional.
+    tl.to("#broll",
+      { filter: "saturate(0.95) contrast(1.02) brightness(0.92)", duration: 0.6, ease: "power2.in" },
+      SLOT_DURATION - 0.6
+    );
+    // No-op duration anchor — Law #11.
+    tl.to({}, { duration: SLOT_DURATION }, 0);
+    window.__timelines = window.__timelines || {};
+    window.__timelines.broll = tl;
+  </script>
+</body></html>
+```
+
