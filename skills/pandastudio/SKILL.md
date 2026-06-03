@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.62.0 -->
+<!-- version: 2.63.0 -->
 
 # PandaStudio
 
@@ -446,7 +446,15 @@ specific operation, this is the intended end-to-end pipeline, in order:
    repeat might be intentional emphasis, or you can't tell which take is
    better), **ask the user which take to keep** rather than guessing.
 5. **Remove silences** (`transcript.remove-silences`, 700ms default) — after
-   content cleanup so it tightens the final timing.
+   content cleanup so it tightens the final timing. The verb returns
+   `removedCount` + the new `revision` (synchronous — you'll know immediately
+   how many it cut). **Every transcript cleanup step (2, 4, 5) ADDS trims and
+   shifts the edited timeline**, so always finish cleanup BEFORE placing
+   graphics/zooms/lower-thirds (steps 8–9). If you ever place a region from a
+   transcript word *before* cleanup is done, pass `--anchorSourceMs` so it
+   re-anchors when the timeline shifts. (If the user already removed silences in
+   the UI, a fresh `project.read` shows the new `trimCount` / `editedDurationMs`
+   / `totalTrimmedMs` — treat that as "silences already done".)
 6. **Clean audio** (`audio.clean`) on clips where `audioCleaned === false`.
 7. **Add captions** — `caption.toggle` + `caption.set-template` (default `bold`
    per profile; see the caption styles in "DO BY DEFAULT").
@@ -458,18 +466,25 @@ specific operation, this is the intended end-to-end pipeline, in order:
 10. **Generate** title / description / timestamps, then **preview**.
 
 **Do not skip steps, and report what actually ran.** Every step the user
-confirmed for the full polish must be an ACTUAL verb call this session —
-especially **`transcript.remove-silences`, which is the most commonly skipped
-step**. Silence removal is what makes a talking-head edit feel tight; never
-finish a "full polish" / "edit for YouTube" without calling it. After the pass,
-your summary MUST reflect the real results returned by each verb — quote the
-counts (e.g. *"removed 14 fillers, cut 2 bad takes, removed 67 silences,
-captions on, 4 motion graphics, 6 zooms"*). **Never claim "edited everything"
-or "removed silences" unless the corresponding verb actually ran and you saw
-its result.** If a step legitimately did nothing (e.g. `remove-silences`
-returned `removedCount: 0`), say that explicitly rather than omitting it. Treat
-the numbered list as a checklist: before you report done, confirm each item was
-either run (with its result) or consciously skipped for a stated reason.
+confirmed for the full polish must be an ACTUAL verb call this session. Three
+steps are skipped far too often — **none of them is optional in a full polish**:
+
+- **`transcript.remove-fillers`** — fillers AND immediate repeated words.
+- **`transcript.find-issues` → `transcript.delete-words`** — **bad takes and
+  repeated phrases.** `find-issues` is read-only; you MUST then actually delete
+  the discarded `wordIds` (keep the most recent take). Running `find-issues` and
+  *not* deleting is the same as doing nothing — the bad take stays in the video.
+- **`transcript.remove-silences`** — the single most-skipped step; silence
+  removal is what makes a talking-head edit feel tight.
+
+After the pass, your summary MUST quote the real result each verb returned
+(e.g. *"removed 14 fillers, cut 2 bad takes + 3 repeated phrases, removed 67
+silences, captions on, 4 graphics, 6 zooms"*). **Never claim a step happened
+unless the verb actually ran and you saw its result** — "edited everything" with
+bad takes, repeats, or silences still in the cut is a failure the user notices
+immediately. If a step legitimately returned 0, say so explicitly rather than
+omitting it. Treat the numbered pipeline as a checklist: before reporting done,
+confirm each item was run (with its count) or consciously skipped for a reason.
 
 **Ask-first — exactly once, for scope.** Because this is a large, visible
 transformation, when the request is a vague "edit my video", confirm scope in
