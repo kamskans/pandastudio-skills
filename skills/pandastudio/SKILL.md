@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.59.0 -->
+<!-- version: 2.60.0 -->
 
 # PandaStudio
 
@@ -457,6 +457,20 @@ specific operation, this is the intended end-to-end pipeline, in order:
    feel (see "Emphasis zooms" just below).
 10. **Generate** title / description / timestamps, then **preview**.
 
+**Do not skip steps, and report what actually ran.** Every step the user
+confirmed for the full polish must be an ACTUAL verb call this session —
+especially **`transcript.remove-silences`, which is the most commonly skipped
+step**. Silence removal is what makes a talking-head edit feel tight; never
+finish a "full polish" / "edit for YouTube" without calling it. After the pass,
+your summary MUST reflect the real results returned by each verb — quote the
+counts (e.g. *"removed 14 fillers, cut 2 bad takes, removed 67 silences,
+captions on, 4 motion graphics, 6 zooms"*). **Never claim "edited everything"
+or "removed silences" unless the corresponding verb actually ran and you saw
+its result.** If a step legitimately did nothing (e.g. `remove-silences`
+returned `removedCount: 0`), say that explicitly rather than omitting it. Treat
+the numbered list as a checklist: before you report done, confirm each item was
+either run (with its result) or consciously skipped for a stated reason.
+
 **Ask-first — exactly once, for scope.** Because this is a large, visible
 transformation, when the request is a vague "edit my video", confirm scope in
 ONE message before running it: list the pipeline above and ask *"Want me to do
@@ -563,12 +577,18 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 > "Edited.
 > • Transcribed both clips (136 words).
 > • Removed 14 fillers + 3 repeats. Trim regions are reversible — say 'undo fillers' if you want any back.
+> • Cut 2 bad takes (kept the cleaner second attempt each time).
+> • Removed 67 silences (>700ms), tightening ~48s of dead air.
 > • Cleaned audio with DeepFilter on both clips.
 > • Added a zoom at 12.4s where you said 'click here'.
 > • Captions enabled with the bold template (8 other styles available).
 > • Generated a title: *'How I Built This in 24 Hours'* — say if you want a different angle.
 >
 > Opening preview now."
+
+Note how the summary names the **actual count for every step that ran** —
+including silences. That's the bar: a summary line backed by a real verb call
+and its returned result, never a vague "cleaned it up".
 
 ### NEVER ASK about
 
