@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.58.0 -->
+<!-- version: 2.59.0 -->
 
 # PandaStudio
 
@@ -469,6 +469,18 @@ question if that's also unknown — one message, not two.
 - If they **named a specific operation** ("just add captions", "only remove
   silences", "add a lower third") → do exactly that and nothing else.
 
+**NOT part of the default pipeline — add ONLY on explicit request:**
+- **Background music.** Never add a music track to "edit my video" / "do the
+  full polish". Add it only when the user explicitly asks ("add background
+  music", "put a track under it"). "Full polish" does NOT include music.
+- **Intro / outro cards.** Never open with a title card or append an outro/CTA
+  card unless the user explicitly asks for one ("add an intro", "add an outro").
+  A plain edit keeps the user's footage as the first and last frame.
+
+If you think music or an intro/outro would help, you may *suggest* it in your
+narration ("want me to add a music bed or an intro card?") — but do not add it
+until they say yes.
+
 ### Emphasis zooms — punch in on the key beats
 
 A perfectly static frame reads as unedited. Adding `project.add-zoom` pushes on
@@ -488,7 +500,7 @@ redirect via preview.)
 <HARD-GATE>
 Before issuing `project.new`, `project.add-*`, `motion.generate`, or `motion.render-html` calls that depend on user-specific information, you MUST have:
 
-**1. Destination profile.** This single answer drives aspect ratio, pacing, zoom cadence, caption template, music volume, and whether to add intros/lower-thirds. Try to infer first, then fall back to asking:
+**1. Destination profile.** This single answer drives aspect ratio, pacing, zoom cadence, caption template, and whether to add lower-thirds. (Background music and intro/outro cards are NOT profile defaults — add them ONLY when the user explicitly asks; see the default edit pipeline.) Try to infer first, then fall back to asking:
 
 Inference rules (in order — first match wins):
    - User mentioned "Shorts" / "TikTok" / "Reels" / "Instagram story" / "vertical" / "phone"? → **`shorts`** profile (9:16, punchy)
@@ -2879,7 +2891,7 @@ Resolve the destination first (see [HARD-GATE](#editorial-decisions--what-to-ask
 |---|---|---|---|---|
 | Aspect | 16:9 | **9:16** | 16:9 or 1:1 | 16:9 |
 | Hook deadline | 10 s | **3 s** | 10 s | — (none) |
-| Intro card | 2–4 s | **0–1 s or none** | 2–3 s | none |
+| Intro / outro card | **only if the user asks** (then 2–4 s) | **only if the user asks** | **only if the user asks** (then 2–3 s) | none |
 | Lower thirds | yes, at first mentions | **no** (too small vertically) | yes | no |
 | Zoom cadence | 3–6 / min | **6–12 / min** | 1–2 / min | 0–1 / min |
 | Default emphasis zoom duration | **7 s** | 3 s | 4 s | 2 s |
@@ -2889,7 +2901,7 @@ Resolve the destination first (see [HARD-GATE](#editorial-decisions--what-to-ask
 | Filler/silence removal | yes | yes | yes | **yes (aggressive — minSilenceMs 300)** |
 | Speed regions (B-roll) | 1.5–2× | **2–3×** or cut entirely | 1.25–1.5× | none |
 | LUT preset | by content type @ 0.5–0.8 | **`modernVibrant` @ 1.0** | `naturalEnhanced` @ 0.3 | none |
-| Background music vol | 0.15 | **0.30** | 0.0 (none) | 0.0 |
+| Background music | **only if the user asks** (then vol 0.15) | **only if the user asks** (then vol 0.30) | none | none |
 | Captions enabled | yes | **yes (required)** | yes | optional |
 | Caption template | `panda-pop` (tutorial) · `panda-clean` (pro) | **`panda-neon`** + positionY 0.65 | `panda-clean` | `panda-clean` (if any) |
 | Export quality | `high` | `high` | `high` | `standard` (faster) |
@@ -2921,9 +2933,17 @@ not instead of them. Unlisted styles → fall back to base profile.
 
 **Rule:** an agent authoring any "style X" edit MUST still follow the 11
 Laws from `reference/motion-philosophy.md`. The style overrides change
-palette, cadence, and music — they do NOT let you ship flat-white text
-on a flat-black background. Grid + vignette + grain + chrome gradient
-are mandatory regardless of named style.
+palette, cadence, and the *suggested* music/intro/outro — they do NOT let
+you ship flat-white text on a flat-black background. Grid + vignette + grain
++ chrome gradient are mandatory regardless of named style.
+
+**Music + intro/outro stay opt-in even in style mode.** The Music and
+motion-graphic-cadence columns above describe what the style *would* include
+— but background music and intro/outro cards are still added ONLY when the
+user asked for them (see the default edit pipeline). If the user named a style
+without mentioning music or an intro/outro, apply the style's palette /
+pacing / captions / mid-roll motion graphics, and *offer* the music bed +
+intro/outro rather than adding them unprompted.
 
 ### Anchoring — every transcript-derived region MUST be anchored
 
@@ -3089,14 +3109,18 @@ pandastudio project.add-zoom --id=$ID --clipId=$CLIP_ID \
   --soundUrl=bundled:sound/dramatic-whoosh --soundVolume=0.7
 
 # 3. POLISH — skip sections by profile:
-#    - `shorts`: no intro card, no lower thirds (tight vertical frame)
-#    - `loom`:   skip 3a, 3b, 3c, 3d entirely
-#    - `linkedin`: skip 3d (no music)
+#    - `shorts`: no lower thirds (tight vertical frame)
+#    - `loom`:   skip 3b, 3c entirely
+#    NOTE: 3a (intro/outro) and 3d (background music) are OPT-IN — run them
+#    ONLY when the user explicitly asked for an intro/outro or music. They are
+#    NOT part of the default "edit my video" pass for ANY profile.
 
-# 3a. Intro title card (youtube-long: 2-4s, linkedin: 2-3s)
-# Fastest: the `creator-card` template via motion.generate. Author custom
-# HTML (reference/motion-philosophy.md §7) only for a bespoke intro.
-if [ "$PROFILE" = "youtube-long" ] || [ "$PROFILE" = "linkedin" ]; then
+# 3a. Intro / outro card — ONLY IF THE USER EXPLICITLY ASKED for one
+# ("add an intro", "add an outro card", "open with a title"). Do NOT add
+# one on a plain "edit this" request. When asked: fastest is the
+# `creator-card` template via motion.generate; author custom HTML
+# (reference/motion-philosophy.md §7) only for a bespoke intro.
+if [ "$USER_ASKED_FOR_INTRO" = "1" ]; then
   JOB=$(pandastudio motion.render-html \
     --htmlPath=/tmp/intro-title.html \
     --durationMs=3000 --json | jq -r '.data.jobId')
@@ -3114,13 +3138,14 @@ fi
 #     Apply to every clip via project.set-clip-lut.
 #     Skip entirely for `loom`.
 
-# 3d. Background music (youtube-long: 0.15, shorts: 0.30, NOT linkedin/loom)
-if [ "$PROFILE" = "youtube-long" ]; then
+# 3d. Background music — ONLY IF THE USER EXPLICITLY ASKED for music
+# ("add background music", "put a track under it"). Do NOT add music on a
+# plain "edit this" request. When asked, use the profile volume (youtube-long
+# 0.15, shorts 0.30) and let the user pick / swap the track.
+if [ "$USER_ASKED_FOR_MUSIC" = "1" ]; then
+  VOL=$([ "$PROFILE" = "shorts" ] && echo 0.30 || echo 0.15)
   pandastudio project.add-audio --id=$ID \
-    --path=bundled:music/tech-review-background --volume=0.15 --fadeIn=2000 --fadeOut=3000
-elif [ "$PROFILE" = "shorts" ]; then
-  pandastudio project.add-audio --id=$ID \
-    --path=bundled:music/tech-review-background --volume=0.30 --fadeIn=500 --fadeOut=500
+    --path=bundled:music/tech-review-background --volume=$VOL --fadeIn=1000 --fadeOut=2000
 fi
 
 # 4. ACCESSIBILITY — captions per profile
