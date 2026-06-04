@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.79.0 -->
+<!-- version: 2.80.0 -->
 
 # PandaStudio
 
@@ -736,6 +736,7 @@ points should be full of graphics.**
 | "Here are the N things…" / key points / recap | `key-takeaways` | Purpose |
 | This vs that / before vs after / old vs new | `comparison` | Purpose |
 | A process / steps / workflow | `flowchart` | Purpose |
+| ONE thesis sentence / pull-quote / "money line" (hook or climax) | `caption-editorial-emphasis` | **Purpose — at most 2–3 per video** |
 | Logos / tools / partners · a screenshot · a diagram (a VISUAL, not text) | **Author a custom graphic** — see "Authored graphics" below | Authored (not a UI template) |
 
 ### Authored graphics — your repertoire is bigger than the gallery
@@ -864,6 +865,16 @@ All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay (transparent-capable).
 
 **Host + panel split**
 - `split-panel` `O` (16:9 / 1:1) — opaque brand panel on one half (headline + bullet list), transparent on the other for the host. **Reveals once and holds** (no exit) — set `--durationMs` to the topic length; it holds for exactly that long. Add via `project.add-designed-segment` (see above). Slots: side (`left`/`right`), **headline**, items[label], brandColor, inkColor.
+
+**Pull-quote / emphasized line**
+- `caption-editorial-emphasis` `O` (4s, all aspects) — one-sentence pull-quote, ONE word (or short phrase) blown up in huge Playfair italic that slides in from the left. Regular words pop in word-by-word in Inter; emphasis slides in below them; holds the final frame. Transparent overlay — drops on any clip. Slots: **sentence**, **emphasisWord**, inkColor, accentColor. Trailing punctuation after the emphasis auto-merges onto the emphasis (so `"…starts with a single frame."` renders `single frame.` as one unit). If `emphasisWord` is NOT a substring of `sentence`, it's appended to the end as a punchline — useful when you want the sentence to LEAD with normal text and END with the dramatic pull-out. **Use sparingly: at most 2–3 times per video, and reserve one of those for the climax / "money line" of the piece.** The opening hook and the chapter-closing payoff are the strongest slots; sprinkling it every minute burns the size contrast. Not a replacement for the running caption track (`caption.set-template editorial` is the style for that). Add via `project.add-motion-graphic` (it's an overlay, not a main-track clip).
+  ```bash
+  JOB=$(pandastudio motion.generate --templateId=caption-editorial-emphasis \
+      --slots='{"sentence":"Every great video starts with a single frame.","emphasisWord":"single frame"}' \
+      --aspectRatio=16:9 --json | jq -r '.jobId')
+  pandastudio job.wait --id=$JOB
+  pandastudio project.add-motion-graphic --fromJob=$JOB --startMs=3000 --durationMs=4000
+  ```
 
 > List slots (`items`, `nodes`) take an array of objects, e.g.
 > `"items":[{"label":"first"},{"label":"second"}]`. `motion.screenshot`
