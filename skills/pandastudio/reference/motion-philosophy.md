@@ -128,17 +128,27 @@ and add each as a separate clip on the timeline.** Don't build one big 30s
 HTML composition.
 
 ```bash
-# Author each scene's HTML separately (5–8s each, "reveal + hold" only, no
-# baked-in transitions — the editor handles those).
+# From-scratch promo (no host footage): scenes become MAIN TRACK clips via
+# project.add-clip. NOT add-motion-graphic — that's for graphics layered on
+# top of existing footage (lower thirds, callouts), and there's no footage
+# here. Adding overlays to an empty main track produces a project the
+# editor opens to "No video to load" because overlays compose ON the main
+# track and there's nothing under them.
 for SCENE in intro problem demo cta; do
   JOB=$(pandastudio motion.render-html --htmlPath="/tmp/$SCENE.html" \
     --durationMs=6000 --json | jq -r '.data.jobId')
-  pandastudio job.wait --id="$JOB" --timeoutMs=600000 --json
-  # Add to the timeline at the running offset.
-  pandastudio project.add-motion-graphic --id="$PROJECT" --fromJob="$JOB" \
-    --durationMs=6000
+  RESULT=$(pandastudio job.wait --id="$JOB" --timeoutMs=600000 --json)
+  OUTPATH=$(echo "$RESULT" | jq -r '.data.job.result.outputPath')
+  # Add as a primary clip on the main track. add-clip ffmpeg-probes the
+  # MP4 duration; clips append at the end by default (or pass --atIndex).
+  pandastudio project.add-clip --id="$PROJECT" --media="$OUTPATH"
 done
 ```
+
+(When the brief is "add a lower third over this recording," the host
+video already sits on the main track — use `project.add-motion-graphic`
+to layer the graphic on top instead. The verb choice is the entire
+distinction between the two flows.)
 
 Why this is the default for promos:
 

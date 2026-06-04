@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.78.0 -->
+<!-- version: 2.79.0 -->
 
 # PandaStudio
 
@@ -879,8 +879,11 @@ above — faster and already designed.
 > **CRITICAL: render scene-by-scene, NOT one big 30s MP4.** If the brief is
 > multi-scene (a promo / explainer with ≥3 distinct beats, anything ≥10s
 > total), author **each scene as its own ~5-8s HTML composition** and add
-> each as a sequential clip on the timeline via `project.add-motion-graphic`.
-> Do NOT build one monolithic 30s composition. Three reasons:
+> each as a sequential clip on the timeline (via `project.add-clip` for
+> from-scratch content, or via `project.add-motion-graphic` only when the
+> graphics are layered on top of host footage — see "Two distinct flows"
+> below for the disambiguation). Do NOT build one monolithic 30s
+> composition. Three reasons:
 >
 > 1. **Targeted re-renders.** When the user says "scene 3 needs the brand
 >    color brighter," you redo that one scene (~30-60s), not the whole
@@ -903,40 +906,75 @@ above — faster and already designed.
 > The escape hatch — `motion.concat` — exists for when the user explicitly
 > asks for one combined MP4. It's not the default for promos.
 
-> **Chain for a brand-new promo / explainer / video-from-scratch** (the
-> universal "every video lives in a project" rule is documented in
-> "Composing a real edit" above — this is the concrete recipe):
+> **Two distinct flows. Pick the right one BEFORE adding clips.**
+>
+> Motion graphics live in PandaStudio in two places, and which one you use
+> depends on whether there's host footage:
+>
+> 1. **Generated video from scratch** — promo / explainer / PDF-to-video /
+>    any brief where YOU are producing the primary content (no host on
+>    camera, no uploaded recording). The rendered scene MP4s **ARE the
+>    video**. They go on the **main track** via `project.add-clip`, one
+>    clip per scene. The timeline IS your scene sequence.
+>
+> 2. **Layered on existing footage** — user has a recording open (host
+>    talking on camera, screen capture, etc.) and wants motion graphics
+>    composited ON TOP (lower thirds, stat callouts, brand watermarks,
+>    side-panel explainers). The recording's clips are already on the
+>    main track. Motion graphics go in `mediaOverlayRegions` via
+>    `project.add-motion-graphic`, sitting above the host video at
+>    specific time windows.
+>
+> Picking the wrong verb produces a broken project: `project.add-motion-graphic`
+> on an EMPTY main track produces an editor that opens to "No video to load"
+> because overlays compose ON the main track, and there's nothing there.
+>
+> **Chain for a brand-new promo / explainer / video-from-scratch**
+> (the from-scratch case — use `project.add-clip`):
 >
 > ```bash
 > # 1. Create a fresh project. Set aspectRatio to match the destination
 > #    profile (16:9 YouTube, 9:16 Shorts/Reels, 1:1 LinkedIn square).
 > P=$(pandastudio project.new --name="PandaScribe Promo" --aspectRatio=16:9 --json | jq -r '.data.id')
 >
-> # 2. Render each scene as its own motion graphic, add each to the
-> #    timeline at the running offset.
-> OFFSET=0
+> # 2. Render each scene as its own motion graphic, then add the rendered
+> #    MP4 to the MAIN TRACK with project.add-clip. NOT add-motion-graphic
+> #    — that's for overlays on existing footage, and there's no footage
+> #    here. add-clip ffmpeg-probes the MP4 duration automatically.
 > for SCENE in intro problem demo testimonial cta; do
 >   # Author the HTML for $SCENE somewhere (inline or tmp file)…
 >   JOB=$(pandastudio motion.render-html --htmlPath="/tmp/$SCENE.html" --durationMs=6000 --json | jq -r '.data.jobId')
->   pandastudio job.wait --id="$JOB" --timeoutMs=600000 --json
->   pandastudio project.add-motion-graphic --id="$P" --fromJob="$JOB" --durationMs=6000 --atMs=$OFFSET
->   OFFSET=$((OFFSET + 6000))
+>   RESULT=$(pandastudio job.wait --id="$JOB" --timeoutMs=600000 --json)
+>   OUTPATH=$(echo "$RESULT" | jq -r '.data.job.result.outputPath')
+>   pandastudio project.add-clip --id="$P" --media="$OUTPATH"
 > done
 >
 > # 3. Open the project in the editor so the user can preview, scrub,
 > #    tweak individual scenes, export. THIS is the hand-off, not the
-> #    bare MP4 path.
+> #    bare MP4 paths.
 > pandastudio preview.show --id="$P"
 >
 > # 4. Report to the user in chat with the project id (NOT the
 > #    intermediate MP4 paths). Example:
-> #    "Created PandaScribe Promo with 5 scenes. Open in the editor —
-> #     tell me which scene to tweak."
+> #    "Created PandaScribe Promo with 5 scenes on the timeline. Open in
+> #     the editor — tell me which scene to tweak."
 > ```
 >
-> Same flow applies when a project IS already open: skip step 1, reuse the
-> existing `$P` from `project.current`, and add scenes to the running
-> timeline.
+> Same flow applies when a project IS already open with no main-track
+> content yet: skip step 1, reuse the existing `$P` from `project.current`.
+>
+> **Chain for layered graphics on existing footage** (host video already
+> on the main track — use `project.add-motion-graphic`):
+>
+> ```bash
+> # The user is editing a recording — clips are already on the main
+> # track. Add a lower-third at 3.5s.
+> JOB=$(pandastudio motion.generate --templateId=lower-third-clean \
+>   --slots='{"name":"Kamal Kannan","title":"Founder, PandaStudio"}' --json | jq -r '.data.jobId')
+> pandastudio job.wait --id="$JOB" --json
+> pandastudio project.add-motion-graphic --id="$P" --fromJob="$JOB" \
+>   --atMs=3500 --durationMs=4000
+> ```
 
 You author HTML/CSS/JS and render it with `motion.render-html` (the HyperFrames
 engine — frame-perfect, seekable capture). The page MUST satisfy three things
