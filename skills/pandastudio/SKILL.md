@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.75.0 -->
+<!-- version: 2.76.0 -->
 
 # PandaStudio
 
@@ -848,6 +848,33 @@ All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay (transparent-capable).
 Reach for this ONLY when no bundled template fits the brief (a bespoke one-off,
 unusual layout, brand-specific 3D). For the common cases, use the templates
 above — faster and already designed.
+
+> **CRITICAL: render scene-by-scene, NOT one big 30s MP4.** If the brief is
+> multi-scene (a promo / explainer with ≥3 distinct beats, anything ≥10s
+> total), author **each scene as its own ~5-8s HTML composition** and add
+> each as a sequential clip on the timeline via `project.add-motion-graphic`.
+> Do NOT build one monolithic 30s composition. Three reasons:
+>
+> 1. **Targeted re-renders.** When the user says "scene 3 needs the brand
+>    color brighter," you redo that one scene (~30-60s), not the whole
+>    promo (~10 min).
+> 2. **Editor primitives apply per-clip.** Each scene gets its own trim,
+>    speed, zoom, FX, layout transform — wasted on a single mega-clip.
+> 3. **Render reliability.** `motion.render-html` for a 30s @ 1080p
+>    composition pushes memory + capture-time hard. Five 6-second renders
+>    are cheaper individually AND parallelizable through the render pool.
+>
+> Each scene's HTML is **reveal + hold** only — no baked-in exit tweens.
+> The editor handles transitions between clips via `project.add-fx`
+> crossfades (or just hard cuts). The full pattern + worked example lives
+> in `reference/motion-philosophy.md` → "Multi-scene authoring".
+>
+> Single-scene graphics (one lower-third, one title card, one stat reveal)
+> stay a single render → single clip. The rule above is for multi-scene
+> compositions only.
+>
+> The escape hatch — `motion.concat` — exists for when the user explicitly
+> asks for one combined MP4. It's not the default for promos.
 
 You author HTML/CSS/JS and render it with `motion.render-html` (the HyperFrames
 engine — frame-perfect, seekable capture). The page MUST satisfy three things
