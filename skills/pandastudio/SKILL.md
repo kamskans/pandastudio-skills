@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.76.0 -->
+<!-- version: 2.77.0 -->
 
 # PandaStudio
 
@@ -875,6 +875,48 @@ above — faster and already designed.
 >
 > The escape hatch — `motion.concat` — exists for when the user explicitly
 > asks for one combined MP4. It's not the default for promos.
+
+> **CRITICAL: a promo lives in a project, not in a loose MP4 file.** If the
+> user asks for a promo / explainer / motion-graphic video AND the editor
+> has **no project open** (chat opened from the home screen / `project.current`
+> returns null), you MUST create a project to hold the work. Do NOT just
+> render an MP4 to disk and call it done — that leaves the user with a file
+> in `~/Library/Application Support/pandastudio/recordings/` they can't
+> edit, can't tweak per scene, can't re-render individual moments. The
+> editor IS the deliverable; the MP4 is an artifact inside it.
+>
+> The chain for a brand-new promo from scratch:
+>
+> ```bash
+> # 1. Create a fresh project. Set aspectRatio to match the destination
+> #    profile (16:9 YouTube, 9:16 Shorts/Reels, 1:1 LinkedIn square).
+> P=$(pandastudio project.new --name="PandaScribe Promo" --aspectRatio=16:9 --json | jq -r '.data.id')
+>
+> # 2. Render each scene as its own motion graphic, add each to the
+> #    timeline at the running offset.
+> OFFSET=0
+> for SCENE in intro problem demo testimonial cta; do
+>   # Author the HTML for $SCENE somewhere (inline or tmp file)…
+>   JOB=$(pandastudio motion.render-html --htmlPath="/tmp/$SCENE.html" --durationMs=6000 --json | jq -r '.data.jobId')
+>   pandastudio job.wait --id="$JOB" --timeoutMs=600000 --json
+>   pandastudio project.add-motion-graphic --id="$P" --fromJob="$JOB" --durationMs=6000 --atMs=$OFFSET
+>   OFFSET=$((OFFSET + 6000))
+> done
+>
+> # 3. Open the project in the editor so the user can preview, scrub,
+> #    tweak individual scenes, export. THIS is the hand-off, not the
+> #    bare MP4 path.
+> pandastudio preview.show --id="$P"
+>
+> # 4. Report to the user in chat with the project id (NOT the
+> #    intermediate MP4 paths). Example:
+> #    "Created PandaScribe Promo with 5 scenes. Open in the editor —
+> #     tell me which scene to tweak."
+> ```
+>
+> Same flow applies when a project IS already open: skip step 1, reuse the
+> existing `$P` from `project.current`, and add scenes to the running
+> timeline.
 
 You author HTML/CSS/JS and render it with `motion.render-html` (the HyperFrames
 engine — frame-perfect, seekable capture). The page MUST satisfy three things
