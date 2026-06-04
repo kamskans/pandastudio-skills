@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.73.0 -->
+<!-- version: 2.74.0 -->
 
 # PandaStudio
 
@@ -902,19 +902,22 @@ for a hard-coded default look. Authoring contract:
 - [`reference/examples.md`](reference/examples.md) — concrete recipes
   (faux-cursor click, parallax-zoom, grid-pixelate-wipe, three.js setup).
 
-**Quality gate.** Before claiming a custom render done, run
-`motion.screenshot --atMs=<hero>` on at least one frame per scene. The
-tool result **inlines a downscaled preview PNG (1280-wide, ~600KB) as an
-MCP image content block** — vision-capable models see it directly in the
-same turn, no separate `read` call needed. The response also carries an
-`outputPath` (the full-res 1920×1080 PNG) which is the user-facing
-artifact — surface it in chat when the user wants to inspect themselves.
-Use the visual check + the textual brand checklist (colors match brand,
-fonts match, voice matches motion energy, logo from `brand.logoPath` not
-a guess) to gate the full render. Iterate the HTML and re-screenshot
-until both checks pass. If your model is text-only the inlined image
-block is ignored — in that case skip the visual check and surface
-`outputPath` to the user.
+**Quality gate.** The **user is the final reviewer** of every render.
+Do NOT auto-call `motion.screenshot` or `motion.verify-frames` as part
+of your normal authoring flow — the human will open the MP4 in the
+editor and catch any issue in two seconds, faster and more reliably
+than the agent can. Your job is to author the composition with care,
+walk the brand checklist textually before rendering (colors derived
+from `brand.colors`, fonts from `brand.typography`, voice matches
+`brand.voice`, logo from `brand.logoPath` when on screen), then render
+and hand off. If the user comes back saying "scene 3 is broken" or
+"the color's wrong," fix it and re-render — don't pre-emptively burn
+turns inspecting frames.
+
+`motion.screenshot` and `motion.verify-frames` are still available as
+tools for when the user explicitly asks ("preview scene 2 at the 3-second
+mark," "show me 8 frames across the timeline"). Just don't reach for
+them on your own.
 
 Upstream engine docs — canonical for engine internals: <https://hyperframes.heygen.com>.
 

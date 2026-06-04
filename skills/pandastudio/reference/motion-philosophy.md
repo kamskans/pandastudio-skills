@@ -378,38 +378,39 @@ caching, the renderer can pre-decode).
 Before claiming done, run the verifiable checks below — not vibes-based "looks
 good in my head."
 
-### 1. Render a screenshot at a hero frame
+### The human is the verifier
 
-```bash
-pandastudio motion.screenshot --htmlPath=/tmp/scene.html --atMs=2500 --out=/tmp/check.png --json
-```
+PandaStudio's user opens every render in the editor and reviews it
+themselves. The agent does **not** auto-screenshot, auto-verify, or
+otherwise gate its own work on visual inspection — that's spending an
+expensive turn (and a couple of MB of vision-model tokens) on a check
+the human does in two seconds for free.
 
-When the agent is calling this through MCP, **the downscaled preview PNG is
-inlined as an image content block in the tool result.** Vision-capable
-models see it directly in the same turn — no follow-up `read` call needed.
-Check: does every element land where the CSS placed it? Is the type
-legible? Are colors right? Did the brand color show up? Iterate the HTML
-and re-screenshot if anything's off.
+Author the composition with care, walk the **textual** brand checklist
+before rendering, then render and hand off. The user catches anything
+visual you'd miss anyway.
 
-The response also carries an `outputPath` (full-res 1920×1080) which is the
-**user-facing artifact**. Surface it in chat when the user wants to inspect.
+The brand checklist (run mentally before `motion.render-html`):
 
-For text-only models (rare in PandaStudio's catalog), the inlined image
-block is ignored and the agent should surface `outputPath` to the user.
+- Every hex code in the HTML appears in `brand.colors` (primary /
+  accent / ink / background) or was explicitly derived from one.
+- Display + body fonts match `brand.typography`. No substitutions.
+- Motion energy matches `brand.voice`. Bold → snappy + decisive;
+  minimal → restrained + breathing; corporate → calm + smooth, etc.
+- Logo on screen comes from `brand.logoPath` via `--assets`, not a
+  guessed file.
+- Tagline (if used in an outro) is the verbatim `brand.tagline`.
 
-### 2. Verify keyframes
+### Tools that exist for explicit user requests
 
-For multi-scene compositions, sample the rendered MP4:
+`motion.screenshot` and `motion.verify-frames` are kept available for
+when the user asks for a preview frame ("show me what scene 2 looks
+like at 3 seconds") or a multi-frame sample ("give me 8 frames across
+the timeline"). Both inline a vision-ready preview PNG in the tool
+result, so when you call them on the user's behalf the response carries
+the image inline — you can describe what you see back to the user.
 
-```bash
-pandastudio motion.verify-frames --videoPath=/tmp/scene.mp4 --timestamps=0.5,2.0,4.5,8.5 --json
-```
-
-Same contract: each frame's preview PNG is inlined as an image content
-block in the tool result — vision-capable models see all of them at once
-and can spot any frame that's broken (cropped faces, blank composition,
-text overflow, forbidden-zone occlusion). Full-res `path`s carry through
-for the user-facing artifact.
+You just don't reach for them in your own authoring flow.
 
 ### 3. Run the timeline-duration diagnostic
 
