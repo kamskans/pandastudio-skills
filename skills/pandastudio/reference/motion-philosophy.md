@@ -99,7 +99,11 @@ Before writing HTML, think at a high level:
 1. **Story** — what should the viewer experience? Identify the narrative arc, the
    key moments, the emotional beats.
 2. **Structure** — how many scenes? Which are full-bleed scenes (cover the frame),
-   which are companion graphics (overlay a talking host)?
+   which are companion graphics (overlay a talking host)? **For anything with 3
+   or more distinct beats (typical promos, explainers, anything ≥10s total),
+   plan to render each scene as a SEPARATE motion graphic and add each as a
+   sequential clip on the timeline** — not one monolithic 30s MP4. See
+   "Multi-scene authoring" below for the why and the how.
 3. **Rhythm** — declare the scene rhythm before implementing. Which scenes are
    quick hits, which are holds, where does energy peak? Name the pattern:
    `fast-fast-SLOW-fast-shader-hold`. Pacing is *track-aware* — see §"Pacing" below.
@@ -115,6 +119,53 @@ genuinely improve the piece, **propose** it — don't add it.
 
 For small edits (one color tweak, one timing adjustment, one element added),
 skip directly to the rules.
+
+### Multi-scene authoring (the default for promos)
+
+If the brief is multi-scene (intro + problem + demo + CTA, or any explainer
+arc with ≥3 distinct beats), **render each scene as its own motion graphic
+and add each as a separate clip on the timeline.** Don't build one big 30s
+HTML composition.
+
+```bash
+# Author each scene's HTML separately (5–8s each, "reveal + hold" only, no
+# baked-in transitions — the editor handles those).
+for SCENE in intro problem demo cta; do
+  JOB=$(pandastudio motion.render-html --htmlPath="/tmp/$SCENE.html" \
+    --durationMs=6000 --json | jq -r '.data.jobId')
+  pandastudio job.wait --id="$JOB" --timeoutMs=600000 --json
+  # Add to the timeline at the running offset.
+  pandastudio project.add-motion-graphic --id="$PROJECT" --fromJob="$JOB" \
+    --durationMs=6000
+done
+```
+
+Why this is the default for promos:
+
+- **Targeted re-renders.** User says "scene 3 needs to be brighter" → you
+  re-author and re-render that one scene (~30-60s) and swap the clip on the
+  timeline. Versus a 30s monolith where one tweak forces a full 10-min redo.
+- **The editor's primitives apply per-clip.** Each scene gets its own trim,
+  speed region, FX, zoom, layout-transform. A single combined MP4 wastes
+  all of that.
+- **Reordering is a drag.** Literally. The user moves scenes around on the
+  timeline; you don't need to rebuild a unified HTML.
+- **Render ceiling.** `motion.render-html` for a 30s @ 1080p composition
+  pushes the engine hard (memory + capture time). Six 5-second renders are
+  cheaper than one 30s render, and each is small enough to render reliably
+  on slower machines.
+- **Parallel-friendly.** Render-pool supports multiple concurrent jobs on
+  Apple Silicon — multiple short scenes can be in flight at once where a
+  single long render is fully serial.
+
+When you DO want a single combined MP4 (e.g., user explicitly says "give me
+one file I can post directly"), use `motion.concat` to stitch the scene MP4s
+together — lossless, sub-second, no re-encode. But the timeline-first path
+is the default; concat is the escape hatch.
+
+**Single-scene graphics** (a lower third, a title card, a stat reveal, a
+chapter divider) stay a single render → single clip. The multi-scene
+pattern is only for compositions with multiple named beats.
 
 ### Step 4 — Layout Before Animation
 
@@ -256,22 +307,49 @@ frames.
 
 ## Scene Transitions
 
-Multi-scene pieces have ONE rule, no exceptions: **the transition is the exit.**
+There are TWO valid transition models. Pick the one that matches your
+authoring mode:
 
-1. **Always use entrance animations on every scene.** Every element animates IN
-   via `gsap.from()`. No element appears fully formed. A scene with 5 elements
-   needs 5 entrance tweens.
-2. **Never use exit animations** on a scene before the final one. No
-   `gsap.to(..., { opacity: 0 })`, no off-screen y, no scale-to-zero. The
-   outgoing scene's content must be fully visible at the moment the transition
+#### Multi-clip on the timeline (default for promos)
+
+Each scene is its own MP4 clip on the timeline. Transitions live as editor
+regions between them.
+
+1. **Each scene's HTML is reveal + hold only.** Every element animates IN
+   via `gsap.from()`. After the reveal completes, the scene HOLDS its final
+   composition for the remainder of `data-duration` (use the Law-#1
+   anchor `tl.to({}, { duration: SLOT }, 0)` to fix the timeline length).
+2. **No baked-in exit tweens.** No `gsap.to(..., { opacity: 0 })`, no
+   off-screen y, no scale-to-zero. The held last frame is what the editor's
+   crossfade region blends FROM into the next clip's first frame.
+3. **Transitions are editor regions.** A crossfade between scene 1 and
+   scene 2 is a `project.add-fx` region positioned at the boundary. The
+   user can swap, retime, or remove transitions without re-rendering any
+   scene.
+4. **Closing fade** (if any) — the LAST scene may fade out to black at
+   its end via a tween; the editor doesn't need a region for that.
+
+#### Single combined render (single-clip path)
+
+One monolithic HTML composition with multiple GSAP-orchestrated scenes,
+rendered to a single MP4 that lands as one clip on the timeline. Use when
+the brief is short (≤10s) or when you need a transition technique GSAP
+can do that the editor can't (motion-blur whip-streak between scenes, a
+WebGL shader transition, etc.).
+
+In this mode:
+
+1. Same entrance-on-every-scene rule.
+2. **The transition IS the exit** — implement the whip-streak / wipe /
+   shader between scenes IN the GSAP timeline. The outgoing scene's
+   content must still be fully visible at the moment the transition
    starts.
-3. **Always use a transition between scenes.** No jump cuts. Crossfade, slide,
-   wipe, shader — any of those. The transition itself owns the exit.
-4. **Only the final scene** may fade elements out (e.g., fade to black). This
-   is the only place `gsap.to(..., { opacity: 0 })` is allowed.
+3. **No bare exit tweens** on intermediate scenes — they fade out by
+   being COVERED by the transition, not by emptying themselves first.
+4. Only the final scene may fade elements out.
 
 ```js
-// RIGHT — entrance only, transition handles the exit.
+// RIGHT (single-clip path) — entrance only, transition handles the exit.
 tl.from("#s1-title",    { y: 50, opacity: 0, duration: 0.7, ease: "power3.out" }, 0.3);
 tl.from("#s1-subtitle", { y: 30, opacity: 0, duration: 0.5, ease: "power2.out" }, 0.6);
 // NO exit tweens here.
