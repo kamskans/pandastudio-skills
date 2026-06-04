@@ -378,27 +378,35 @@ caching, the renderer can pre-decode).
 Before claiming done, run the verifiable checks below — not vibes-based "looks
 good in my head."
 
-### 1. Render a screenshot at a hero frame
+### 1. Render a screenshot at a hero frame (user-facing artifact)
 
 ```bash
 pandastudio motion.screenshot --htmlPath=/tmp/scene.html --atMs=2500 --out=/tmp/check.png --json
 ```
 
-Open the PNG. Check: does every element land where the CSS placed it? Is the
-type legible? Are colors right? Did the brand color show up? If something looks
-off in the still, it'll look off in the render.
+**This produces a PNG for the USER to open.** Do NOT try to `read` the PNG —
+`read` is a text-only tool; on a binary PNG it either hangs or fills your
+context with garbage. Surface the path in chat ("saved a preview at <path> —
+take a look before I render the full 30s") and either wait for the user's
+go-ahead or proceed if you're confident in the composition.
 
-### 2. Verify keyframes
+The user is the one checking: does every element land where the CSS placed
+it? Is the type legible? Are colors right? Did the brand color show up?
+
+### 2. Verify keyframes (user-facing artifact)
 
 For multi-scene compositions, sample the timeline:
 
 ```bash
-pandastudio motion.verify-frames --htmlPath=/tmp/scene.html --atMs=500,2000,4500,8500 --json
+pandastudio motion.verify-frames --videoPath=/tmp/scene.mp4 --timestamps=0.5,2.0,4.5,8.5 --json
 ```
 
-Each frame should match the hero layout for the scene that owns that time.
-Black frames, blank frames, or layouts that look mid-animation at a hero time
-all flag bugs.
+Same rule: the PNGs are for the USER. Don't `read` them. Surface the
+directory in chat so the user knows where to look.
+
+Future versions of this skill may add a vision-aware verb (e.g.
+`motion.describe-frames`) that returns a text description of what's on each
+frame, letting the agent self-verify. Until then this step is human-in-the-loop.
 
 ### 3. Run the timeline-duration diagnostic
 
