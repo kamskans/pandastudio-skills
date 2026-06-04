@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.68.0 -->
+<!-- version: 2.69.0 -->
 
 # PandaStudio
 
@@ -881,11 +881,32 @@ pandastudio project.add-motion-graphic --id=$ID --fromJob="$JOB" --durationMs=40
 # Multiple scenes → motion.concat the rendered MP4s into one before adding.
 ```
 
-**References.** `reference/motion-philosophy.md` is the authoritative, self-
-contained authoring contract (the Laws, canonical Track-B shell, easing
-dictionary, deterministic-seek rules, three.js, anti-patterns). Upstream engine
-docs — canonical for engine internals, but our reference is the source of truth
-for PandaStudio: <https://hyperframes.heygen.com>.
+**References.** Authoring is **brand-driven** as of v1.32 — the editor-context
+snapshot includes the user's brand kit (colors, type, voice, logo) on every
+turn. Read those values verbatim and let them decide aesthetics; don't reach
+for a hard-coded default look. Authoring contract:
+
+- [`reference/motion-philosophy.md`](reference/motion-philosophy.md) — the
+  authoritative correctness + craft contract (timeline anchor, determinism,
+  layout-before-animation, scene transitions, quality checks). **Always read
+  before authoring custom HTML.** Recently rewritten to be brand-agnostic; old
+  prescriptions (dark canvas / chrome gradients / vignette + grid + grain as
+  defaults) are gone.
+- [`reference/house-style.md`](reference/house-style.md) — neutral fallback
+  defaults when the brand kit is partial or absent. Three named tracks
+  (creator-bright, dark-premium, product-clean) presented as STARTING points
+  the user picks between, not as a default to silently apply. Voice → motion
+  defaults table.
+- [`reference/examples.md`](reference/examples.md) — concrete recipes
+  (faux-cursor click, parallax-zoom, grid-pixelate-wipe, three.js setup).
+
+**Quality gate.** Before claiming a custom render done, run
+`motion.screenshot --atMs=<hero>` on at least one frame per scene and walk the
+brand checklist in motion-philosophy §"Quality" (colors match brand, fonts
+match brand, voice matches motion energy, logo from brand.logoPath not a
+guess).
+
+Upstream engine docs — canonical for engine internals: <https://hyperframes.heygen.com>.
 
 ## B-roll generation (Replicate gpt-image-2)
 
