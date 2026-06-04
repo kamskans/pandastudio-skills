@@ -384,22 +384,18 @@ good in my head."
 pandastudio motion.screenshot --htmlPath=/tmp/scene.html --atMs=2500 --out=/tmp/check.png --json
 ```
 
-The response carries two paths:
+When the agent is calling this through MCP, **the downscaled preview PNG is
+inlined as an image content block in the tool result.** Vision-capable
+models see it directly in the same turn — no follow-up `read` call needed.
+Check: does every element land where the CSS placed it? Is the type
+legible? Are colors right? Did the brand color show up? Iterate the HTML
+and re-screenshot if anything's off.
 
-- `outputPath` — full-res 1920×1080 PNG, the **user-facing artifact**. Keep
-  on disk; surface in chat when you want the user to take a look.
-- `previewPath` — 1280-wide downscaled PNG, the **agent-facing artifact**.
+The response also carries an `outputPath` (full-res 1920×1080) which is the
+**user-facing artifact**. Surface it in chat when the user wants to inspect.
 
-**For vision-capable models**, `read previewPath`. The preview base64-encodes
-to ~600KB and your model can actually inspect it in seconds. Do NOT `read`
-the full-res `outputPath` — at ~2.1MB it stalls vision processing for many
-minutes (this used to be a real bug). Check: does every element land where
-the CSS placed it? Is the type legible? Are colors right? Did the brand
-color show up? Iterate the HTML and re-screenshot if anything's off.
-
-**For non-vision models** (rare across PandaStudio's catalog), skip the
-`read` and surface `outputPath` to the user — they're the visual check in
-that case.
+For text-only models (rare in PandaStudio's catalog), the inlined image
+block is ignored and the agent should surface `outputPath` to the user.
 
 ### 2. Verify keyframes
 
@@ -409,9 +405,11 @@ For multi-scene compositions, sample the rendered MP4:
 pandastudio motion.verify-frames --videoPath=/tmp/scene.mp4 --timestamps=0.5,2.0,4.5,8.5 --json
 ```
 
-Each entry in the `frames` array carries a full-res `path` AND a
-`previewPath`. Same rule as above: `read` the previewPath for vision-based
-verification; fall back to surfacing the directory if your model can't see.
+Same contract: each frame's preview PNG is inlined as an image content
+block in the tool result — vision-capable models see all of them at once
+and can spot any frame that's broken (cropped faces, blank composition,
+text overflow, forbidden-zone occlusion). Full-res `path`s carry through
+for the user-facing artifact.
 
 ### 3. Run the timeline-duration diagnostic
 
