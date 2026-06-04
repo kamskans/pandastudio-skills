@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.71.0 -->
+<!-- version: 2.72.0 -->
 
 # PandaStudio
 
@@ -903,15 +903,18 @@ for a hard-coded default look. Authoring contract:
   (faux-cursor click, parallax-zoom, grid-pixelate-wipe, three.js setup).
 
 **Quality gate.** Before claiming a custom render done, run
-`motion.screenshot --atMs=<hero>` on at least one frame per scene. The PNG is
-a **user-facing artifact** — surface its path in chat ("preview at <path> —
-ready when you say go") and let the user open it. **Do NOT call `read` on the
-PNG.** `read` is text-only; reading a binary PNG either hangs the call or
-fills your context with garbage. After producing the screenshot, walk the
-brand checklist textually (colors match brand, fonts match brand, voice
-matches motion energy, logo from brand.logoPath not a guess) — that's the
-part you can self-verify without vision — and either proceed or wait for the
-user's review.
+`motion.screenshot --atMs=<hero>` on at least one frame per scene. The
+response returns BOTH an `outputPath` (full-res 1920×1080 PNG — for the
+user) AND a `previewPath` (1280-wide downscaled sidecar — for you). For
+vision-capable models, **`read` the `previewPath`** — the preview
+base64-encodes to ~600KB and the model can actually see it in seconds. The
+full-res file would be ~2.1MB and stall the model for minutes (a real bug
+we hit before this contract change). Use the visual check + the textual
+brand checklist (colors match brand, fonts match, voice matches motion
+energy, logo from `brand.logoPath` not a guess) to gate the full render.
+If your model isn't vision-capable (rare across PandaStudio's catalog —
+most modern frontier models are), skip the `read` and surface the
+full-res `outputPath` to the user for them to inspect.
 
 Upstream engine docs — canonical for engine internals: <https://hyperframes.heygen.com>.
 

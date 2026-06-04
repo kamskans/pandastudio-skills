@@ -378,35 +378,40 @@ caching, the renderer can pre-decode).
 Before claiming done, run the verifiable checks below — not vibes-based "looks
 good in my head."
 
-### 1. Render a screenshot at a hero frame (user-facing artifact)
+### 1. Render a screenshot at a hero frame
 
 ```bash
 pandastudio motion.screenshot --htmlPath=/tmp/scene.html --atMs=2500 --out=/tmp/check.png --json
 ```
 
-**This produces a PNG for the USER to open.** Do NOT try to `read` the PNG —
-`read` is a text-only tool; on a binary PNG it either hangs or fills your
-context with garbage. Surface the path in chat ("saved a preview at <path> —
-take a look before I render the full 30s") and either wait for the user's
-go-ahead or proceed if you're confident in the composition.
+The response carries two paths:
 
-The user is the one checking: does every element land where the CSS placed
-it? Is the type legible? Are colors right? Did the brand color show up?
+- `outputPath` — full-res 1920×1080 PNG, the **user-facing artifact**. Keep
+  on disk; surface in chat when you want the user to take a look.
+- `previewPath` — 1280-wide downscaled PNG, the **agent-facing artifact**.
 
-### 2. Verify keyframes (user-facing artifact)
+**For vision-capable models**, `read previewPath`. The preview base64-encodes
+to ~600KB and your model can actually inspect it in seconds. Do NOT `read`
+the full-res `outputPath` — at ~2.1MB it stalls vision processing for many
+minutes (this used to be a real bug). Check: does every element land where
+the CSS placed it? Is the type legible? Are colors right? Did the brand
+color show up? Iterate the HTML and re-screenshot if anything's off.
 
-For multi-scene compositions, sample the timeline:
+**For non-vision models** (rare across PandaStudio's catalog), skip the
+`read` and surface `outputPath` to the user — they're the visual check in
+that case.
+
+### 2. Verify keyframes
+
+For multi-scene compositions, sample the rendered MP4:
 
 ```bash
 pandastudio motion.verify-frames --videoPath=/tmp/scene.mp4 --timestamps=0.5,2.0,4.5,8.5 --json
 ```
 
-Same rule: the PNGs are for the USER. Don't `read` them. Surface the
-directory in chat so the user knows where to look.
-
-Future versions of this skill may add a vision-aware verb (e.g.
-`motion.describe-frames`) that returns a text description of what's on each
-frame, letting the agent self-verify. Until then this step is human-in-the-loop.
+Each entry in the `frames` array carries a full-res `path` AND a
+`previewPath`. Same rule as above: `read` the previewPath for vision-based
+verification; fall back to surfacing the directory if your model can't see.
 
 ### 3. Run the timeline-duration diagnostic
 
