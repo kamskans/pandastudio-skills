@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.69.0 -->
+<!-- version: 2.70.0 -->
 
 # PandaStudio
 
@@ -106,6 +106,8 @@ pandastudio project.add-motion-graphic --id="$PROJECT" --fromJob="$JOB" --durati
 ```
 
 That's the whole loop: probe → discover → call → (if async) wait. Every richer workflow is a composition of those four steps.
+
+> **`job.wait` timeouts are not failures.** Default 5 min, hard cap 30 min. If the wait returns `{ job, timedOut: true }`, the job is **still running** — call `job.wait` again with the same id to keep polling. NEVER treat `timedOut: true` as a render failure; the underlying render keeps going regardless of whether anyone's waiting on it. For heavy 30s @ 1080p motion-graphic renders, expect 8–15 minutes — pass `--timeoutMs=600000` or higher up front, or re-poll until the result lands.
 
 ## Before any tool call: license check
 
