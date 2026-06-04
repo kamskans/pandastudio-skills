@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.77.0 -->
+<!-- version: 2.78.0 -->
 
 # PandaStudio
 
@@ -581,6 +581,33 @@ Every response: `{ ok: boolean, data?: ..., error?: string, details?: ... }`.
 
 ## Composing a real edit
 
+> **HARD INVARIANT — every video the agent creates lives in a project.**
+>
+> Whatever the brief — promo, explainer, transcript-driven edit, PDF-to-video,
+> a single motion graphic, B-roll over a recording, a one-shot title card —
+> the **editor project is the deliverable**, not the raw MP4. Loose files in
+> `~/Library/Application Support/pandastudio/recordings/` are *intermediates*
+> the editor consumes; they are never the agent's hand-off.
+>
+> The two valid starting states:
+>
+> 1. A project is **already open** in the editor (`project.current` returns
+>    a non-null id) → use it. Add your work to that timeline. Save. Preview.
+> 2. No project is open (`project.current` returns null, or the chat opened
+>    from the home screen) → **`project.new` is your FIRST tool call**, before
+>    any motion render / transcription / b-roll generation. Name the project
+>    something the user will recognise ("PandaScribe Promo", "Q4 Recap",
+>    "How to install — explainer"). Pick the aspect ratio from the destination
+>    profile (16:9 YouTube, 9:16 Shorts, 1:1 LinkedIn square).
+>
+> After the work lands in the project, `preview.show --id=<project-id>` to
+> open it in the editor for the user. THAT is the hand-off. The chat message
+> reports the project name/id, not a file path on disk.
+>
+> Exceptions are vanishingly rare — only when the user explicitly says
+> "just give me the MP4, no project" (e.g. they want to upload it elsewhere
+> right away). When in doubt, default to project.
+
 Flow is always: **create or open a project → add things → save (conflict-safe)
 → preview.** Every verb's arg schema is discoverable at runtime — call
 `system_list_commands` (MCP) or `pandastudio commands` (CLI), or see
@@ -876,16 +903,9 @@ above — faster and already designed.
 > The escape hatch — `motion.concat` — exists for when the user explicitly
 > asks for one combined MP4. It's not the default for promos.
 
-> **CRITICAL: a promo lives in a project, not in a loose MP4 file.** If the
-> user asks for a promo / explainer / motion-graphic video AND the editor
-> has **no project open** (chat opened from the home screen / `project.current`
-> returns null), you MUST create a project to hold the work. Do NOT just
-> render an MP4 to disk and call it done — that leaves the user with a file
-> in `~/Library/Application Support/pandastudio/recordings/` they can't
-> edit, can't tweak per scene, can't re-render individual moments. The
-> editor IS the deliverable; the MP4 is an artifact inside it.
->
-> The chain for a brand-new promo from scratch:
+> **Chain for a brand-new promo / explainer / video-from-scratch** (the
+> universal "every video lives in a project" rule is documented in
+> "Composing a real edit" above — this is the concrete recipe):
 >
 > ```bash
 > # 1. Create a fresh project. Set aspectRatio to match the destination
