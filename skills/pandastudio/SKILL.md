@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.80.0 -->
+<!-- version: 2.81.0 -->
 
 # PandaStudio
 
@@ -865,6 +865,7 @@ All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay (transparent-capable).
 
 **Host + panel split**
 - `split-panel` `O` (16:9 / 1:1) — opaque brand panel on one half (headline + bullet list), transparent on the other for the host. **Reveals once and holds** (no exit) — set `--durationMs` to the topic length; it holds for exactly that long. Add via `project.add-designed-segment` (see above). Slots: side (`left`/`right`), **headline**, items[label], brandColor, inkColor.
+  > **Designed segments are coupled.** As of v1.35.0, the camera layout transform and the panel motion graphic created by `project.add-designed-segment` share a `linkGroupId`. Moving one on the timeline shifts the other by the same delta; deleting one deletes its peer. The agent's mental model can stay simple ("this is one beat"), and direct-manipulation in the UI never produces an orphan transform with no panel to balance it.
 
 **Pull-quote / emphasized line**
 - `caption-editorial-emphasis` `O` (4s, all aspects) — one-sentence pull-quote, ONE word (or short phrase) blown up in huge Playfair italic that slides in from the left. Regular words pop in word-by-word in Inter; emphasis slides in below them; holds the final frame. Transparent overlay — drops on any clip. Slots: **sentence**, **emphasisWord**, inkColor, accentColor. Trailing punctuation after the emphasis auto-merges onto the emphasis (so `"…starts with a single frame."` renders `single frame.` as one unit). If `emphasisWord` is NOT a substring of `sentence`, it's appended to the end as a punchline — useful when you want the sentence to LEAD with normal text and END with the dramatic pull-out. **Use sparingly: at most 2–3 times per video, and reserve one of those for the climax / "money line" of the piece.** The opening hook and the chapter-closing payoff are the strongest slots; sprinkling it every minute burns the size contrast. Not a replacement for the running caption track (`caption.set-template editorial` is the style for that). Add via `project.add-motion-graphic` (it's an overlay, not a main-track clip).
@@ -1632,6 +1633,20 @@ on the word "subscribe" silently moves 800ms early because there used to be
 time. Every subsequent trim/speed edit auto-rebases the region's edited
 positions back onto the anchor — the lower third stays glued to "subscribe"
 no matter how much you trim.
+
+> **v1.35.0+: every region is auto-anchored on creation, even without `--anchorSourceMs`.**
+> The primitive now back-computes a source-time anchor from the resolved
+> edited `atMs` (via `editedToSource`) whenever the caller doesn't supply
+> one explicitly. Regions placed by direct atMs survive subsequent silence
+> removal, filler removal, and word deletion just like transcript-anchored
+> ones. **Still pass `--anchorSourceMs` when you have a transcript word in
+> hand** — it makes the agent's intent self-documenting and avoids a
+> two-step round trip through edited time. But the days of "I placed an
+> overlay, then trimmed silences, now it's playing at the wrong moment"
+> are over for any project saved by v1.35.0 or later. Legacy projects
+> (schemaVersion < 4) are auto-migrated on the first mutation: every
+> anchorless region gets a source anchor back-filled at its current
+> position. `type: "free"` anchors are preserved as opt-outs.
 
 **Verbs that accept anchors (use them ALWAYS when picking from transcript):**
 
