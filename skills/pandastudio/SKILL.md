@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.84.0 -->
+<!-- version: 2.85.0 -->
 
 # PandaStudio
 
@@ -724,8 +724,10 @@ you: which verb, in what order, and the non-obvious gotchas.
   **`project.add-designed-segment`** (the split-panel beat; see Motion-graphics
   Rules §5). Screen recordings use `project.add-zoom` instead, never a split.
 - **Zoom / lower-third / fx / SFX:** `add-zoom` (default depth 2 + swoosh SFX;
-  `--soundUrl=none` to silence), `add-lower-third` (8 `--designType`s), `add-fx`,
-  `set-region-sound` (retune/clear a placed region's SFX). Arg values: discovery.
+  `--soundUrl=none` to silence), `add-lower-third` (8 `--designType`s, default
+  mouse-click SFX), `add-motion-graphic` (default mouse-click SFX as of v1.36.0),
+  `add-fx`, `set-region-sound` (retune/clear a placed region's SFX). Arg values:
+  discovery.
 - **Reset:** **`project.clear-edits`** — one atomic call wipes every region +
   audio overlays + turns captions off (keeps clips, transcript, aspect ratio;
   `--full=true` also resets LUT/crop/webcam/wallpaper). Use it for "start over";
@@ -870,6 +872,21 @@ pandastudio project.add-motion-graphic --id="$PROJECT" --fromJob="$JOB" --durati
 - **Placement** — `add-motion-graphic` drops it at the playhead/end as an
   overlay. To re-time, pass `atMs`. Anchor to a transcript word with
   `anchorSourceMs` so it survives later transcript edits.
+- **Default SFX** — every primitive that places an animated callout on the
+  timeline now attaches a stinger by default so the agent's output sounds
+  the way a hand-edited timeline does. Don't pass `soundUrl` to "set the
+  default" — omit it. Override only when the user asks for a different
+  sound, or pass `null` (MCP) to make the callout silent.
+
+  | Verb | Default | Notes |
+  |---|---|---|
+  | `project.add-motion-graphic` | `bundled:sound/mouse-click` | New in v1.36.0; previously silent. Applies to every motion graphic — generated templates, custom MP4/WebM, designed-segment panels. |
+  | `project.add-designed-segment` | `bundled:sound/mouse-click` | Inherits from add-motion-graphic. |
+  | `project.add-zoom` | `bundled:sound/swoosh-fast` | Pre-existing. |
+  | `project.add-lower-third` | `bundled:sound/mouse-click` | Pre-existing. |
+  | `project.add-fx` | none | FX overlays often have their own audio; left to the caller. |
+
+  Use `asset.list-sounds` to discover other bundled sound ids when swapping.
 
 ### Background modes (`--background`)
 
