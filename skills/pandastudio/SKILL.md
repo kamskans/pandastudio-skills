@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.81.0 -->
+<!-- version: 2.82.0 -->
 
 # PandaStudio
 
@@ -304,6 +304,78 @@ pandastudio system.setTranscriptionLanguage --language=chinese --json
 - Whisper's seq2seq decoder smooths over fillers. That's fine for Chinese/Japanese/Korean where fillers behave differently anyway, but DO NOT switch to Whisper for English projects — the editor's "Remove Filler Words" / "Remove Silences" features depend on Parakeet's CTC honesty.
 - Language hint is locked, not auto-detected, when Whisper is active. If the user picks "chinese" and then transcribes a Japanese file, the output is garbage. Match the setting to the actual source language.
 - `system.setTranscriptionLanguage` only writes the setting — it does not download the Whisper model. The download is a Settings-UI-only action because it streams ~1.1 GB and surfaces a progress modal.
+
+## Transcribing a standalone audio / video file → text, SRT, or VTT
+
+A very common ask: the user has a loose `interview.mp3` / `lecture.mov` on disk and just
+wants a transcript or subtitle file. PandaStudio is project-based, so there is **no bare
+`transcribe <file>` verb** — but wrapping the file in a project is one command, and YOU
+(the agent) do any SRT/VTT formatting. **Do not look for a `transcript.export` verb; it does
+not exist and is not needed — the timestamps are already in the `transcript.get` JSON, so
+formatting subtitles is a pure text transform you perform yourself.**
+
+**The minimum flow** (works for audio OR video — both carry an audio track Whisper reads):
+
+```bash
+# 1. Wrap the file in a project. --withMedia adds it as the first clip.
+ID=$(pandastudio project.new --name="Interview" --withMedia="/abs/path/interview.mp3" --json | jq -r '.data.id')
+
+# 2. Transcribe. The Parakeet model (~473 MB) auto-downloads on first ever call;
+#    later calls are instant. Returns a jobId.
+JOB=$(pandastudio transcript.transcribe --id=$ID --json | jq -r '.data.jobId')
+
+# 3. Wait for the job, then pull the transcript with word-level timestamps.
+pandastudio job.wait --id=$JOB --json
+pandastudio transcript.get --id=$ID --json
+```
+
+`transcript.get` returns `{ language, wordCount, segmentCount, words[], segments[] }`. Each
+`segment` has `{ id, text, startMs, endMs, words[] }`; each `word` has `{ text, startMs,
+endMs }`. **All times are milliseconds.**
+
+**Producing the output the user asked for — you format it, no verb:**
+
+- **Plain text** → join `segments[].text` with newlines (or spaces for a single paragraph).
+- **SRT** → number each segment from 1, timestamp format `HH:MM:SS,mmm` (comma before ms),
+  blank line between cues:
+  ```
+  1
+  00:00:00,000 --> 00:00:03,480
+  Every great video starts with a single frame.
+
+  2
+  00:00:03,480 --> 00:00:06,900
+  And the right tools make all the difference.
+  ```
+- **VTT** → first line `WEBVTT` then a blank line; timestamp format `HH:MM:SS.mmm` (DOT before
+  ms, not comma); no cue numbers required:
+  ```
+  WEBVTT
+
+  00:00:00.000 --> 00:00:03.480
+  Every great video starts with a single frame.
+
+  00:00:03.480 --> 00:00:06.900
+  And the right tools make all the difference.
+  ```
+
+Convert `startMs`/`endMs` to `HH:MM:SS` by integer-dividing: `h = ms/3600000`, `m =
+(ms/60000)%60`, `s = (ms/1000)%60`, `ms3 = ms%1000` zero-padded to 3 digits. Write the
+result to a file next to the source (`interview.srt` / `interview.vtt`) unless the user
+names a path. Prefer **segment-level cues** for readability; only emit word-level cues if the
+user explicitly wants karaoke-style timing.
+
+**Caveats for this flow:**
+
+- **Non-European languages** (Chinese, Japanese, Korean, Hindi, Arabic, Thai) need the Whisper
+  model switch first — see the "Transcription languages" section above. For English + 25
+  European languages, the default Parakeet engine just works.
+- **The project is a real artifact.** `project.new` writes a `.pandastudio` file. If the user
+  only wanted a transcript and doesn't care about the project, that's fine to leave behind, or
+  call `project.delete --id=$ID` once you've handed over the subtitle file. Ask if unsure —
+  don't delete a project the user might want to keep editing.
+- **The desktop app must be running** (the CLI auto-launches it if not). Transcription uses the
+  app's bundled FFmpeg + Whisper sidecar; there's no fully-headless mode.
 
 ## Publishing to YouTube (v1.19+)
 
