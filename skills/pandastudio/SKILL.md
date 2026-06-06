@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.83.0 -->
+<!-- version: 2.84.0 -->
 
 # PandaStudio
 
@@ -447,7 +447,7 @@ specific operation, this is the intended end-to-end pipeline, in order:
 confirmed for the full polish must be an ACTUAL verb call this session. Three
 steps are skipped far too often — **none of them is optional in a full polish**:
 
-- **`transcript.remove-fillers`** — fillers AND immediate repeated words.
+- **`transcript.remove-fillers`** — vocalised pauses (um, uh, uhm, umm, hmm, hm) AND immediate repeated words. **Default behavior is the SAFE tier only** — the words above are sounds, never lexical, so removing every match is unambiguously correct. Pass `--aggressive` to additionally remove `like / you know / i mean / sort of / kind of`; these are real English words too, so the aggressive mode will sometimes cut legitimate uses ("I like this template" loses "like"). Only opt in when the user explicitly asks for a thorough cleanup AND is willing to skim the result for false positives.
 - **`transcript.find-issues` → `transcript.delete-words`** — **bad takes and
   repeated phrases.** `find-issues` is read-only; you MUST then actually delete
   the discarded `wordIds` (keep the most recent take). Running `find-issues` and
@@ -561,7 +561,7 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 | Operation | Default behaviour |
 |---|---|
 | `transcript.transcribe` | Run only on clips where `clipStates[i].transcribed === false`. Skip the rest. |
-| `transcript.remove-fillers` | Auto-remove "um/uh/like/you know/i mean" + immediately-repeated words. Trim regions; fully reversible. |
+| `transcript.remove-fillers` | Default: auto-remove vocalised pauses (um/uh/uhm/umm/hmm/hm) + immediately-repeated words. Trim regions; fully reversible. Pass `aggressive=true` to ALSO catch lexical-word fillers (like, you know, i mean, sort of, kind of) — these can wrongly cut legitimate uses ("I like this template" loses "like"), so opt in only when the user wants a thorough cleanup. |
 | `transcript.find-issues` | Run after remove-fillers. Surfaces re-takes (`duplicate-take`), abandoned restarts (`false-start`), and stutters (`adjacent-repeat`) as candidates — each with the `wordIds` of the discarded attempt. **Read-only — it never edits.** **Default: keep the most recent (last) take and delete the earlier attempt** by feeding the candidate's `wordIds` into `transcript.delete-words`. Review against context first — if a repeat looks intentional (emphasis) or you can't tell which take is cleaner, ask the user which to keep rather than blind-applying. |
 | `transcript.remove-silences` | Run after the content cleanup. Default threshold 500ms — the SAME threshold as the UI Remove Silences button, so your pass removes the same silences a manual click would. Don't hand-pick a higher value (e.g. 700) "to be safe" — that leaves dead air the user expects gone. Trims leading, between-word, and trailing silence per clip. |
 | `audio.clean` | Denoise only clips where `clipStates[i].audioCleaned === false`. Writes a sibling `.cleaned.wav`; original audio untouched. |
