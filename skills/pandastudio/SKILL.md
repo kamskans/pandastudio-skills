@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.85.0 -->
+<!-- version: 2.86.0 -->
 
 # PandaStudio
 
@@ -553,7 +553,7 @@ For these operations, run them without asking and tell the user what you did in 
 **When `kind` is inferred or absent, NEVER assume `screen`.** `screen` is the costly wrong guess — it suppresses the camera enhancements (designed segments, emphasis zooms) and a talking-head ends up flat. So:
 - A clip flagged `kindInferred: true` is a hint, not gospel. If it reads `screen` but you have any doubt (the footage is a person talking, not a UI; no cursor), **treat it as `camera`** — the default when unsure is always `camera`, never `screen`.
 - If it genuinely matters and you can't tell, **ask the user** ("Is this clip a screen recording, or you on camera?") rather than guessing `screen`.
-- Once known, **lock it**: `project.set-clip-kind --clipId=… --kind=camera|screen|upload` stamps an authoritative value so no future agent has to re-guess (ideal for pre-v1.28 projects — stamp each clip once).
+- Once known, **lock it**: `project.set-clip-kind --clipId=… --kind=camera|screen|upload|podcast` stamps an authoritative value so no future agent has to re-guess (ideal for pre-v1.28 projects — stamp each clip once). `podcast` = a two-speaker composite (host=mediaPath, guest=webcamPath) recorded via Record Podcast; it's set automatically at ingest and edits as one clip with the `podcast` webcam layout.
 - `contentIssues` (top-level on the `project.read` result, not per-clip) → a count summary `{ total, duplicateTakes, falseStarts, adjacentRepeats }`, present only when something is transcribed. If `total > 0`, run `transcript.find-issues` during the polish pass to see the actual candidates.
 
 Only pass un-processed clips to each operation. If every clip is already transcribed, go straight to `transcript.get`.
@@ -1551,10 +1551,18 @@ pandastudio project.set-crop --id=$ID --x=0.1 --y=0.05 --width=0.8 --height=0.9
 
 # Webcam overlay — preset or manual position
 pandastudio project.set-webcam-layout --id=$ID --preset=picture-in-picture
-# presets: none | picture-in-picture | vertical-stack | side-by-side
+# presets: none | picture-in-picture | vertical-stack | side-by-side | podcast
+#   podcast = two co-equal speaker tiles (host=mediaPath, guest=webcamPath).
+#   Auto-selected when ingesting a podcast recording; set it manually to
+#   convert a screen+camera clip into the two-speaker composite.
 pandastudio project.set-webcam-layout --id=$ID --cx=0.85 --cy=0.85 --scale=0.35
 pandastudio project.set-webcam-layout --id=$ID \
   --cropX=0 --cropY=0.1 --cropWidth=1 --cropHeight=0.8  # remove letterbox bars
+
+# Podcast guest/host sync nudge — when the two speakers are slightly out of
+# sync. offsetMs shifts the guest vs the host (positive delays guest, 0 clears).
+# Honored in preview AND export (guest video + audio move together).
+pandastudio project.set-webcam-offset --id=$ID --clipId=clip-1 --offsetMs=120
 
 # Update any placed region in-place (patch only what changes)
 pandastudio project.update-region --id=$ID \
