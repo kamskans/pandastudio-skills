@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.87.0 -->
+<!-- version: 2.88.0 -->
 
 # PandaStudio
 
@@ -972,7 +972,24 @@ All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay (transparent-capable).
   >   --regionType=clip-transform --regionId=ctr-1 \
   >   --startMs=6000 --endMs=12000 --json
   > ```
-  > Valid presets: `cam-bottom-half`, `cam-top-half`, `cam-right-portrait`, `cam-left-portrait`, `cam-bottom-right-quarter`, `cam-bottom-left-quarter`, `cam-right-55`, `cam-left-55`, `cam-right-50`, `cam-left-50`. `transitionMs` clamps to `0–2000`.
+  > Valid presets: `cam-bottom-half`, `cam-top-half`, `cam-right-portrait`, `cam-left-portrait`, `cam-bottom-right-quarter`, `cam-bottom-left-quarter`, `cam-right-55`, `cam-left-55`, `cam-right-50`, `cam-left-50`, plus the podcast layout-over-time presets `layout-side-by-side`, `layout-podcast`, `layout-host-full`, `layout-guest-full` (see "Podcast: change layout over time" below). `transitionMs` clamps to `0–2000`.
+
+#### Podcast: change layout over time (within ONE recording)
+
+To switch a podcast's layout PART-WAY THROUGH a single recording — e.g. side-by-side for the intro, cut to the host full-frame while they make a point, then back — add **clip-transform regions with `layout-*` presets**. These are the SAME timeline item as a camera transform ("Layout transform" in the UI), but instead of repositioning one clip they swap the whole composite for the window. Both the host and guest tiles interpolate at the region edges (default 320ms), so the layout animates.
+
+```bash
+# Host full-frame from 30s–45s, animating in/out from the base side-by-side layout
+pandastudio project.add-clip-transform-region --id=$PROJECT \
+  --startMs=30000 --endMs=45000 --preset=layout-host-full --json
+# Guest full-frame for a reaction shot
+pandastudio project.add-clip-transform-region --id=$PROJECT \
+  --startMs=61000 --endMs=66000 --preset=layout-guest-full --json
+```
+
+`layout-*` presets: `layout-side-by-side` (both, side by side / stacked), `layout-podcast` (two co-equal tiles), `layout-host-full` (speaker 1 / mediaPath only), `layout-guest-full` (speaker 2 / webcamPath only). Outside any region the clip uses its natural layout (the project preset or per-clip override from `project.set-clip-layout`). Speaker-driven flow: read `transcript.get` speaker tags, then drop a `layout-host-full`/`layout-guest-full` region over each span where you want to cut to whoever is talking. Edit/remove via `project.update-region` / `project.remove-region` with `regionType=clip-transform` (above).
+
+> **`layout-*` is PODCAST-ONLY.** These presets only do anything on a clip with `kind === "podcast"` (a clip carrying BOTH a host and a guest source). On a normal screen/camera/upload clip there is no second speaker, so a `layout-*` region is a no-op — use the `cam-*` presets there. Confirm `kind` via `project.read` before placing a `layout-*` region.
 
 **Pull-quote / emphasized line**
 - `caption-editorial-emphasis` `O` (4s, all aspects) — one-sentence pull-quote, ONE word (or short phrase) blown up in huge Playfair italic that slides in from the left. Regular words pop in word-by-word in Inter; emphasis slides in below them; holds the final frame. Transparent overlay — drops on any clip. Slots: **sentence**, **emphasisWord**, inkColor, accentColor. Trailing punctuation after the emphasis auto-merges onto the emphasis (so `"…starts with a single frame."` renders `single frame.` as one unit). If `emphasisWord` is NOT a substring of `sentence`, it's appended to the end as a punchline — useful when you want the sentence to LEAD with normal text and END with the dramatic pull-out. **Use sparingly: at most 2–3 times per video, and reserve one of those for the climax / "money line" of the piece.** The opening hook and the chapter-closing payoff are the strongest slots; sprinkling it every minute burns the size contrast. Not a replacement for the running caption track (`caption.set-template editorial` is the style for that). Add via `project.add-motion-graphic` (it's an overlay, not a main-track clip).
@@ -1567,6 +1584,15 @@ pandastudio project.set-webcam-layout --id=$ID \
 pandastudio project.set-clip-layout --id=$ID --clipId=clip-2 --preset=podcast-host-full
 # preset: podcast | podcast-host-full | podcast-guest-full | picture-in-picture
 #         | side-by-side | vertical-stack | none (none clears → inherit project)
+
+# PER-CLIP style: override padding / roundness / shadow (each 0–100) for ONE
+# clip, so clips in a multi-clip project can be framed differently — e.g. a
+# full-bleed camera clip (padding/borderRadius/shadow 0) next to a padded,
+# rounded podcast clip. Project-level equivalents are project.set-style.
+# Omit a field to leave it; pass null to clear an override (inherit project).
+pandastudio project.set-clip-style --id=$ID --clipId=clip-1 \
+  --padding=0 --borderRadius=0 --shadowIntensity=0
+pandastudio project.set-clip-style --id=$ID --clipId=clip-2 --padding=18 --borderRadius=24
 
 # Speaker-driven editing (podcast): transcript.get tags every word with a
 # `speaker` field — "host" (speaker 1 / mediaPath) or "guest" (speaker 2 /
