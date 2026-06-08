@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.86.0 -->
+<!-- version: 2.87.0 -->
 
 # PandaStudio
 
@@ -1549,15 +1549,33 @@ pandastudio project.set-wallpaper --id=$ID --wallpaper=gradient-night
 # Reframe the main recording (crop, all values normalized 0-1)
 pandastudio project.set-crop --id=$ID --x=0.1 --y=0.05 --width=0.8 --height=0.9
 
-# Webcam overlay — preset or manual position
+# Webcam overlay — preset or manual position (PROJECT-LEVEL)
 pandastudio project.set-webcam-layout --id=$ID --preset=picture-in-picture
 # presets: none | picture-in-picture | vertical-stack | side-by-side | podcast
+#          | podcast-host-full | podcast-guest-full
 #   podcast = two co-equal speaker tiles (host=mediaPath, guest=webcamPath).
-#   Auto-selected when ingesting a podcast recording; set it manually to
-#   convert a screen+camera clip into the two-speaker composite.
+#   podcast-host-full  = ONLY speaker 1 (host) full-frame.
+#   podcast-guest-full = ONLY speaker 2 (guest) full-frame.
+#   Auto-selected ("podcast") when ingesting a podcast recording; set it manually
+#   to convert a screen+camera clip into the two-speaker composite.
 pandastudio project.set-webcam-layout --id=$ID --cx=0.85 --cy=0.85 --scale=0.35
 pandastudio project.set-webcam-layout --id=$ID \
   --cropX=0 --cropY=0.1 --cropWidth=1 --cropHeight=0.8  # remove letterbox bars
+
+# PER-SECTION podcast layout: a different layout for each clip (section). Use
+# this to cut to whoever is talking. Split first, then set each section.
+pandastudio project.set-clip-layout --id=$ID --clipId=clip-2 --preset=podcast-host-full
+# preset: podcast | podcast-host-full | podcast-guest-full | picture-in-picture
+#         | side-by-side | vertical-stack | none (none clears → inherit project)
+
+# Speaker-driven editing (podcast): transcript.get tags every word with a
+# `speaker` field — "host" (speaker 1 / mediaPath) or "guest" (speaker 2 /
+# webcamPath). Read those spans, split the clip where the active speaker
+# changes, then set each section's layout to that speaker's full-frame:
+#   1) pandastudio transcript.get --id=$ID            # words carry speaker
+#   2) pandastudio project.split-clip ... at each speaker-change boundary
+#   3) pandastudio project.set-clip-layout --clipId=<section> --preset=podcast-host-full
+#      (or podcast-guest-full when the guest is talking)
 
 # Podcast guest/host sync nudge — when the two speakers are slightly out of
 # sync. offsetMs shifts the guest vs the host (positive delays guest, 0 clears).
