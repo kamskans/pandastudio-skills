@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.88.0 -->
+<!-- version: 2.94.0 -->
 
 # PandaStudio
 
@@ -73,6 +73,30 @@ description: Edit videos in PandaStudio — a desktop video editor for YouTube, 
 > brand-specific 3D treatment. That path is documented under "Custom
 > motion graphics — HTML authoring"; load
 > `reference/motion-philosophy.md` before authoring.
+
+> ## Video templates (storyboards): a whole video, not one overlay
+>
+> When the user wants a **finished short video** (a channel intro, an
+> episode open, a lesson opener) rather than a single overlay, use a
+> **storyboard** — a multi-scene video template you fill in once:
+>
+> 1. `motion_list_storyboards` → see every storyboard: its id, `audience`
+>    (youtube | podcaster | course), and its `params` (the brief — text +
+>    color fields; color fields default to the workspace brand kit).
+> 2. `motion_generate_storyboard { storyboardId, params }` → the server
+>    renders each scene and concatenates them into ONE MP4. Returns a
+>    `jobId`. Omitted color params fall back to the brand kit
+>    (`workspace_set_brand`); omitted **required** text params fail fast,
+>    so read the brief first.
+> 3. `job_wait` → then `project_add_motion_graphic { fromJob }`, same as a
+>    single template.
+>
+> Storyboards are slower than a single template (they render N scenes
+> sequentially), so set a generous `job_wait` timeout. Transitions
+> between scenes are baked into each scene's own animation in v1 (the
+> join is a hard cut). Prefer a storyboard over hand-composing several
+> `motion_generate` calls when one fits the brief — it's one call and
+> on-brand by default.
 
 ## Quickstart
 
@@ -862,10 +886,15 @@ pandastudio job.wait --id="$JOB" --json
 pandastudio project.add-motion-graphic --id="$PROJECT" --fromJob="$JOB" --durationMs=4000
 ```
 
-- **Editable everything** — every template's text, colors, and list items
-  are `slots`; pass only the ones you want to change, the rest use defaults.
-  `motion.list` returns each template's slot keys, types (`string` / `color`
-  / `list`), and defaults.
+- **Editable everything** — every template's text, colors, list items, and
+  images are `slots`; pass only the ones you want to change, the rest use
+  defaults. `motion.list` returns each template's slot keys, types (`string` /
+  `color` / `list` / `image`), and defaults.
+- **Image slots** — a slot of type `image` takes an **absolute file path** to an
+  image; the renderer stages the file into the render. Pass a project-media path
+  or a generated image (e.g. from `media.generate-image`). Example:
+  `--slots='{"photo":"/abs/watch.png","title1":"DEEP","title2":"WATCH"}'` on
+  `vox-side-panel` drops the photo into its card.
 - **`--fromJob` not `--file`** — pass the render `jobId` to the add tool; it
   resolves the path internally (hand-built paths truncate at the space in
   "Application Support" and silently fail).
@@ -972,7 +1001,18 @@ All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay (transparent-capable).
   >   --regionType=clip-transform --regionId=ctr-1 \
   >   --startMs=6000 --endMs=12000 --json
   > ```
-  > Valid presets: `cam-bottom-half`, `cam-top-half`, `cam-right-portrait`, `cam-left-portrait`, `cam-bottom-right-quarter`, `cam-bottom-left-quarter`, `cam-right-55`, `cam-left-55`, `cam-right-50`, `cam-left-50`, plus the podcast layout-over-time presets `layout-side-by-side`, `layout-podcast`, `layout-host-full`, `layout-guest-full` (see "Podcast: change layout over time" below). `transitionMs` clamps to `0–2000`.
+  > Valid presets: `cam-bottom-half`, `cam-top-half`, `cam-right-portrait`, `cam-right-portrait-sm`, `cam-left-portrait`, `cam-bottom-right-quarter`, `cam-bottom-left-quarter`, `cam-right-55`, `cam-left-55`, `cam-right-50`, `cam-left-50`, plus the podcast layout-over-time presets `layout-side-by-side`, `layout-podcast`, `layout-host-full`, `layout-guest-full` (see "Podcast: change layout over time" below). `transitionMs` clamps to `0–2000`.
+
+**Background graphic + camera card** — to put a full-frame motion graphic BEHIND a talking-head (camera as a side card): add the graphic with **`project.add-motion-graphic --layer=background`** (renders it behind the camera), then add a camera clip-transform with a small CARD preset (`cam-right-portrait-sm` recommended, or `cam-bottom-right-quarter` for a corner) over the SAME span. The camera card composites on top automatically, in preview AND export. **Always pass `--layer=background`** — it's what makes the live EDITOR PREVIEW correct (without it the graphic still ends up behind the card in the exported video via the camera punch-through, but the preview shows it on top, which confuses the user). In the UI this is the one-click **"Background"** placement in the Graphics panel.
+
+**Imported pack — HeyGen ports & Vox explainer style** (bold, motion-forward; the Vox templates default to Vox yellow `#F7C600` but every color is brand-aware)
+- `shader-dissolve` (4s, 16:9) — a real WebGL domain-warp dissolve between two full-frame title cards with an iridescent edge glow. Premium transition between two words. Slots: **titleA**, **titleB**, colorA, inkA, colorB, inkB.
+- `ring-title` (4.5s, 16:9) — a rotating 3D ring of accent-tinted segments over a centered title + eyebrow. Premium 3D intro. Slots: **title**, eyebrow, bgColor, inkColor, accentColor.
+- `vox-marker` (4.5s) — heavy headline reveals word by word, then a highlighter marker sweeps behind one emphasis word and the word flips to read on it. The iconic Vox headline. Slots: eyebrow, **headline**, **emphasisWord**, bgColor, inkColor, accentColor, markInk.
+- `vox-stat` (4.5s) — a big figure pops in with an accent rule, a label, and a "SOURCE:" credit. Vox data callout (real numbers; an alternative look to `stat-reveal`). Slots: eyebrow, **value**, **label**, source, bgColor, inkColor, accentColor.
+- `vox-quote` (5s) — oversized accent quotation mark + quote + attribution (name / role) under an accent rule. Pull-quote / testimonial. Slots: **quote**, name, role, bgColor, inkColor, accentColor.
+- `vox-annotation` (4.5s, 16:9) — a hand-drawn marker circle scribbles around a subject word with a handwritten note + curved arrow. "this is what matters" callout. Slots: **subject**, note, bgColor, inkColor, accentColor.
+- `vox-side-panel` `O` (16:9) — Vox designed segment: a graph-paper half-panel with a two-line marker title, a taped specimen card, and a monospace spec list; the other half is transparent for the host. Add via `project.add-designed-segment` like `split-panel`. Slots: side, **title1**, **title2**, **subject**, spec1, spec2, spec3, paperColor, inkColor, accentColor, accent2Color.
 
 #### Podcast: change layout over time (within ONE recording)
 
