@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.98.0 -->
+<!-- version: 2.99.0 -->
 
 # PandaStudio
 
@@ -465,7 +465,13 @@ specific operation, this is the intended end-to-end pipeline, in order:
    imported footage lead with `split-panel` designed segments**.
 9. **Add emphasis zooms** — punch in on the key beats for a dynamic, edited
    feel (see "Emphasis zooms" just below).
-10. **Generate** title / description / timestamps, then **preview**.
+10. **(Only when the brief is "make it engaging / cinematic / dynamic / give it
+   energy", NOT a plain "clean it up")** — add **scene transitions** at the
+   real section boundaries (`project.add-transition`, ~1 per major section, one
+   consistent style) and **1–3 mood FX** (`project.add-fx` — a subtle grain or
+   light-leak to set tone, a `film-flash` on a hard beat). See the "Effects (FX)
+   & transitions" section — restraint is the rule: neither belongs on every cut.
+11. **Generate** title / description / timestamps, then **preview**.
 
 **Do not skip steps, and report what actually ran.** Every step the user
 confirmed for the full polish must be an ACTUAL verb call this session. Three
@@ -749,8 +755,8 @@ you: which verb, in what order, and the non-obvious gotchas.
   Rules §5). Screen recordings use `project.add-zoom` instead, never a split.
 - **Zoom / fx / SFX:** `add-zoom` (default depth 2 + swoosh SFX;
   `--soundUrl=none` to silence), `add-motion-graphic` (default mouse-click SFX
-  as of v1.36.0), `add-fx` (12 bundled FX overlays — film burn, light leak/flare, lens flare, bokeh, prism, dust, grain, VHS, embers, snow; `--speed=0.25–4` adjusts loop speed, default 1), `set-region-sound` (retune/clear a placed region's
-  SFX). Arg values: discovery.
+  as of v1.36.0), `add-fx` (13 bundled FX overlays — film-burn, light-leak, light-flare, lens-flare-sweep, light-streaks, bokeh-drift, prism-leak, dust-scratches, film-grain, vhs-static, embers, snow-drift, film-flash; `--speed=0.25–4` adjusts loop speed, default 1; see the "Effects (FX) & transitions" section for when to reach for each), `set-region-sound` (retune/clear a placed region's
+  SFX). Arg values: discovery (`asset.list-fx`).
 - **Transitions (v2.98.0):** `add-transition --transitionId=<id> --atMs=<cutMs>` —
   places a scene-change overlay CENTERED on a cut (the opaque peak masks the
   join). Pass `atMs` = the cut time between two clips (from `project.read` clip
@@ -839,7 +845,7 @@ points should be full of graphics.**
 | What's happening in the video | Reach for | Class |
 |---|---|---|
 | Open / chapter / section title | `creator-card`, `transitions-3d`, `grain-overlay`, `transitions-destruction`, `caption-parallax-layers` — pick a look, reuse it per section | **Generic** — repeat freely |
-| Explainer beat, host on camera/imported footage | `split-panel` | **Generic workhorse** — repeat freely |
+| Explainer beat, host on camera/imported footage | `split-panel` (clean brand panel + bullets), `vox-side-panel` (graph-paper/specimen look), `paper-panel` (torn-paper sheet + two-line title) — all designed segments; pick a look and reuse it | **Generic workhorse** — repeat freely |
 | Hero reveal / intro / "ways to use it" recap | `parallax-zoom`, `parallax-unzoom` | Semi-generic |
 | Introduce a person / channel / "subscribe" | `yt-lower-third` | Purpose |
 | A real number / metric / result | `stat-reveal` | **Purpose — numbers only** |
@@ -1035,6 +1041,7 @@ All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay (transparent-capable).
 - `vox-quote` (5s) — oversized accent quotation mark + quote + attribution (name / role) under an accent rule. Pull-quote / testimonial. Slots: **quote**, name, role, bgColor, inkColor, accentColor.
 - `vox-annotation` (4.5s, 16:9) — a hand-drawn marker circle scribbles around a subject word with a handwritten note + curved arrow. "this is what matters" callout. Slots: **subject**, note, bgColor, inkColor, accentColor.
 - `vox-side-panel` `O` (16:9) — Vox designed segment: a graph-paper half-panel with a two-line marker title, a taped specimen card, and a monospace spec list; the other half is transparent for the host. Add via `project.add-designed-segment` like `split-panel`. Slots: side, **title1**, **title2**, **subject**, spec1, spec2, spec3, paperColor, inkColor, accentColor, accent2Color.
+- `paper-panel` `O` (16:9, v2.99.0) — designed segment: a torn-paper sheet slides in from one side carrying a two-line title (the second line accented with a hand-drawn underline) + a short subtitle; the other half is transparent for the host. The cleanest, most editorial of the three side panels (camera takes 55%, panel 45%). Add via `project.add-designed-segment` like `split-panel`. Slots: side (`left`/`right`), **title1**, **title2** (accented line), subtitle, paperColor, inkColor, accentColor.
 
 #### Podcast: change layout over time (within ONE recording)
 
@@ -1093,8 +1100,9 @@ above — faster and already designed.
 >    are cheaper individually AND parallelizable through the render pool.
 >
 > Each scene's HTML is **reveal + hold** only — no baked-in exit tweens.
-> The editor handles transitions between clips via `project.add-fx`
-> crossfades (or just hard cuts). The full pattern + worked example lives
+> Scene-to-scene transitions are placed on the timeline with
+> `project.add-transition` (see the "Effects (FX) & transitions" section),
+> not baked into the HTML. The full pattern + worked example lives
 > in `reference/motion-philosophy.md` → "Multi-scene authoring".
 >
 > Single-scene graphics (one lower-third, one title card, one stat reveal)
@@ -1245,6 +1253,85 @@ mark," "show me 8 frames across the timeline"). Just don't reach for
 them on your own.
 
 Upstream engine docs — canonical for engine internals: <https://hyperframes.heygen.com>.
+
+## Effects (FX) & transitions — texture, mood, scene changes
+
+Two different tools that both make a cut feel produced. **FX** are looping
+texture overlays composited over a clip (film grain, light leaks, embers).
+**Transitions** are short overlays placed ON a cut to bridge two clips
+(dip-to-black, flash, glitch). Neither is part of the *default* clean-up
+pipeline — they're the layer you add when the user wants the video to feel
+**engaging / cinematic / dynamic / punchy**, or names a vibe. Discover both at
+runtime: `asset.list-fx` and `asset.list-transitions`.
+
+### The golden rule: restraint
+
+FX and transitions are seasoning, not the meal. The failure mode here is the
+*opposite* of motion graphics — where under-graphicking is the risk, here
+**over-doing it is the risk.** A glitch on every cut and grain on every clip
+reads as amateur, not produced. Defaults:
+
+- **Transitions: only at real scene/topic boundaries**, never on every cut. A
+  tight talking-head edit has many silence/filler cuts a second apart — do NOT
+  transition those. Place a transition where the *subject* changes (new chapter,
+  location, a hard B-roll cut, intro→content, content→outro). Rule of thumb:
+  **0 for a short clean clip; ~1 per major section** (a 6-section video → ~3–5).
+- **FX: 1–3 per video for mood**, not a constant wash. One subtle film-grain or
+  light-leak to set a tone, an embers/snow for atmosphere on a hero shot, a
+  film-flash to punctuate a hard beat. If you can't name *why* a clip needs the
+  texture, don't add it.
+- When the user says **"clean it up" / "edit my video"** → add **neither** by
+  default (the standard pipeline already produces a polished cut). When they say
+  **"make it engaging / cinematic / give it energy / make it pop"** → add them
+  with the discipline above, and narrate what you added so they can dial it back.
+
+### Transitions — `project.add-transition`
+
+Places a full-frame transition overlay **centered on a cut** (the overlay goes
+opaque at its midpoint so it masks the join). Pass `atMs` = the cut time between
+two clips — read clip boundaries from `project.read`. `--durationMs` defaults to
+1000 (the native length). Discover ids with `asset.list-transitions`.
+
+```bash
+pandastudio project.add-transition --id=$PROJECT \
+  --transitionId=fade-black --atMs=42000 --json   # MCP: project_add_transition
+```
+
+| Id | Look | When to reach for it |
+|---|---|---|
+| `fade-black` | dip to black | The safe, classic scene break — a beat of black between two sections. Time-passing, chapter change. |
+| `fade-white` | dip to white | Brighter, optimistic version of the dip — reveals, upbeat pivots, product shots. |
+| `flash` | quick warm-white pop | A snappy hit on a hard beat / energetic cut — montage, fast pivots. Punchy, brief. |
+| `light-sweep` | bright bar wipes across | A clean directional wipe — moving to a new location/topic with momentum. |
+| `film-burn` | organic fire bloom | A warm, filmic, vintage scene change — storytelling/cinematic pieces. |
+| `glitch` | digital RGB tearing | Tech/edgy/energetic content — a deliberately abrupt, modern cut. |
+
+> Picking by vibe: clean/corporate → `fade-black`/`fade-white`; energetic/social
+> → `flash`/`glitch`; cinematic/story → `film-burn`/`light-sweep`. Pick ONE
+> transition style and reuse it across the video's section breaks — consistency
+> reads as designed; a different transition on every cut reads as a demo reel.
+
+### FX overlays — `project.add-fx`
+
+A looping texture overlay over a clip span (screen/lighten/add/normal blend).
+`--speed=0.25–4` scales the loop speed (default 1). Discover ids + defaults with
+`asset.list-fx`. The 13 bundled effects, grouped by what they're FOR:
+
+- **Film / vintage texture** — `film-grain` (subtle moving grain — the all-purpose "filmic" wash), `dust-scratches` (old-film dust + scratches), `film-burn` (warm organic burn — also a transition), `vhs-static` (retro VHS noise/tracking).
+- **Light & lens** — `light-leak` (soft drifting light leak), `light-flare` (warm flare bloom), `lens-flare-sweep` (anamorphic horizontal flare), `light-streaks` (streaking light), `prism-leak` (chromatic prism leak). Set a warm/cinematic or dreamy tone.
+- **Atmosphere / particles** — `bokeh-drift` (soft drifting bokeh orbs), `embers` (rising warm embers — fire/energy/hero), `snow-drift` (falling snow — seasonal/calm).
+- **Punctuation** — `film-flash` (a 2–4 frame camera-shutter pop; use it ON a hard beat or to accent a reveal, NOT as a continuous wash — set its span short, ~0.3s).
+
+```bash
+pandastudio project.add-fx --id=$PROJECT \
+  --fxId=film-grain --startMs=0 --endMs=15000 --speed=1 --json   # MCP: project_add_fx
+```
+
+> FX defaults (blend mode, opacity, native speed, default SFX) come from the
+> manifest — `asset.list-fx` returns them; pass only what you want to override.
+> `--speed` is most useful on `film-burn` (bump to 1.5–2 for a faster churn) and
+> the particle FX. Keep opacity restrained — a texture you *notice* is usually
+> too strong.
 
 ## B-roll generation (Replicate gpt-image-2)
 

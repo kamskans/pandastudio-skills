@@ -61,6 +61,7 @@ Bundled sound effects + FX overlays that ship inside the app installer.
 |---|---|---|
 | `asset.list-sounds` | — | Every bundled sound: `{ id, name, category, absolutePath }`. |
 | `asset.list-fx` | — | Every FX overlay: `{ id, title, blendMode, defaultOpacity, durationSeconds, defaultSoundId, absolutePath }`. |
+| `asset.list-transitions` | — | Every bundled transition: `{ id, title, category, durationSeconds, defaultSoundId, absolutePath }`. Use the id with `project.add-transition`. |
 | `asset.resolve` | `id` (string, required) | Resolve a bundled-asset id to its on-disk path. Returns `{ kind: "sound" \| "fx", path }`. |
 
 ## motion.*
