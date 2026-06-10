@@ -1175,6 +1175,84 @@ icon callouts — author the HTML, render `--transparent`, add as an overlay.
 
 ---
 
+## Authored graphic recipe — animated diagram / flowchart (the explainer workhorse)
+
+Use whenever the speaker explains **how something works, connects, or flows** and
+no template captures it — an architecture, a pipeline, a request lifecycle, a
+hierarchy, a loop. The built-in `flowchart` template covers a simple linear list
+of steps; author this when the diagram is richer or content-specific. The signature
+move: **boxes pop in and arrows draw on in sequence**, so the diagram *assembles*
+as the narration explains it (not all at once). Build it in SVG for exact
+coordinate control + arrow draw-on, render `--transparent`, add as an overlay.
+
+```html
+<!doctype html><html><head><meta charset="utf-8" />
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 100%; height: 100%; background: transparent; font-family: Inter, system-ui, sans-serif; }
+  .stage { position: absolute; inset: 0; }
+  svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .box { fill: #fff; stroke: #2563EB; stroke-width: 3; }
+  .blabel { fill: #08101f; font-size: 34px; font-weight: 800; text-anchor: middle; dominant-baseline: middle; }
+  .arrow { fill: none; stroke: #2563EB; stroke-width: 5; stroke-linecap: round; marker-end: url(#ah); }
+</style></head>
+<body>
+  <!-- 3-step flow: nodes pop in, arrows draw on between them. Adapt the
+       nodes/arrows to the actual concept (branch, stack, loop, etc.). -->
+  <div class="stage" data-composition-id="flow-diagram" data-width="1920" data-height="1080" data-duration="6">
+    <svg viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#2563EB" />
+        </marker>
+      </defs>
+      <g class="node" id="n1"><rect class="box" x="180" y="470" width="340" height="140" rx="20" /><text class="blabel" x="350" y="540">Record</text></g>
+      <path class="arrow" id="a1" d="M530,540 L740,540" />
+      <g class="node" id="n2"><rect class="box" x="760" y="470" width="340" height="140" rx="20" /><text class="blabel" x="930" y="540">Edit</text></g>
+      <path class="arrow" id="a2" d="M1110,540 L1320,540" />
+      <g class="node" id="n3"><rect class="box" x="1340" y="470" width="340" height="140" rx="20" /><text class="blabel" x="1510" y="540">Publish</text></g>
+    </svg>
+  </div>
+  <script>
+    // Draw-on: dash each arrow to its own length, then tween offset → 0.
+    ["#a1","#a2"].forEach((s) => { const p = document.querySelector(s); const L = p.getTotalLength(); p.style.strokeDasharray = L; p.style.strokeDashoffset = L; });
+    gsap.set(".node", { opacity: 0, y: 24 });
+    const tl = gsap.timeline({ paused: true });
+    tl.to("#n1", { opacity: 1, y: 0, duration: 0.5, ease: "back.out(1.6)" }, 0.2);
+    tl.to("#a1", { strokeDashoffset: 0, duration: 0.45, ease: "power1.inOut" }, 0.6);
+    tl.to("#n2", { opacity: 1, y: 0, duration: 0.5, ease: "back.out(1.6)" }, 0.9);
+    tl.to("#a2", { strokeDashoffset: 0, duration: 0.45, ease: "power1.inOut" }, 1.3);
+    tl.to("#n3", { opacity: 1, y: 0, duration: 0.5, ease: "back.out(1.6)" }, 1.6);
+    tl.to({}, { duration: 6 }, 0);             // Law #11 anchor — full duration
+    window.__timelines = (window.__timelines || {});
+    window.__timelines["flow-diagram"] = tl;   // key === data-composition-id
+  </script>
+</body></html>
+```
+
+```bash
+# Pre-flight a frame after the diagram has assembled, then render transparent.
+pandastudio motion.screenshot --htmlPath=/tmp/flow-diagram.html --atMs=2200 --json
+JOB=$(pandastudio motion.render-html --htmlPath=/tmp/flow-diagram.html --transparent \
+  --durationMs=6000 --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$JOB" --json
+# Add as an overlay anchored to where the host starts explaining the flow:
+pandastudio project.add-motion-graphic --id=$ID --fromJob="$JOB" --durationMs=6000 \
+  --atMs=<wordMs> --anchorSourceMs=<wordMs>
+```
+
+Adapt the geometry to the actual concept: **branch** (one node fanning to two —
+arrows at angles), **stack** (layered architecture — rects stacked vertically,
+labels left), **loop** (a curved arrow back to the start), **chart** (swap rects
+for bars that grow via a height/scaleY tween, or a `<path>` line that draws on).
+Reveal each node/edge in time with the narration so it builds. Pre-flight with
+`motion.screenshot` and iterate — a wrong coordinate is obvious in one frame.
+For the half-frame-on-host layout, render it as a `split-panel`/`paper-panel`
+companion or place the diagram with `--layer=background` + a small camera card.
+
+---
+
 ## B-roll Ken-Burns shell (moved from SKILL.md)
 
 Wrap a `media.generate-image` still in this shell so it has motion (Law #4 — camera never sleeps). Drop the absolute image path into `<<IMG_PATH>>`; duration is controlled by `--durationMs` on `motion.render-html`.

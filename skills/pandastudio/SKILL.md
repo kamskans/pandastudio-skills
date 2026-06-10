@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.99.0 -->
+<!-- version: 3.0.0 -->
 
 # PandaStudio
 
@@ -462,7 +462,11 @@ specific operation, this is the intended end-to-end pipeline, in order:
    per profile; see the caption styles in "DO BY DEFAULT").
 8. **Add motion graphics** — follow the Motion-graphics **Rules** + selection
    guide: `motion_list` first, vary templates by beat, and for **camera-only /
-   imported footage lead with `split-panel` designed segments**.
+   imported footage lead with `split-panel` designed segments**. **For explainer
+   content, author custom animated diagrams / flowcharts / charts** when the
+   speaker explains how something works or connects and no template captures it
+   (see "Authored graphics") — don't flatten a real explanation into a bullet
+   list.
 9. **Add emphasis zooms** — punch in on the key beats for a dynamic, edited
    feel (see "Emphasis zooms" just below).
 10. **(Only when the brief is "make it engaging / cinematic / dynamic / give it
@@ -851,30 +855,49 @@ points should be full of graphics.**
 | A real number / metric / result | `stat-reveal` | **Purpose — numbers only** |
 | "Here are the N things…" / key points / recap | `key-takeaways` | Purpose |
 | This vs that / before vs after / old vs new | `comparison` | Purpose |
-| A process / steps / workflow | `flowchart` | Purpose |
+| A simple linear process / N steps | `flowchart` | Purpose |
+| **How something WORKS / connects / flows** — architecture, pipeline, request lifecycle, hierarchy, branching, a loop (richer than a flat step list) | **Author a custom animated diagram** — see "Authored graphics" below | Authored — the explainer workhorse |
+| A trend / chart / data viz (bars, a line, a metric building over time) | **Author a custom chart** — see "Authored graphics" | Authored |
 | ONE thesis sentence / pull-quote / "money line" (hook or climax) | `caption-editorial-emphasis` | **Purpose — at most 2–3 per video** |
-| Logos / tools / partners · a screenshot · a diagram (a VISUAL, not text) | **Author a custom graphic** — see "Authored graphics" below | Authored (not a UI template) |
+| Logos / tools / partners · a screenshot (a VISUAL, not text) | **Author a custom graphic** — see "Authored graphics" below | Authored (not a UI template) |
 
 ### Authored graphics — your repertoire is bigger than the gallery
 
 The 13 templates above are the **UI gallery**: fixed-structure, slot-fill. But
 your repertoire is larger — you can also **author content-specific graphics**
 that *can't* be slot-templated because what they show depends on what's being
-discussed. Build these as transparent overlays with `motion.render-html`; they
-composite over the host exactly like an overlay template. Reach for one whenever
-a beat needs a *visual* rather than words:
+discussed. **This is a first-class capability, not a last resort** — when a beat
+needs a *visual* that no template captures, authoring one is the right move, not
+a fallback you apologize for. Build these as transparent overlays with
+`motion.render-html`; they composite over the host exactly like an overlay
+template.
 
+**Explainer videos are the prime case.** The moment the speaker explains *how
+something works, connects, or flows* — an architecture, a pipeline, a request
+lifecycle, a hierarchy, a before→after, a trend over time — a custom **animated
+diagram, flowchart, or chart** communicates it far better than a bullet list or
+a title card. The built-in `flowchart` template handles a simple linear sequence
+of steps; **anything richer you author yourself.** Don't flatten a real
+explanation into text because the gallery has no template for it — draw it.
+
+- **Animated diagram / flowchart** — a data-driven SVG that builds as the
+  speaker talks: boxes + connecting arrows that draw on in sequence, a
+  branching tree, a request flowing through services, a layered architecture
+  stack, a cyclic loop. For ANY "here's how it works / how the pieces fit"
+  explainer beat that's more than a flat list of steps. Reveal each node/edge in
+  time with the narration so the diagram assembles, not just appears.
+- **Chart / data viz** — bars growing, a line plotting, a metric counting, a
+  donut filling — when the point is a trend or a structural comparison, not a
+  single headline number (use `stat-reveal`/`vox-stat` for one number).
 - **Logo / brand-card row** — N rounded white cards, each a logo, popped in over
   the lower third. For "we use X, Y, Z", tool / partner / integration mentions
   (e.g. HeyGen · Claude Code · Hyperframes).
 - **Image / screenshot showcase** — real images via `--assets` (product shots,
   UI grabs) in a framed or tilted card.
-- **Animated diagram / chart** — data-driven SVG (a flow, a metric building, a
-  bar) when the point is structural, not a single number.
 - **Icon / emoji concept callout** — a glyph + short label punched on a concept.
 - **Reuse a template's shell, swap text → graphics** — take the *look* of an
   overlay template (the lower-band card, the side panel, the depth stack) and
-  put logos / images / animated SVG where the text would go.
+  put logos / images / animated SVG / a diagram where the text would go.
 
 These never appear in the UI gallery (they're not in the manifest) — they're
 yours to consider whenever a slot-fill template doesn't capture the beat.
@@ -1075,11 +1098,17 @@ pandastudio project.add-clip-transform-region --id=$PROJECT \
 > renders a single frame of any template+slots combo if you want to preview
 > before committing to a full render.
 
-## Custom motion graphics — HTML authoring (fallback, only when no template fits)
+## Custom motion graphics — HTML authoring (when the content needs a visual no template captures)
 
-Reach for this ONLY when no bundled template fits the brief (a bespoke one-off,
-unusual layout, brand-specific 3D). For the common cases, use the templates
-above — faster and already designed.
+Use the bundled templates for what they cover (titles, lower-thirds, stat
+reveals, comparisons, side panels) — they're faster and already designed. But
+**author your own when the beat needs a content-specific visual the gallery
+can't express** — most often an **explainer diagram, flowchart, architecture, or
+chart** (see "Authored graphics" above), and also bespoke one-offs, unusual
+layouts, or brand-specific 3D. Authoring is a core skill here, not an admission
+of defeat: an explainer that draws the system it's describing beats one that
+lists it. Prefer a template when one genuinely fits; author confidently when
+none does.
 
 > **CRITICAL: render scene-by-scene, NOT one big 30s MP4.** If the brief is
 > multi-scene (a promo / explainer with ≥3 distinct beats, anything ≥10s
