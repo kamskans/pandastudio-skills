@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.0.0 -->
+<!-- version: 3.1.0 -->
 
 # PandaStudio
 
@@ -462,7 +462,10 @@ specific operation, this is the intended end-to-end pipeline, in order:
    per profile; see the caption styles in "DO BY DEFAULT").
 8. **Add motion graphics** — follow the Motion-graphics **Rules** + selection
    guide: `motion_list` first, vary templates by beat, and for **camera-only /
-   imported footage lead with `split-panel` designed segments**. **For explainer
+   imported footage lead with `split-panel` designed segments**. **On any
+   talking-head (`kind === "camera"`), open with a `caption-editorial-emphasis`
+   TOPIC card in the first 10–30s** that names what the video is about (from the
+   speaker's opening lines) — the default hook for talking-heads. **For explainer
    content, author custom animated diagrams / flowcharts / charts** when the
    speaker explains how something works or connects and no template captures it
    (see "Authored graphics") — don't flatten a real explanation into a bullet
@@ -858,6 +861,7 @@ points should be full of graphics.**
 | A simple linear process / N steps | `flowchart` | Purpose |
 | **How something WORKS / connects / flows** — architecture, pipeline, request lifecycle, hierarchy, branching, a loop (richer than a flat step list) | **Author a custom animated diagram** — see "Authored graphics" below | Authored — the explainer workhorse |
 | A trend / chart / data viz (bars, a line, a metric building over time) | **Author a custom chart** — see "Authored graphics" | Authored |
+| Talking-head OPENER — name the topic in the first 10–30s (default on every camera edit) | `caption-editorial-emphasis` | **Default for `kind === "camera"`** |
 | ONE thesis sentence / pull-quote / "money line" (hook or climax) | `caption-editorial-emphasis` | **Purpose — at most 2–3 per video** |
 | Logos / tools / partners · a screenshot (a VISUAL, not text) | **Author a custom graphic** — see "Authored graphics" below | Authored (not a UI template) |
 
@@ -1084,7 +1088,7 @@ pandastudio project.add-clip-transform-region --id=$PROJECT \
 > **`layout-*` is PODCAST-ONLY.** These presets only do anything on a clip with `kind === "podcast"` (a clip carrying BOTH a host and a guest source). On a normal screen/camera/upload clip there is no second speaker, so a `layout-*` region is a no-op — use the `cam-*` presets there. Confirm `kind` via `project.read` before placing a `layout-*` region.
 
 **Pull-quote / emphasized line**
-- `caption-editorial-emphasis` `O` (4s, all aspects) — one-sentence pull-quote, ONE word (or short phrase) blown up in huge Playfair italic that slides in from the left. Regular words pop in word-by-word in Inter; emphasis slides in below them; holds the final frame. Transparent overlay — drops on any clip. Slots: **sentence**, **emphasisWord**, inkColor, accentColor. Trailing punctuation after the emphasis auto-merges onto the emphasis (so `"…starts with a single frame."` renders `single frame.` as one unit). If `emphasisWord` is NOT a substring of `sentence`, it's appended to the end as a punchline — useful when you want the sentence to LEAD with normal text and END with the dramatic pull-out. **Use sparingly: at most 2–3 times per video, and reserve one of those for the climax / "money line" of the piece.** The opening hook and the chapter-closing payoff are the strongest slots; sprinkling it every minute burns the size contrast. Not a replacement for the running caption track (`caption.set-template editorial` is the style for that). Add via `project.add-motion-graphic` (it's an overlay, not a main-track clip).
+- `caption-editorial-emphasis` `O` (4s, all aspects) — one-sentence pull-quote, ONE word (or short phrase) blown up in huge Playfair italic that slides in from the left. Regular words pop in word-by-word in Inter; emphasis slides in below them; holds the final frame. Transparent overlay — drops on any clip. Slots: **sentence**, **emphasisWord**, inkColor, accentColor. Trailing punctuation after the emphasis auto-merges onto the emphasis (so `"…starts with a single frame."` renders `single frame.` as one unit). If `emphasisWord` is NOT a substring of `sentence`, it's appended to the end as a punchline — useful when you want the sentence to LEAD with normal text and END with the dramatic pull-out. **TALKING-HEAD OPENER (default, do this on every talking-head edit): place ONE within the first 10–30s that introduces the TOPIC** — a short line naming what the video is about, derived from the speaker's opening sentences (e.g. host opens "today I want to talk about how we cut our render times in half" → emphasis card `"Cutting render times in half."`). It orients the viewer at the exact moment a talking-head otherwise loses them and reads as deliberate editorial framing. This is a strong default for ANY `kind === "camera"` footage whenever you're adding graphics, not just "make it engaging" briefs. **After the opener, use sparingly: at most 2–3 total, reserving one for the climax / "money line."** The opening topic intro and the chapter-closing payoff are the strongest slots; sprinkling it every minute burns the size contrast. Not a replacement for the running caption track (`caption.set-template editorial` is the style for that). Add via `project.add-motion-graphic` (it's an overlay, not a main-track clip).
   ```bash
   JOB=$(pandastudio motion.generate --templateId=caption-editorial-emphasis \
       --slots='{"sentence":"Every great video starts with a single frame.","emphasisWord":"single frame"}' \
