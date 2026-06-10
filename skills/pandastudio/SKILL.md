@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.97.0 -->
+<!-- version: 2.98.0 -->
 
 # PandaStudio
 
@@ -751,6 +751,11 @@ you: which verb, in what order, and the non-obvious gotchas.
   `--soundUrl=none` to silence), `add-motion-graphic` (default mouse-click SFX
   as of v1.36.0), `add-fx` (12 bundled FX overlays — film burn, light leak/flare, lens flare, bokeh, prism, dust, grain, VHS, embers, snow; `--speed=0.25–4` adjusts loop speed, default 1), `set-region-sound` (retune/clear a placed region's
   SFX). Arg values: discovery.
+- **Transitions (v2.98.0):** `add-transition --transitionId=<id> --atMs=<cutMs>` —
+  places a scene-change overlay CENTERED on a cut (the opaque peak masks the
+  join). Pass `atMs` = the cut time between two clips (from `project.read` clip
+  boundaries). Ids (`asset.list-transitions`): fade-black, fade-white, flash,
+  light-sweep, film-burn, glitch. `--durationMs` defaults to 1000.
 - **Lower thirds (v2.96.0):** `project.add-lower-third --name="…" --title="…"
   --atMs=<ms> [--templateId=lt-*]` — ONE async call that renders the nameplate
   template (default `lt-vox-marker`) AND places it as a transparent overlay.
