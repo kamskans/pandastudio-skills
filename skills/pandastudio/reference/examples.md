@@ -137,12 +137,11 @@ INTRO_DUR=$(echo "$INTRO" | jq -r '.data.job.result.durationMs')
 pandastudio project.add-motion-graphic \
   --id="$ID" --file="$INTRO_PATH" --durationMs="$INTRO_DUR" --atMs=0
 
-# Step 4: add a lower-third intro 5 seconds in (lt-* motion template)
-LT_JOB=$(pandastudio motion.generate --templateId=lt-vox-marker \
-  --slots='{"name":"Kamal","title":"Founder"}' --json | jq -r '.data.jobId')
-LT_PATH=$(pandastudio job.wait --id="$LT_JOB" --json | jq -r '.data.job.result.outputPath')
-pandastudio project.add-motion-graphic \
-  --id="$ID" --file="$LT_PATH" --atMs=5000 --placement=overlay
+# Step 4: add a lower-third intro 5 seconds in (one call: render + place)
+LT_JOB=$(pandastudio project.add-lower-third \
+  --id="$ID" --name="Kamal" --title="Founder" --atMs=5000 \
+  --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$LT_JOB"
 
 # Step 5: drop a film-burn FX between the two source clips
 # (assume clip-a is 30s; transition is at the cut)

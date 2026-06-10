@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.95.0 -->
+<!-- version: 2.96.0 -->
 
 # PandaStudio
 
@@ -751,10 +751,14 @@ you: which verb, in what order, and the non-obvious gotchas.
   `--soundUrl=none` to silence), `add-motion-graphic` (default mouse-click SFX
   as of v1.36.0), `add-fx`, `set-region-sound` (retune/clear a placed region's
   SFX). Arg values: discovery.
-- **Lower thirds (v2.95.0):** render one of the `lt-*` motion templates (see the
-  catalog) via `motion.generate`, then place it with
-  `project.add-motion-graphic --placement=overlay`. The old
-  `project.add-lower-third` verb and its 8 CSS designs are REMOVED.
+- **Lower thirds (v2.96.0):** `project.add-lower-third --name="…" --title="…"
+  --atMs=<ms> [--templateId=lt-*]` — ONE async call that renders the nameplate
+  template (default `lt-vox-marker`) AND places it as a transparent overlay.
+  Returns `{ jobId }`; `job.wait` resolves once the region is placed. Pass
+  `--anchorSourceMs` when atMs comes from a transcript word. The 10 `lt-*`
+  designs are in the template catalog; they also live in the editor's
+  **Lower 3rds** tab. (The pre-2.95 CSS designs + `--designType` are gone;
+  the verb now drives the motion-template pipeline.)
 - **Reset:** **`project.clear-edits`** — one atomic call wipes every region +
   audio overlays + turns captions off (keeps clips, transcript, aspect ratio;
   `--full=true` also resets LUT/crop/webcam/wallpaper). Use it for "start over";
@@ -915,6 +919,7 @@ pandastudio project.add-motion-graphic --id="$PROJECT" --fromJob="$JOB" --durati
   | `project.add-motion-graphic` | `bundled:sound/mouse-click` | New in v1.36.0; previously silent. Applies to every motion graphic — generated templates, custom MP4/WebM, designed-segment panels. |
   | `project.add-designed-segment` | `bundled:sound/mouse-click` | Inherits from add-motion-graphic. |
   | `project.add-zoom` | `bundled:sound/swoosh-fast` | Pre-existing. |
+  | `project.add-lower-third` | `bundled:sound/mouse-click` | v2.96.0 — inherits the motion-graphic default. |
   | `project.add-fx` | none | FX overlays often have their own audio; left to the caller. |
 
   Use `asset.list-sounds` to discover other bundled sound ids when swapping.
@@ -970,7 +975,7 @@ All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay (transparent-capable).
 - `transitions-destruction` `O` (5s) — headline assembles from slabs, holds, then shatters apart. Dramatic reveal/transition. Slots: kicker, **headline**, accentColor, textColor.
 - `caption-parallax-layers` `O` (5s) — one word stacked in 5 depth layers (solid front + receding ghosts) that enters with a vertical stretch and parallaxes. Slots: eyebrow, **headline**, frontColor, ghostColor.
 
-**Lower thirds** (all `O`, 5s, transparent overlays — render with `motion.generate`, place with `project.add-motion-graphic --placement=overlay`; slots: **name**, title + per-template colors)
+**Lower thirds** (all `O`, 5s, transparent overlays — add in ONE call with `project.add-lower-third --name --title --atMs [--templateId]`; slots: **name**, title + per-template colors. Also in the editor's Lower 3rds tab.)
 - `yt-lower-third` `O` (4.5s) — subscribe lower-third: avatar + name + title + red Subscribe pill, slides in bottom-left. Slots: **name**, title, accentColor, cardColor, inkColor.
 - `lt-vox-marker` — the name lands on a highlighter swipe; mono role on an accent rule. The Vox look.
 - `lt-broadcast-bar` — news chyron: accent tab + dark name bar wipe open, accent role strip below.
@@ -1862,6 +1867,7 @@ no matter how much you trim.
 |---|---|---|
 | `project.add-zoom` | `--anchorSourceMs`, `--anchorSourceEndMs` | Always when atMs comes from a transcript word |
 | `project.add-motion-graphic` | `--anchorSourceMs`, `--anchorSourceEndMs` | Always when atMs comes from a transcript word |
+| `project.add-lower-third` | `--anchorSourceMs`, `--anchorSourceEndMs` | Always when atMs comes from a transcript word |
 | `project.add-annotation` | `--anchorSourceMs`, `--anchorSourceEndMs` | Always when startMs comes from a transcript word |
 | `project.add-audio` | `--anchorSourceMs`, `--anchorSourceEndMs` | When the overlay is an SFX pinned to a word. **NEVER for background music** — those should stay free-floating (a fixed slot of the edited timeline, not anchored to content). |
 
@@ -1999,13 +2005,12 @@ if [ "$USER_ASKED_FOR_INTRO" = "1" ]; then
 fi
 
 # 3b. Lower third at first mention of a person/product (NOT shorts/loom)
-#     Render an lt-* template, then place it as a transparent overlay.
+#     One call renders the lt-* nameplate AND places it (async job).
 if [ "$PROFILE" = "youtube-long" ] || [ "$PROFILE" = "linkedin" ]; then
-  JOB=$(pandastudio motion.generate --templateId=lt-vox-marker \
-    --slots='{"name":"<name>","title":"<role>"}' --json | jq -r '.data.jobId')
-  FILE=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
-  pandastudio project.add-motion-graphic --id=$ID --file=$FILE \
-    --atMs=<ms> --placement=overlay --anchorSourceMs=<ms>
+  JOB=$(pandastudio project.add-lower-third --id=$ID \
+    --name="<name>" --title="<role>" --atMs=<ms> --anchorSourceMs=<ms> \
+    --json | jq -r '.data.jobId')
+  pandastudio job.wait --id=$JOB
 fi
 
 # 3c. LUT (use the profile table. For youtube-long, use content-type sub-table.)
