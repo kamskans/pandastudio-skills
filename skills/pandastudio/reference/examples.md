@@ -137,9 +137,12 @@ INTRO_DUR=$(echo "$INTRO" | jq -r '.data.job.result.durationMs')
 pandastudio project.add-motion-graphic \
   --id="$ID" --file="$INTRO_PATH" --durationMs="$INTRO_DUR" --atMs=0
 
-# Step 4: add a lower-third intro 5 seconds in
-pandastudio project.add-lower-third \
-  --id="$ID" --content="Kamal" --subtitle="Founder" --atMs=5000
+# Step 4: add a lower-third intro 5 seconds in (lt-* motion template)
+LT_JOB=$(pandastudio motion.generate --templateId=lt-vox-marker \
+  --slots='{"name":"Kamal","title":"Founder"}' --json | jq -r '.data.jobId')
+LT_PATH=$(pandastudio job.wait --id="$LT_JOB" --json | jq -r '.data.job.result.outputPath')
+pandastudio project.add-motion-graphic \
+  --id="$ID" --file="$LT_PATH" --atMs=5000 --placement=overlay
 
 # Step 5: drop a film-burn FX between the two source clips
 # (assume clip-a is 30s; transition is at the cut)
@@ -165,9 +168,9 @@ REV=$(echo "$P" | jq -r '.data.project.revision')
 # User opens project in editor and makes changes (manual). Editor's
 # autosave bumps the revision. The agent's $REV is now stale.
 
-# Agent comes back later, tries to add another lower-third
-RESULT=$(pandastudio project.add-lower-third \
-  --id="$ID" --content="More" --atMs=10000 \
+# Agent comes back later, tries to add another zoom
+RESULT=$(pandastudio project.add-zoom \
+  --id="$ID" --atMs=10000 --durationMs=2000 \
   --expectedRevision="$REV" --json)
 
 # If conflict: re-read and retry
@@ -175,8 +178,8 @@ if [ "$(echo "$RESULT" | jq -r '.details.code')" = "revision_conflict" ]; then
   # Re-read with the actual on-disk revision
   P=$(pandastudio project.read --id="$ID" --json)
   REV=$(echo "$P" | jq -r '.data.project.revision')
-  pandastudio project.add-lower-third \
-    --id="$ID" --content="More" --atMs=10000 \
+  pandastudio project.add-zoom \
+    --id="$ID" --atMs=10000 --durationMs=2000 \
     --expectedRevision="$REV" --json
 fi
 ```

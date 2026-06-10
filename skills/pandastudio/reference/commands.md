@@ -42,7 +42,6 @@ All accept `id` or `path`, plus optional `expectedRevision` for conflict-safe wr
 | `project.split-clip` | `clipId`, `atSourceMs` | Split a clip in two at a position in its source time. |
 | `project.add-motion-graphic` | `file`, `durationMs`, `atMs` (optional, defaults to end-of-timeline) | Drop an MP4 (typically from `motion.generate`) as a media-overlay region. |
 | `project.add-fx` | `fxId` (bundled) OR `src` (custom URL/path), `atMs`, `durationMs` (optional) | Drop an FX overlay. Bundled FX inherits blend mode + opacity from the manifest. |
-| `project.add-lower-third` | `content` (req), `subtitle`, `atMs` (req), `durationMs`, `designType`, `accentColor` | Drop a lower-third name plate. |
 | `project.add-zoom` | `atMs`, `durationMs`, `depth` (1-6, default **2** = 1.5× soft modern), `focusX/Y` (0-1), `soundUrl` (default `bundled:sound/swoosh-fast`) | Highlight a UI moment with a zoom region. Ships with a default swoosh SFX; pass `soundUrl=none` to silence. |
 | `project.add-clip-transform-region` | `startMs`, `endMs`, `preset` (`cam-bottom-half` / `cam-top-half` / `cam-right-portrait` / `cam-left-portrait` / `cam-bottom-right-quarter` / `cam-bottom-left-quarter`), `transitionMs` (default 320) | Time-bounded layout transform on the main video clip — shrink camera to make room for a motion graphic during an explainer beat. **Camera-only / user-uploaded recordings only — never on screen recordings.** See video-authoring §5b. |
 | `project.add-trim` | `startMs`, `endMs` | Cut a section the exporter skips. |
@@ -124,7 +123,7 @@ The editorial primitive that makes PandaStudio PandaStudio. Every operation that
 
 | Command | Args | Purpose |
 |---|---|---|
-| `export.start` | `id` \| `path`, `outputPath` (optional), `quality` (`draft \| standard \| high \| ultra`) | **Async.** Render the project to MP4 via the same Tier-3 PixiJS pipeline the editor's Export Video button uses (v1.24+). Reuses an open editor if it's already on the target project, otherwise spawns a hidden editor window for the duration of the render. Returns `{ jobId, outputPath }`. Honours every region/style/caption/FX/lower-third/motion-graphic in the project. |
+| `export.start` | `id` \| `path`, `outputPath` (optional), `quality` (`draft \| standard \| high \| ultra`) | **Async.** Render the project to MP4 via the same Tier-3 PixiJS pipeline the editor's Export Video button uses (v1.24+). Reuses an open editor if it's already on the target project, otherwise spawns a hidden editor window for the duration of the render. Returns `{ jobId, outputPath }`. Honours every region/style/caption/FX/motion-graphic in the project. |
 | `export.list` | — | Every entry in the export library, newest-first. |
 | `export.get` | `id` | Read a single library entry. |
 | `export.update` | `id`, `patch` | Patch fields like generatedTitle. |

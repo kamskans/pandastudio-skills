@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 2.94.0 -->
+<!-- version: 2.95.0 -->
 
 # PandaStudio
 
@@ -747,11 +747,14 @@ you: which verb, in what order, and the non-obvious gotchas.
 - **Mid-video graphic on camera / upload footage:** don't cover the host — use
   **`project.add-designed-segment`** (the split-panel beat; see Motion-graphics
   Rules §5). Screen recordings use `project.add-zoom` instead, never a split.
-- **Zoom / lower-third / fx / SFX:** `add-zoom` (default depth 2 + swoosh SFX;
-  `--soundUrl=none` to silence), `add-lower-third` (8 `--designType`s, default
-  mouse-click SFX), `add-motion-graphic` (default mouse-click SFX as of v1.36.0),
-  `add-fx`, `set-region-sound` (retune/clear a placed region's SFX). Arg values:
-  discovery.
+- **Zoom / fx / SFX:** `add-zoom` (default depth 2 + swoosh SFX;
+  `--soundUrl=none` to silence), `add-motion-graphic` (default mouse-click SFX
+  as of v1.36.0), `add-fx`, `set-region-sound` (retune/clear a placed region's
+  SFX). Arg values: discovery.
+- **Lower thirds (v2.95.0):** render one of the `lt-*` motion templates (see the
+  catalog) via `motion.generate`, then place it with
+  `project.add-motion-graphic --placement=overlay`. The old
+  `project.add-lower-third` verb and its 8 CSS designs are REMOVED.
 - **Reset:** **`project.clear-edits`** — one atomic call wipes every region +
   audio overlays + turns captions off (keeps clips, transcript, aspect ratio;
   `--full=true` also resets LUT/crop/webcam/wallpaper). Use it for "start over";
@@ -912,7 +915,6 @@ pandastudio project.add-motion-graphic --id="$PROJECT" --fromJob="$JOB" --durati
   | `project.add-motion-graphic` | `bundled:sound/mouse-click` | New in v1.36.0; previously silent. Applies to every motion graphic — generated templates, custom MP4/WebM, designed-segment panels. |
   | `project.add-designed-segment` | `bundled:sound/mouse-click` | Inherits from add-motion-graphic. |
   | `project.add-zoom` | `bundled:sound/swoosh-fast` | Pre-existing. |
-  | `project.add-lower-third` | `bundled:sound/mouse-click` | Pre-existing. |
   | `project.add-fx` | none | FX overlays often have their own audio; left to the caller. |
 
   Use `asset.list-sounds` to discover other bundled sound ids when swapping.
@@ -968,8 +970,18 @@ All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay (transparent-capable).
 - `transitions-destruction` `O` (5s) — headline assembles from slabs, holds, then shatters apart. Dramatic reveal/transition. Slots: kicker, **headline**, accentColor, textColor.
 - `caption-parallax-layers` `O` (5s) — one word stacked in 5 depth layers (solid front + receding ghosts) that enters with a vertical stretch and parallaxes. Slots: eyebrow, **headline**, frontColor, ghostColor.
 
-**Lower third**
+**Lower thirds** (all `O`, 5s, transparent overlays — render with `motion.generate`, place with `project.add-motion-graphic --placement=overlay`; slots: **name**, title + per-template colors)
 - `yt-lower-third` `O` (4.5s) — subscribe lower-third: avatar + name + title + red Subscribe pill, slides in bottom-left. Slots: **name**, title, accentColor, cardColor, inkColor.
+- `lt-vox-marker` — the name lands on a highlighter swipe; mono role on an accent rule. The Vox look.
+- `lt-broadcast-bar` — news chyron: accent tab + dark name bar wipe open, accent role strip below.
+- `lt-glass-card` — frosted translucent pill with an accent bar. Modern, premium.
+- `lt-kinetic-stack` — oversized name snaps in word-by-word over an accent rule. Loud, energetic.
+- `lt-minimal-line` — thin line draws between the name and a letter-spaced role. Editorial, quiet.
+- `lt-corner-plate` — documentary L-bracket draws on around a mono kicker + caps name. Extra slot: kicker.
+- `lt-accent-slab` — bold accent block with a knockout name. Punchy.
+- `lt-avatar-pill` — creator pill: circular initial avatar + name + handle + live dot. YouTube/stream.
+- `lt-typewriter-tag` — name types in mono with a blinking caret; accent tag chip pops under it.
+- `lt-gradient-sweep` — name settles as a gradient bar sweeps in over a soft glow.
 
 **Data & explainer**
 - `stat-reveal` (4s) — a huge number that counts up, with eyebrow + optional prefix/suffix + label. "10,000+ subscribers", "3× faster". Slots: eyebrow, prefix, **value**, suffix, **label**, brandColor, inkColor, accentColor.
@@ -1652,16 +1664,13 @@ pandastudio project.set-webcam-offset --id=$ID --clipId=clip-1 --offsetMs=120
 pandastudio project.update-region --id=$ID \
   --regionType=zoom --regionId=zoom-1 --depth=2 --focusX=0.6
 pandastudio project.update-region --id=$ID \
-  --regionType=lower-third --regionId=lt-1 \
-  --content="Kamal Kannan" --accentColor="#00ff88"
-pandastudio project.update-region --id=$ID \
   --regionType=annotation --regionId=ann-1 --text="Updated text" --y=20
 pandastudio project.update-region --id=$ID \
   --regionType=fx --regionId=fx-1 --opacity=0.5 --endMs=5000
 pandastudio project.update-region --id=$ID \
   --regionType=audio-overlay --regionId=audio-1 \
   --startMs=2000 --endMs=15000 --sourceStartMs=4000 --volume=0.55
-# regionType: zoom | trim | speed | annotation | fx | lower-third | overlay | audio-overlay
+# regionType: zoom | trim | speed | annotation | fx | overlay | audio-overlay
 
 # Export defaults (pre-fills the Export dialog; CLI export.start uses its own --quality)
 pandastudio project.set-export-settings --id=$ID --quality=source --format=mp4
@@ -1853,7 +1862,6 @@ no matter how much you trim.
 |---|---|---|
 | `project.add-zoom` | `--anchorSourceMs`, `--anchorSourceEndMs` | Always when atMs comes from a transcript word |
 | `project.add-motion-graphic` | `--anchorSourceMs`, `--anchorSourceEndMs` | Always when atMs comes from a transcript word |
-| `project.add-lower-third` | `--anchorSourceMs`, `--anchorSourceEndMs` | Always when atMs comes from a transcript word |
 | `project.add-annotation` | `--anchorSourceMs`, `--anchorSourceEndMs` | Always when startMs comes from a transcript word |
 | `project.add-audio` | `--anchorSourceMs`, `--anchorSourceEndMs` | When the overlay is an SFX pinned to a word. **NEVER for background music** — those should stay free-floating (a fixed slot of the edited timeline, not anchored to content). |
 
@@ -1991,9 +1999,13 @@ if [ "$USER_ASKED_FOR_INTRO" = "1" ]; then
 fi
 
 # 3b. Lower third at first mention of a person/product (NOT shorts/loom)
+#     Render an lt-* template, then place it as a transparent overlay.
 if [ "$PROFILE" = "youtube-long" ] || [ "$PROFILE" = "linkedin" ]; then
-  pandastudio project.add-lower-third --id=$ID --atMs=<ms> \
-    --content="<name>" --subtitle="<role>" --designType=slash-reveal
+  JOB=$(pandastudio motion.generate --templateId=lt-vox-marker \
+    --slots='{"name":"<name>","title":"<role>"}' --json | jq -r '.data.jobId')
+  FILE=$(pandastudio job.wait --id=$JOB --json | jq -r '.data.job.result.outputPath')
+  pandastudio project.add-motion-graphic --id=$ID --file=$FILE \
+    --atMs=<ms> --placement=overlay --anchorSourceMs=<ms>
 fi
 
 # 3c. LUT (use the profile table. For youtube-long, use content-type sub-table.)

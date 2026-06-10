@@ -699,7 +699,7 @@ playbooks, here's the quick map:
 |---|---|---|---|
 | "Make a TikTok from my recording" (webcam only) | A | `motion.generate templateId=short-intro-a` | `motion.render-html` with Mode A shell |
 | "Turn this tutorial into a short" (screen + cam) | B | `motion.generate templateId=short-screen-pip` | `motion.render-html` with Mode B shell |
-| "YouTube intro / outro card" | C | `motion.generate templateId=youtube-lower-third` or `templateId=youtube-outro` | `motion.render-html` |
+| "YouTube intro / outro card" | C | `motion.generate templateId=yt-lower-third` or `templateId=youtube-outro` | `motion.render-html` |
 | "Hero logo reveal for my brand" | A/B/C | `motion.render-html` (templates won't have the polish) | — |
 | "Explain this stat with a graphic" (mid-YouTube, talking-head) | C | `motion.render-html` left-half graphic **+ `project.add-clip-transform-region preset=cam-right-portrait`** | — |
 | "Make this explainer Ali-Abdaal-style" (16:9 talking-head + tools) | C | For each tool intro: `motion.render-html` + `project.add-clip-transform-region preset=cam-right-portrait` | — |
