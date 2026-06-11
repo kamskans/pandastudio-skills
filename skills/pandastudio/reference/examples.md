@@ -144,6 +144,9 @@ LT_JOB=$(pandastudio project.add-lower-third \
 pandastudio job.wait --id="$LT_JOB"
 
 # Step 5: drop a film-burn FX between the two source clips
+#   ⚠ OPT-IN — FX is explicit-request-only. This step belongs in this recipe
+#   only because the brief asked for an effect. NEVER add FX on a plain edit
+#   or a "make it engaging" edit; only when the user names an effect.
 # (assume clip-a is 30s; transition is at the cut)
 pandastudio project.add-fx \
   --id="$ID" --fxId=film-burn --atMs=30000
@@ -189,17 +192,21 @@ Always check for `revision_conflict` after any save / add-* / remove-* / split-*
 
 This is the v1.9.1 flagship workflow: agent gets a folder of source clips, returns a polished, exported MP4 ready to upload. End-to-end, headless, no human in the editor.
 
-> **⚠ This recipe shows the FULL menu, including opt-in steps.** Two steps
-> below are NOT part of a default "edit my video" / "polish" pass and must
-> only run when the user explicitly asked for them (see SKILL.md →
-> "Editorial decisions" → *"NOT part of the default pipeline"*):
+> **⚠ This recipe shows the FULL menu, including opt-in steps.** Some steps
+> below are NOT part of a default "edit my video" / "polish" pass (or even a
+> "make it engaging" pass) and must only run when the user explicitly asked
+> for them (see SKILL.md → "Editorial decisions" → *"NOT part of the default
+> pipeline"*):
 > - **Step 7 (intro title card)** — only when the user asked for an intro/outro.
 >   A plain edit keeps the user's footage as the first and last frame.
+> - **Step 8 (film-burn FX)** — FX is explicit-request-only. Never add an
+>   effect on your own, not even for "make it engaging"; only when the user
+>   names one.
 > - **Background music** (not shown here, but tempting to add) — never on a
 >   default edit; only when the user said "add a music bed".
 >
-> For a default polish, SKIP the intro card and any music; run the cleanup +
-> captions + graphics + zooms steps and stop.
+> For a default polish, SKIP the intro card, the FX, and any music; run the
+> cleanup + captions + graphics + zooms steps and stop.
 
 ```bash
 # Step 1: Create a project pre-loaded with the source clips. FFmpeg
@@ -247,6 +254,9 @@ pandastudio project.add-motion-graphic --id=$ID \
   --atMs=0
 
 # Step 8: Add a film-burn FX between the two source clips
+#   ⚠ OPT-IN — FX is explicit-request-only. Shown here for completeness;
+#   only include it when the user asked for an effect. NOT part of a
+#   default edit or a "make it engaging" edit.
 CLIP_A_DUR=$(pandastudio project.read --id=$ID --json | jq '.data.project.mainTrack.clips[0].sourceDurationMs')
 pandastudio project.add-fx --id=$ID --fxId=film-burn --atMs=$CLIP_A_DUR
 

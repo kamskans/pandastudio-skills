@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.4.0 -->
+<!-- version: 3.5.0 -->
 
 # PandaStudio
 
@@ -573,9 +573,11 @@ specific operation, this is the intended end-to-end pipeline, in order:
 10. **(Only when the brief is "make it engaging / cinematic / dynamic / give it
    energy", NOT a plain "clean it up")** — add **scene transitions** at the
    real section boundaries (`project.add-transition`, ~1 per major section, one
-   consistent style) and **1–3 mood FX** (`project.add-fx` — a subtle grain or
-   light-leak to set tone, a `film-flash` on a hard beat). See the "Effects (FX)
-   & transitions" section — restraint is the rule: neither belongs on every cut.
+   consistent style). See the "Effects (FX) & transitions" section — restraint
+   is the rule: a transition belongs at a section change, never on every cut.
+   **Do NOT add FX overlays here** — FX is explicit-request-only (see the
+   "NOT part of the default pipeline" list below); "make it engaging" does
+   not authorize adding effects.
 11. **Generate** title / description / timestamps, then **preview**.
 
 **Do not skip steps, and report what actually ran.** Every step the user
@@ -618,10 +620,18 @@ question if that's also unknown — one message, not two.
 - **Intro / outro cards.** Never open with a title card or append an outro/CTA
   card unless the user explicitly asks for one ("add an intro", "add an outro").
   A plain edit keeps the user's footage as the first and last frame.
+- **FX overlays (`project.add-fx`).** Never add an FX overlay (film burn, light
+  leak, grain, VHS, embers, film-flash, etc.) on your own — NOT on a plain
+  edit, and NOT even for "make it engaging / cinematic". FX is a deliberate
+  creative choice the user makes; add one only when they explicitly ask for an
+  effect ("add a film burn between these clips", "put some grain on it", "add a
+  light leak"). When they do, follow the restraint rules in the "Effects (FX) &
+  transitions" section. (Transitions are different — those ARE part of the
+  engaging-tier flourish; see step 10.)
 
-If you think music or an intro/outro would help, you may *suggest* it in your
-narration ("want me to add a music bed or an intro card?") — but do not add it
-until they say yes.
+If you think music, an intro/outro, or an effect would help, you may *suggest*
+it in your narration ("want me to add a music bed, an intro card, or a film
+burn?") — but do not add it until they say yes.
 
 ### Emphasis zooms — punch in on the key beats
 
@@ -703,7 +713,7 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 | `caption.set-template` (when user said "add captions" without naming a style) | Default to `bold`. Tell user other templates exist (`classic, modern, minimal, spotlight, boxed, neon, colored, editorial`). `editorial` is magazine-style emphasis — the currently-spoken word renders big + accent while the rest of the line shrinks, so emphasis sweeps the line. |
 | `llm.generate-title` / `llm.generate-description` / `llm.generate-timestamps` | Generate after the edit pass. Show the user; let them say "regenerate" or "use this exact title" or edit inline. |
 | Specific zoom moments | Heuristically pick from the transcript ("you said 'click here' at 12.4s — adding a zoom"). Don't pre-ask. Iterate via preview. |
-| Specific FX placement | Heuristically pick at clip boundaries or transcript hints ("a film-burn between clip 1 and 2"). Don't pre-ask. |
+| FX overlays (`project.add-fx`) | **NOT do-by-default.** Never add an effect on your own — not on a plain edit, not for "make it engaging". Only when the user explicitly asks for one ("add a film burn", "put grain on it"). When they ask, place it where they said and follow the restraint rules. |
 
 **Example of good narration after an edit pass:**
 
@@ -1387,34 +1397,44 @@ Upstream engine docs — canonical for engine internals: <https://hyperframes.he
 
 ## Effects (FX) & transitions — texture, mood, scene changes
 
-Two different tools that both make a cut feel produced. **FX** are looping
-texture overlays composited over a clip (film grain, light leaks, embers).
-**Transitions** are short overlays placed ON a cut to bridge two clips
-(dip-to-black, flash, glitch). Neither is part of the *default* clean-up
-pipeline — they're the layer you add when the user wants the video to feel
-**engaging / cinematic / dynamic / punchy**, or names a vibe. Discover both at
-runtime: `asset.list-fx` and `asset.list-transitions`.
+Two different tools, and they have DIFFERENT rules about when you may add them.
+**FX** are looping texture overlays composited over a clip (film grain, light
+leaks, embers). **Transitions** are short overlays placed ON a cut to bridge two
+clips (dip-to-black, flash, glitch). Discover both at runtime: `asset.list-fx`
+and `asset.list-transitions`.
+
+**The split that matters:**
+- **Transitions** are an engaging-tier flourish: add them at real section
+  boundaries when the brief is "make it engaging / cinematic / dynamic", and
+  never on a plain "clean it up".
+- **FX are EXPLICIT-REQUEST-ONLY.** Never add an FX overlay on your own — not on
+  a plain edit, and **not even for "make it engaging".** An effect is a
+  deliberate creative choice the user makes; you add one only when they ask for
+  it by name. If you think one would help, *suggest* it in narration ("want a
+  film burn between these two?") and wait for a yes. (See the "NOT part of the
+  default pipeline" list in the editorial section.)
 
 ### The golden rule: restraint
 
 FX and transitions are seasoning, not the meal. The failure mode here is the
 *opposite* of motion graphics — where under-graphicking is the risk, here
 **over-doing it is the risk.** A glitch on every cut and grain on every clip
-reads as amateur, not produced. Defaults:
+reads as amateur, not produced. Rules:
 
 - **Transitions: only at real scene/topic boundaries**, never on every cut. A
   tight talking-head edit has many silence/filler cuts a second apart — do NOT
   transition those. Place a transition where the *subject* changes (new chapter,
   location, a hard B-roll cut, intro→content, content→outro). Rule of thumb:
   **0 for a short clean clip; ~1 per major section** (a 6-section video → ~3–5).
-- **FX: 1–3 per video for mood**, not a constant wash. One subtle film-grain or
-  light-leak to set a tone, an embers/snow for atmosphere on a hero shot, a
-  film-flash to punctuate a hard beat. If you can't name *why* a clip needs the
-  texture, don't add it.
-- When the user says **"clean it up" / "edit my video"** → add **neither** by
-  default (the standard pipeline already produces a polished cut). When they say
-  **"make it engaging / cinematic / give it energy / make it pop"** → add them
-  with the discipline above, and narrate what you added so they can dial it back.
+  Only when the brief asks for an engaging/cinematic feel.
+- **FX: only when the user explicitly asks for an effect** — then place exactly
+  what they asked for, where they asked for it. Even on an explicit request,
+  keep it restrained (1–3 per video, not a constant wash; if you can't name why
+  a clip needs it, don't add it). You never decide on your own that a video
+  "needs" an effect.
+- When the user says **"clean it up" / "edit my video"** OR **"make it engaging
+  / cinematic"** → add **no FX**. Transitions are fine on the "engaging" brief
+  (section breaks only). Narrate whatever you added so they can dial it back.
 
 ### Transitions — `project.add-transition`
 
