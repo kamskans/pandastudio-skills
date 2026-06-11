@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.6.0 -->
+<!-- version: 3.7.0 -->
 
 # PandaStudio
 
@@ -559,8 +559,10 @@ specific operation, this is the intended end-to-end pipeline, in order:
 7. **Add captions** — `caption.toggle` + `caption.set-template` (default `bold`
    per profile; see the caption styles in "DO BY DEFAULT").
 8. **Add motion graphics** — follow the Motion-graphics **Rules** + selection
-   guide: `motion_list` first, vary templates by beat, and for **camera-only /
-   imported footage lead with `split-panel` designed segments**. **On any
+   guide: `motion_list` first, vary templates by beat, prefer the **featured
+   (premium) templates** (`paper-panel` / `vox-side-panel` / the Vox family),
+   and for **camera-only / imported footage lead with `paper-panel` or
+   `vox-side-panel` designed segments** (not the plainer `split-panel`). **On any
    talking-head (`kind === "camera"`), open with a `caption-editorial-emphasis`
    TOPIC card in the first 10–30s** that names what the video is about (from the
    speaker's opening lines) — the default hook for talking-heads. **For explainer
@@ -693,7 +695,7 @@ For these operations, run them without asking and tell the user what you did in 
 
 - `transcribed: true` → skip `transcript.transcribe` for that clip — it already has a transcript. Running it again would overwrite any manual word edits the user made in the app.
 - `audioCleaned: true` → skip `audio.clean` for that clip — the `.cleaned.wav` already exists.
-- `kind` → how the clip was captured: `"camera"` (talking-head — a PandaStudio camera-only recording), `"screen"` (screen recording, maybe with a webcam PiP), or `"upload"` (external import). **This is the authoritative signal for your visual strategy — use it, don't guess from aspect ratio:** `kind === "camera"` (talking-head) OR `kind === "upload"` (imported video) → there's no screen to zoom into, so **lead with `split-panel` designed segments** (`project.add-designed-segment`) as the default for explainer beats; it's the highest-leverage way to make static footage look produced (see the Motion-graphics "Rules" §4). `kind === "screen"` → use cursor-telemetry zooms, never clip-transform splits. On v1.28+ recordings this is stamped at capture; older projects don't have it, so `project.read` **infers** it (paired webcam track or cursor telemetry → `screen`; managed-dir media → `camera`; else `upload`) and sets `kindInferred: true`.
+- `kind` → how the clip was captured: `"camera"` (talking-head — a PandaStudio camera-only recording), `"screen"` (screen recording, maybe with a webcam PiP), or `"upload"` (external import). **This is the authoritative signal for your visual strategy — use it, don't guess from aspect ratio:** `kind === "camera"` (talking-head) OR `kind === "upload"` (imported video) → there's no screen to zoom into, so **lead with a premium designed segment — `paper-panel` or `vox-side-panel`** (`project.add-designed-segment`) as the default for explainer beats; it's the highest-leverage way to make static footage look produced (`split-panel` is the plainer fallback — see the Motion-graphics "Rules" §5). `kind === "screen"` → use cursor-telemetry zooms, never clip-transform splits. On v1.28+ recordings this is stamped at capture; older projects don't have it, so `project.read` **infers** it (paired webcam track or cursor telemetry → `screen`; managed-dir media → `camera`; else `upload`) and sets `kindInferred: true`.
 
 **When `kind` is inferred or absent, NEVER assume `screen`.** `screen` is the costly wrong guess — it suppresses the camera enhancements (designed segments, emphasis zooms) and a talking-head ends up flat. So:
 - A clip flagged `kindInferred: true` is a hint, not gospel. If it reads `screen` but you have any doubt (the footage is a person talking, not a UI; no cursor), **treat it as `camera`** — the default when unsure is always `camera`, never `screen`.
@@ -929,9 +931,10 @@ points should be full of graphics.**
    graphics is reasonable. **Under-graphicking is as much a failure as the
    wrong graphic** — when a beat clearly wants a visual, add one.
 3. **Repetition is good — it creates consistency.** Reusing one title style for
-   every chapter, or `split-panel` across many explainer beats, makes a video
-   feel *designed*, not random. Never skip a template just because you already
-   used it. (The earlier "don't repeat" guidance was wrong — ignore it.)
+   every chapter, or one designed segment (e.g. `paper-panel` / `vox-side-panel`)
+   across many explainer beats, makes a video feel *designed*, not random. Never
+   skip a template just because you already used it. (The earlier "don't repeat"
+   guidance was wrong — ignore it.)
 4. **The ONE hard line: never misuse a purpose-specific template.** A few
    templates *mean* something — use them only when the content matches:
    `stat-reveal` → a real number (never a generic title) · `comparison` →
@@ -939,15 +942,32 @@ points should be full of graphics.**
    `key-takeaways` → a list of points · `yt-lower-third` → introducing a
    person/channel. Everything else (the title family, `split-panel`, the
    parallax reveals) is **generic — reuse freely.** See the class column below.
-5. **Camera-only / imported footage → lead with `split-panel`.** When the
-   clip's `kind` is `"camera"` (talking-head) or `"upload"` (imported), there's
-   no screen to zoom into, so a static frame is what makes it look flat. The
-   `split-panel` designed segment (host one half, brand panel the other, via
+5. **Camera-only / imported footage → lead with a PREMIUM designed segment.**
+   When the clip's `kind` is `"camera"` (talking-head) or `"upload"` (imported),
+   there's no screen to zoom into, so a static frame is what makes it look flat.
+   A designed segment (host one half, a panel the other, via
    `project.add-designed-segment`) is the highest-leverage fix and your
-   **default workhorse** for explainer beats on this footage — use it liberally
-   (alternate side + content), with the other templates sprinkled around it.
-   For `kind === "screen"`, prefer cursor-telemetry zooms; don't split the frame.
-6. **Text isn't your only option.** When a beat wants a *visual* — logos for the
+   **default workhorse** for explainer beats on this footage. **Default to
+   `paper-panel` or `vox-side-panel`** — those are the featured, high-production
+   panels that instantly level a video up. Use `split-panel` only as a plainer
+   fallback or for variety, NOT as the go-to. Use the panels liberally (alternate
+   side + content). For `kind === "screen"`, prefer cursor-telemetry zooms;
+   don't split the frame.
+6. **Reach for the FEATURED (premium) templates first.** Six templates are
+   flagged top-tier in `motion_list` (`featured: true`) — they're the most
+   produced looks we ship, and on an "engaging / cinematic / level it up" brief
+   you should prefer them over the plainer templates (`split-panel`, the basic
+   title cards):
+   - **Reusable freely:** `paper-panel`, `vox-side-panel` (side panels) and
+     `vox-marker` (the highlighter headline reveal) — use these as often as the
+     content allows.
+   - **Reach for the moment the content gives you the hook:** `vox-stat` (a real
+     number / metric), `vox-quote` (a quote or testimonial), `vox-annotation`
+     (circle/callout a specific subject word).
+   Don't force a purpose template where the content doesn't fit — Rule §4 still
+   holds; a stat card with no number looks worse, not better. But when the hook
+   IS there, take it: these elevate the video far more than a generic title card.
+7. **Text isn't your only option.** When a beat wants a *visual* — logos for the
    tools being named, a product screenshot, an animated diagram — author a
    custom graphic (see "Authored graphics" below). Don't force every beat into a
    text template.
@@ -960,7 +980,7 @@ points should be full of graphics.**
 | What's happening in the video | Reach for | Class |
 |---|---|---|
 | Open / chapter / section title | `creator-card`, `transitions-3d`, `grain-overlay`, `transitions-destruction`, `caption-parallax-layers` — pick a look, reuse it per section | **Generic** — repeat freely |
-| Explainer beat, host on camera/imported footage | `split-panel` (clean brand panel + bullets), `vox-side-panel` (graph-paper/specimen look), `paper-panel` (torn-paper sheet + two-line title) — all designed segments; pick a look and reuse it | **Generic workhorse** — repeat freely |
+| Explainer beat, host on camera/imported footage | **`paper-panel`** (torn-paper sheet + two-line title) or **`vox-side-panel`** (graph-paper/specimen look) FIRST — the premium designed segments that level the video up. `split-panel` (clean brand panel + bullets) only as a plainer fallback / for variety. Pick a look and reuse it. | **Generic workhorse** — repeat freely |
 | Hero reveal / intro / "ways to use it" recap | `parallax-zoom`, `parallax-unzoom` | Semi-generic |
 | Introduce a person / channel / "subscribe" | `yt-lower-third` | Purpose |
 | A real number / metric / result | `stat-reveal` | **Purpose — numbers only** |
