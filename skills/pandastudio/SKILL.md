@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.1.0 -->
+<!-- version: 3.2.0 -->
 
 # PandaStudio
 
@@ -400,6 +400,104 @@ user explicitly wants karaoke-style timing.
   don't delete a project the user might want to keep editing.
 - **The desktop app must be running** (the CLI auto-launches it if not). Transcription uses the
   app's bundled FFmpeg + Whisper sidecar; there's no fully-headless mode.
+
+## Shorts: turning an exported video into vertical clips (v1.40+)
+
+The shorts pipeline is two-step: **discover** the moments worth clipping, then **fork** the source project into a 9:16 short you can refine — or hand back to the user for review. Use this whenever the user says "make a vertical short of the X moment", "give me 3 shorts from yesterday's tutorial", "cut this for TikTok", etc.
+
+### Step 1 — Discover shots in an exported video
+
+After an export has been transcribed, the AI Shorts generator suggests 3–5 self-contained `[startMs, endMs]` segments scored 1–10. The CLI verb is on the export entry — pass the export id and it writes the shots back onto that entry under `generatedShots`.
+
+```bash
+# Pick an export to mine for shorts
+EXPORT=$(pandastudio export.list --json | jq -r '.exports[0].id')
+
+# Run the generator (LLM picks engaging self-contained spans)
+pandastudio export.generate-shots --id="$EXPORT" --json
+# → writes entry.generatedShots = [{ id, startMs, endMs, title, description, score }, ...]
+```
+
+### Step 2 — Fork the source project for ONE shot (the right path almost always)
+
+`project.fork-from-shot` makes a **new 9:16 project** from the original source project — NOT from the flat exported MP4. Use this whenever the source project still exists and you want the short fully re-editable:
+
+```bash
+# Pick the highest-scoring shot from the export
+SHOT=$(pandastudio export.list --json | jq -r --arg e "$EXPORT" '
+  .exports[] | select(.id == $e) | .generatedShots
+  | sort_by(.score) | reverse | .[0].id
+')
+
+# Fork — creates a new project, returns its id + path
+pandastudio project.fork-from-shot --exportId="$EXPORT" --shotId="$SHOT" --json
+# → { id, path, name: "Original — Short: ...", aspectRatio: "9:16", project: {...} }
+```
+
+**What the fork does to the project:**
+- **Keeps** the source's first-row timing edits: clips, trim regions (silences/fillers/bad takes), speed regions, per-clip transcribed/audioCleaned status, per-clip transcript, root transcript, cleaned-audio paths, LUT/color grade.
+- **Strips** every overlay/region row (they were sized for 16:9): zooms, FX, motion graphics, captions, transitions, lower thirds, annotations, clip-transforms (podcast/designed-segment layouts), background music, wallpaper, padding/shadow framing.
+- **Switches** aspectRatio to 9:16 and adds two trim regions cropping everything outside the shot's edited-time `[startMs, endMs]` range.
+- **Names** the new project `"{Source Name} — Short: {shot title}"` and gives it a fresh UUID + revision 0.
+
+The result is a **clean 9:16 canvas with the timing already done**. Now layer on Shorts-native graphics, captions, and a hook:
+
+```bash
+NEW_PROJECT=$(pandastudio project.fork-from-shot --exportId="$EXPORT" --shotId="$SHOT" --json | jq -r '.data.id')
+
+# A bold caption template for vertical content
+pandastudio caption.toggle --id="$NEW_PROJECT" --enabled=true
+pandastudio caption.set-template --id="$NEW_PROJECT" --template=neon
+
+# A topic-introducing pull-quote in the opening 3 seconds (see "Editorial emphasis" rules)
+pandastudio motion.generate --templateId=caption-editorial-emphasis \
+  --slots='{"sentence":"The whole stack, in 60 seconds.","emphasisWord":"60 seconds"}' \
+  --aspectRatio=9:16 --json
+
+# Emphasis zooms on the key beats
+# ... drive the rest of the polish pipeline at 9:16 ...
+```
+
+### Drift detection — when the source project changed after export
+
+If the user has edited the source project AFTER the export (removed a filler, added a graphic), the shot's `[startMs, endMs]` may no longer point at the same moment in the timeline. The verb detects this and returns:
+
+```json
+{ "ok": false,
+  "error": "Source project has changed since export (export was at revision 4, project is now at 7) …",
+  "details": { "code": "revision_mismatch", "expectedRevision": 4, "liveRevision": 7 } }
+```
+
+**Default behavior:** surface this to the user verbatim and ask whether to fork anyway. If they confirm, retry with `--force=true`. Don't silently force.
+
+### When to use the "flat" `shot.edit` path instead
+
+The old flow opens the flat exported MP4 as a single clip (no access to the source project, edits like motion graphics are baked pixels). Use it only when:
+- The source project has been **deleted** (the fork verb returns `Source project not found at …`).
+- The export pre-dates **v1.40** (`sourceProjectPath` is empty — the verb returns "Forking is only available for exports created in v1.40+").
+- The user explicitly wants to just re-crop the rendered video without going back to the source.
+
+In every other case, fork. The user almost always wants the short to inherit the source project's edits and to have fully editable graphics on top.
+
+### Batch: make N shorts from one export
+
+Combine the two verbs to fan out:
+
+```bash
+EXPORT=$(pandastudio export.list --json | jq -r '.exports[0].id')
+pandastudio export.generate-shots --id="$EXPORT" --json
+
+# Fork the top 3 shots in parallel
+pandastudio export.list --json | jq -r --arg e "$EXPORT" '
+  .exports[] | select(.id == $e) | .generatedShots
+  | sort_by(.score) | reverse | .[0:3] | .[].id
+' | while read SHOT; do
+  pandastudio project.fork-from-shot --exportId="$EXPORT" --shotId="$SHOT" --json &
+done
+wait
+```
+
+Each fork is a separate 9:16 project the agent (or user) can then polish independently — different topic, different graphics, different music.
 
 ## Publishing to YouTube (v1.19+)
 
