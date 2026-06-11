@@ -189,6 +189,18 @@ Always check for `revision_conflict` after any save / add-* / remove-* / split-*
 
 This is the v1.9.1 flagship workflow: agent gets a folder of source clips, returns a polished, exported MP4 ready to upload. End-to-end, headless, no human in the editor.
 
+> **⚠ This recipe shows the FULL menu, including opt-in steps.** Two steps
+> below are NOT part of a default "edit my video" / "polish" pass and must
+> only run when the user explicitly asked for them (see SKILL.md →
+> "Editorial decisions" → *"NOT part of the default pipeline"*):
+> - **Step 7 (intro title card)** — only when the user asked for an intro/outro.
+>   A plain edit keeps the user's footage as the first and last frame.
+> - **Background music** (not shown here, but tempting to add) — never on a
+>   default edit; only when the user said "add a music bed".
+>
+> For a default polish, SKIP the intro card and any music; run the cleanup +
+> captions + graphics + zooms steps and stop.
+
 ```bash
 # Step 1: Create a project pre-loaded with the source clips. FFmpeg
 # probes durations automatically.
@@ -223,6 +235,7 @@ ZOOM_AT=$(pandastudio transcript.search --id=$ID --query="click on the menu" --j
   --atMs=$ZOOM_AT --durationMs=2000 --depth=4
 
 # Step 7: Render an intro title card and drop it at t=0
+#   ⚠ OPT-IN — only when the user asked for an intro. Skip for a plain edit.
 INTRO_JOB=$(pandastudio motion.generate \
   --templateId=title-card-vox \
   --slots='{"title":"Q4 in 90 seconds","subtitle":"the highlights"}' \
@@ -350,7 +363,8 @@ FINAL=$(pandastudio motion.concat \
 # STEP 4: Add the single merged MP4 as one clip.
 pandastudio project.add-clip --id=$ID --media="$FINAL" --json
 
-# STEP 5: Add background music (optional)
+# STEP 5: Add background music — OPT-IN, only when the user asked for a
+# music bed. Omit for any edit where music wasn't requested.
 pandastudio project.add-audio --id=$ID --audioPath=/path/to/music.mp3 \
   --volume=0.6 --json
 

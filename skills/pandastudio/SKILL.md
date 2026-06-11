@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.2.0 -->
+<!-- version: 3.3.0 -->
 
 # PandaStudio
 
@@ -1762,10 +1762,15 @@ LUT is applied **per clip** — multi-clip projects can have different grades pe
 clip. The grade is non-destructive: `lutPreset=none` removes it instantly with
 no re-encode needed.
 
-**Full cinematic workflow:**
+**Full cinematic workflow** (this recipe is for a brief that EXPLICITLY asked
+for a graded, music-backed cinematic piece — e.g. "make a cinematic short with
+a calm music bed". The grade + music steps below are part of *that* request.
+For a plain "edit my video", do NOT copy the music step — see the editorial
+rule "**Background music** … Never add a music track to 'edit my video'"):
 
 ```bash
-# Create project, add clip, grade it, add music, preview
+# Create project, add clip, grade it, preview. (Music step is OPT-IN — only
+# because this brief asked for it; omit it for a default edit.)
 P=$(pandastudio project.new --name="Cinematic Short" \
   --withMedia='["/path/footage.mp4"]' --json)
 ID=$(echo "$P" | jq -r '.data.id')
@@ -1776,7 +1781,8 @@ pandastudio project.set-clip-lut \
   --id=$ID --clipId="$CLIP" \
   --lutPreset=cinematicTealOrange --lutIntensity=0.85 --json
 
-# Add bundled lofi music
+# Add bundled lofi music — ONLY because the user asked for a music bed.
+# Skip this entirely for an "edit my video" / "polish" request.
 MUSIC=$(pandastudio asset.list-music --json \
   | jq -r '.data.tracks[] | select(.mood == "calm") | .absolutePath' | head -1)
 pandastudio project.add-audio --id=$ID --audioPath="$MUSIC" --volume=0.5 --json
