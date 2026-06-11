@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.3.0 -->
+<!-- version: 3.4.0 -->
 
 # PandaStudio
 
@@ -700,7 +700,7 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 | `transcript.find-issues` | Run after remove-fillers. Surfaces re-takes (`duplicate-take`), abandoned restarts (`false-start`), and stutters (`adjacent-repeat`) as candidates — each with the `wordIds` of the discarded attempt. **Read-only — it never edits.** **Default: keep the most recent (last) take and delete the earlier attempt** by feeding the candidate's `wordIds` into `transcript.delete-words`. Review against context first — if a repeat looks intentional (emphasis) or you can't tell which take is cleaner, ask the user which to keep rather than blind-applying. |
 | `transcript.remove-silences` | Run after the content cleanup. Default threshold 500ms — the SAME threshold as the UI Remove Silences button, so your pass removes the same silences a manual click would. Don't hand-pick a higher value (e.g. 700) "to be safe" — that leaves dead air the user expects gone. Trims leading, between-word, and trailing silence per clip. |
 | `audio.clean` | Denoise only clips where `clipStates[i].audioCleaned === false`. Writes a sibling `.cleaned.wav`; original audio untouched. |
-| `caption.set-template` (when user said "add captions" without naming a style) | Default to `bold`. Tell user other templates exist (`classic, modern, minimal, spotlight, boxed, neon, colored, texture, editorial`). `texture` fills large uppercase words with a flowing texture mask — pick the texture (lava/marble/metal/wood/concrete/rock, default lava) via `caption.set-style --texture=marble`. `editorial` is magazine-style emphasis — the currently-spoken word renders big + accent while the rest of the line shrinks, so emphasis sweeps the line. |
+| `caption.set-template` (when user said "add captions" without naming a style) | Default to `bold`. Tell user other templates exist (`classic, modern, minimal, spotlight, boxed, neon, colored, editorial`). `editorial` is magazine-style emphasis — the currently-spoken word renders big + accent while the rest of the line shrinks, so emphasis sweeps the line. |
 | `llm.generate-title` / `llm.generate-description` / `llm.generate-timestamps` | Generate after the edit pass. Show the user; let them say "regenerate" or "use this exact title" or edit inline. |
 | Specific zoom moments | Heuristically pick from the transcript ("you said 'click here' at 12.4s — adding a zoom"). Don't pre-ask. Iterate via preview. |
 | Specific FX placement | Heuristically pick at clip boundaries or transcript hints ("a film-burn between clip 1 and 2"). Don't pre-ask. |
@@ -1921,9 +1921,8 @@ pandastudio caption.set-style --id=$ID --color="#fff" --highlightColor="#34B27B"
   --strokeWidth=3 --strokeColor="#000" --positionY=85
 ```
 
-Templates: `classic | modern | minimal | bold | spotlight | boxed | neon | colored | texture | editorial`. Captions read words from the project's merged transcript — so you must transcribe first.
+Templates: `classic | modern | minimal | bold | spotlight | boxed | neon | colored | editorial`. Captions read words from the project's merged transcript — so you must transcribe first.
 
-- `texture` fills large uppercase words with a flowing texture mask (lava/marble/metal/wood/concrete/rock) — pick the texture via `caption.set-style --texture=marble` (default lava).
 - `editorial` is a magazine-emphasis style: the word being spoken RIGHT NOW renders large (and takes an accent color) while the rest of the line shrinks, so one big word sweeps across the line in time with the speech. Best with short `--wordsPerLine` (4-6) so each line reads as a headline. Great for talking-head explainers and punchy hooks.
 
 ## AI metadata (uses bundled local LLM)
