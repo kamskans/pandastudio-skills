@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.7.0 -->
+<!-- version: 3.8.0 -->
 
 # PandaStudio
 
@@ -470,14 +470,22 @@ If the user has edited the source project AFTER the export (removed a filler, ad
 
 **Default behavior:** surface this to the user verbatim and ask whether to fork anyway. If they confirm, retry with `--force=true`. Don't silently force.
 
-### When to use the "flat" `shot.edit` path instead
+### When the fork isn't available
 
-The old flow opens the flat exported MP4 as a single clip (no access to the source project, edits like motion graphics are baked pixels). Use it only when:
-- The source project has been **deleted** (the fork verb returns `Source project not found at …`).
-- The export pre-dates **v1.40** (`sourceProjectPath` is empty — the verb returns "Forking is only available for exports created in v1.40+").
-- The user explicitly wants to just re-crop the rendered video without going back to the source.
+`project.fork-from-shot` is the ONLY shot-editing path an agent has — and the
+only one the in-app **Edit Short** button leads with too (it silently falls
+back to clipping the flat exported MP4 only for the cases below; there is no
+separate agent verb for that fallback). The fork is unavailable when:
+- The source project has been **deleted/moved** (the verb returns
+  `code: "source_missing"`).
+- The export pre-dates **v1.40** (`sourceProjectPath` is empty — the verb
+  returns "Forking is only available for exports created in v1.40+").
 
-In every other case, fork. The user almost always wants the short to inherit the source project's edits and to have fully editable graphics on top.
+In those cases tell the user the source project for this export isn't available,
+so the short can't inherit the original edits — they can still make the short
+from the **Edit Short** button in My Exports (which clips the rendered video),
+or re-export from the source project to get a fork-capable export. Everywhere
+else, just fork.
 
 ### Batch: make N shorts from one export
 
