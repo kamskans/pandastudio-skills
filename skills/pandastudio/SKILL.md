@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.9.0 -->
+<!-- version: 3.11.0 -->
 
 # PandaStudio
 
@@ -438,7 +438,7 @@ pandastudio project.fork-from-shot --exportId="$EXPORT" --shotId="$SHOT" --json
 - **Keeps** the source's first-row timing edits: clips, trim regions (silences/fillers/bad takes), speed regions, per-clip transcribed/audioCleaned status, per-clip transcript, root transcript, cleaned-audio paths, LUT/color grade.
 - **Strips** every overlay/region row (they were sized for 16:9): zooms, FX, motion graphics, captions, transitions, lower thirds, annotations, clip-transforms (podcast/designed-segment layouts), background music, wallpaper, padding/shadow framing.
 - **Switches** aspectRatio to 9:16 and adds two trim regions cropping everything outside the shot's edited-time `[startMs, endMs]` range.
-- **Fills the vertical frame** — applies a centered cover-crop so a landscape (16:9) source fills the 9:16 canvas instead of being letterboxed into a band. (Probed from the source video's real dimensions; skipped for podcast composites and already-vertical sources. The user can re-frame via Crop Video.)
+- **Fills the vertical frame** — applies a centered cover-crop so a landscape (16:9) source fills the 9:16 canvas instead of being letterboxed into a band. (Probed from the source video's real dimensions; skipped for podcast composites and already-vertical sources.) **Face centering is automatic:** when the short opens in the editor, vertical talking-head clips are face-detected and a focal point is set so the cover-crop (and any top/bottom designed-segment band) keeps the face in frame rather than slicing the geometric middle. Override with the "Center on face" control or `project.set-focal-point` (see Settings below).
 - **Names** the new project `"{Source Name} — Short: {shot title}"` and gives it a fresh UUID + revision 0.
 
 The result is a **clean 9:16 canvas with the timing already done**. Now layer on Shorts-native graphics, captions, and a hook:
@@ -507,6 +507,98 @@ wait
 ```
 
 Each fork is a separate 9:16 project the agent (or user) can then polish independently — different topic, different graphics, different music.
+
+### Editing a Short — the vertical playbook (v1.43+)
+
+The fork hands you a **clean 9:16 canvas with the cut already timed**. A bare
+clip is not a Short — what separates a scroll-past from a watch-to-end is the
+*layered motion*: captions every second, emphasis on the words that matter, and
+the frame changing shape often enough that the eye never settles. A Short lives
+or dies on **completion rate** (the ~70% watch-through is where the algorithm
+starts pushing it), so every choice below exists to stop the thumb. Treat
+"make a short" as explicit licence to apply this whole playbook — unlike a
+long-form edit, here the busy, transition-heavy style IS the brief (so the
+FX-are-explicit-only rule (see "Effects (FX) & transitions") and the
+section-break-only transition default do NOT throttle you inside a short).
+
+**The five layers, in the order you add them:**
+
+1. **Captions — always on, big, word-by-word.** This is non-negotiable for
+   vertical: most Shorts are watched muted, and animated captions add roughly
+   15–25% retention on their own. Toggle them on and pick a punchy template —
+   `neon`, `bold`, or `hormozi`-style word-pop. Keep them large and
+   high-contrast; the reading rhythm should match your pacing.
+   ```bash
+   pandastudio caption.toggle --id="$P" --enabled=true
+   pandastudio caption.set-template --id="$P" --template=neon
+   ```
+
+2. **Editorial emphasis — used liberally.** Where a normal edit is sparing
+   with pull-quotes, a Short leans in: stamp an emphasis title on the key
+   *verb, number, or outcome* of almost every beat (the hook line, the payoff,
+   any "3x", "$0", "in 60 seconds"). Animate it ON as the word is spoken.
+   ```bash
+   pandastudio motion.generate --templateId=caption-editorial-emphasis \
+     --slots='{"sentence":"It writes the whole thing for you.","emphasisWord":"whole thing"}' \
+     --aspectRatio=9:16 --json
+   ```
+
+3. **A transition on every text beat.** A clean transition each time a new
+   on-screen text or section lands gives the edit its pulse — it reads as
+   "produced" and resets attention. Place one at each beat boundary where a new
+   emphasis title / graphic appears (a fast `whip`, `zoom`, or `glitch` — keep
+   them short, ~200–300ms). Pair with an emphasis **zoom** on the punchline.
+
+4. **Motion graphics — two vertical-native modes.** Both fill the 9:16 frame
+   properly (the engine reflows to `data-width`/`data-height`, so always render
+   at `--aspectRatio=9:16`; a 16:9 graphic dropped into a Short letterboxes):
+   - **Full-screen graphic** — a `--aspectRatio=9:16 --background=solid` card
+     between beats (a stat reveal, a big title, a list) that takes the whole
+     frame for 1–2s, then cuts back to the host. Great as the hook frame and
+     for the pattern interrupt.
+   - **Top/bottom split (designed segment)** — the vertical equivalent of the
+     desktop left/right split: the host fills one horizontal band while a
+     motion-graphic panel fills the other. This is the canonical "react /
+     explain over a graphic" Shorts look. **Use the same premium panels as
+     16:9 — `paper-panel` (torn-paper title) or `vox-side-panel` (graph-paper +
+     taped specimen card).** They are aspect-aware: render at `--aspectRatio=9:16`
+     and they reflow into a top/bottom band automatically. Set the panel `side`
+     to `top`/`bottom`, and call `project.add-designed-segment` with the matching
+     **`cameraSide`** (opposite the panel) and the panel's `cameraRatio`
+     (`paper-panel` → 55, `vox-side-panel` → 50):
+     ```bash
+     # Render the premium panel at 9:16 (reflows into a top band; transparent
+     # bottom reveals the host). Same template as the 16:9 explainer.
+     JOB=$(pandastudio motion.generate --templateId=paper-panel \
+       --slots='{"side":"top","title1":"THE ONE TRICK","title2":"STOP TYPING","subtitle":"Speak it. The app writes it."}' \
+       --aspectRatio=9:16 --background=transparent --json | jq -r '.data.jobId')
+     pandastudio job.wait --id="$JOB" --json
+
+     # Couple panel + host in ONE atomic call. Panel on top → host fills the
+     # bottom band. paper-panel pairs with cameraRatio 55 (vox-side-panel → 50).
+     pandastudio project.add-designed-segment --id="$P" --fromJob="$JOB" \
+       --durationMs=4000 --cameraSide=bottom --cameraRatio=55 \
+       --atMs=2000 --json
+     ```
+     The panel `side` (top/bottom) and `cameraSide` are **opposites** — panel
+     `top` ⇒ `cameraSide bottom`. Prefer the premium panels over the plainer
+     `split-panel`, exactly as you do for 16:9. **The host band keeps the face
+     centered automatically** (the editor face-detects vertical talking-head
+     clips and sets a focal point the cover-crop biases toward); override with
+     `project.set-focal-point` if needed.
+
+5. **A pattern interrupt around 25–35s.** If the short runs past ~25s, change
+   *something* at that mark — a full-screen graphic, a hard zoom, a layout flip
+   from full-host to split — right where viewers typically drift. One deliberate
+   jolt buys the back half of the video.
+
+**The shape of a good 45–60s Short:** hook frame (full-screen graphic or a hard
+emphasis title in the first ~1s) → host talking with captions + an emphasis
+title on each beat + a transition at each → one `paper-panel`/`vox-side-panel`
+top/bottom split or a full-screen graphic for the main explanation → pattern
+interrupt at ~30s → payoff line as a
+big emphasis title → end on the result. Cut anything that doesn't earn its
+second; aim for a visible change every 2–4 seconds.
 
 ## Publishing to YouTube (v1.19+)
 
@@ -1137,6 +1229,15 @@ pandastudio project.add-designed-segment --id="$PROJECT" --fromJob="$JOB" \
   --durationMs=28000 --cameraSide=right
 ```
 
+**9:16 Shorts variant — top/bottom split.** For vertical, the split runs
+horizontally. **Use the same premium panels** — `paper-panel` or
+`vox-side-panel` — rendered at `--aspectRatio=9:16`: they're aspect-aware and
+reflow into a top/bottom band. Use `cameraSide: top`/`bottom` instead of
+`left`/`right`; the panel's `side` slot and `cameraSide` are opposites (panel
+`top` ⇒ host `bottom`). Keep each panel's own `cameraRatio` (`paper-panel` → 55,
+`vox-side-panel` → 50). See "Editing a Short — the vertical playbook" for the
+full example and when to reach for it.
+
 ### Template catalog
 
 Pick by brief. Slots in **bold** are required; the rest are optional
@@ -1204,8 +1305,8 @@ All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay (transparent-capable).
 - `vox-stat` (4.5s) — a big figure pops in with an accent rule, a label, and a "SOURCE:" credit. Vox data callout (real numbers; an alternative look to `stat-reveal`). Slots: eyebrow, **value**, **label**, source, bgColor, inkColor, accentColor.
 - `vox-quote` (5s) — oversized accent quotation mark + quote + attribution (name / role) under an accent rule. Pull-quote / testimonial. Slots: **quote**, name, role, bgColor, inkColor, accentColor.
 - `vox-annotation` (4.5s, 16:9) — a hand-drawn marker circle scribbles around a subject word with a handwritten note + curved arrow. "this is what matters" callout. Slots: **subject**, note, bgColor, inkColor, accentColor.
-- `vox-side-panel` `O` (16:9) — Vox designed segment: a graph-paper half-panel with a two-line marker title, a taped specimen card, and a monospace spec list; the other half is transparent for the host. Add via `project.add-designed-segment` like `split-panel`. Slots: side, **title1**, **title2**, **subject**, spec1, spec2, spec3, paperColor, inkColor, accentColor, accent2Color.
-- `paper-panel` `O` (16:9, v2.99.0) — designed segment: a torn-paper sheet slides in from one side carrying a two-line title (the second line accented with a hand-drawn underline) + a short subtitle; the other half is transparent for the host. The cleanest, most editorial of the three side panels (camera takes 55%, panel 45%). Add via `project.add-designed-segment` like `split-panel`. Slots: side (`left`/`right`), **title1**, **title2** (accented line), subtitle, paperColor, inkColor, accentColor.
+- `vox-side-panel` `O` (16:9 / **9:16**) — Vox designed segment: a graph-paper half-panel with a two-line marker title, a taped specimen card, and a monospace spec list; the other half is transparent for the host. **Aspect-aware** — at 16:9 it's a left/right side panel; render at `--aspectRatio=9:16` and it reflows into a top/bottom **band** (marker titles + specs on the left, taped card on the right) for Shorts. Add via `project.add-designed-segment` (16:9: `side` left/right, cameraRatio 50; 9:16: `side` top/bottom, `cameraSide` opposite, cameraRatio 50). Slots: side, **title1**, **title2**, **subject**, spec1, spec2, spec3, paperColor, inkColor, accentColor, accent2Color.
+- `paper-panel` `O` (16:9 / **9:16**, v2.99.0) — designed segment: a torn-paper sheet carrying a two-line title (the second line accented with a hand-drawn underline) + a short subtitle; the other half is transparent for the host. The cleanest, most editorial of the panels. **Aspect-aware** — at 16:9 it's a left/right side panel (camera 55%, panel 45%); render at `--aspectRatio=9:16` and the sheet becomes a top/bottom **band** with a horizontal torn edge for Shorts. Add via `project.add-designed-segment` (16:9: `side` left/right; 9:16: `side` top/bottom, `cameraSide` opposite; cameraRatio 55 either way). Slots: side (16:9 `left`/`right`, 9:16 `top`/`bottom`), **title1**, **title2** (accented line), subtitle, paperColor, inkColor, accentColor.
 
 #### Podcast: change layout over time (within ONE recording)
 
@@ -1900,6 +2001,16 @@ pandastudio project.set-wallpaper --id=$ID --wallpaper=gradient-night
 
 # Reframe the main recording (crop, all values normalized 0-1)
 pandastudio project.set-crop --id=$ID --x=0.1 --y=0.05 --width=0.8 --height=0.9
+
+# Face centering (auto-reframe). When a clip is cover-cropped — a 9:16 fill or a
+# top/bottom designed-segment band — the crop centers geometrically by default,
+# which can slice a high-framed face. A FOCAL POINT (source-normalized 0-1) biases
+# the cover-crop toward the face so it stays in frame. The EDITOR auto-detects this
+# for vertical talking-head clips on open, so usually you don't touch it. To set it
+# explicitly (e.g. building a short fully headless), or to override:
+pandastudio project.set-focal-point --id=$ID --x=0.5 --y=0.32   # all clips
+pandastudio project.set-focal-point --id=$ID --clipId=clip-2 --x=0.6 --y=0.3
+pandastudio project.set-focal-point --id=$ID --clear            # back to centered
 
 # Webcam overlay — preset or manual position (PROJECT-LEVEL)
 pandastudio project.set-webcam-layout --id=$ID --preset=picture-in-picture
