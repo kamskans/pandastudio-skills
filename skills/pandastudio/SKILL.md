@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.11.0 -->
+<!-- version: 3.12.0 -->
 
 # PandaStudio
 
@@ -448,7 +448,7 @@ NEW_PROJECT=$(pandastudio project.fork-from-shot --exportId="$EXPORT" --shotId="
 
 # A bold caption template for vertical content
 pandastudio caption.toggle --id="$NEW_PROJECT" --enabled=true
-pandastudio caption.set-template --id="$NEW_PROJECT" --template=neon
+pandastudio caption.set-template --id="$NEW_PROJECT" --templateId=neon
 
 # A topic-introducing pull-quote in the opening 3 seconds (see "Editorial emphasis" rules)
 pandastudio motion.generate --templateId=caption-editorial-emphasis \
@@ -530,7 +530,7 @@ section-break-only transition default do NOT throttle you inside a short).
    high-contrast; the reading rhythm should match your pacing.
    ```bash
    pandastudio caption.toggle --id="$P" --enabled=true
-   pandastudio caption.set-template --id="$P" --template=neon
+   pandastudio caption.set-template --id="$P" --templateId=neon
    ```
 
 2. **Editorial emphasis — used liberally.** Where a normal edit is sparing
@@ -971,15 +971,40 @@ you: which verb, in what order, and the non-obvious gotchas.
 - **Mid-video graphic on camera / upload footage:** don't cover the host — use
   **`project.add-designed-segment`** (the split-panel beat; see Motion-graphics
   Rules §5). Screen recordings use `project.add-zoom` instead, never a split.
-- **Zoom / fx / SFX:** `add-zoom` (default depth 2 + swoosh SFX;
+  **Never place a zoom inside a designed-segment / split window** — the camera is
+  already cropped to a half-frame band, so zooming it looks wrong. Zoom the
+  full-frame stretches, split the rest.
+- **Zoom depth → scale factor.** `depth` (1–6) maps to a fixed zoom multiplier.
+  When the user asks for "a 1.5x zoom," translate it with this table — there is
+  no separate scale arg:
+
+  | depth | scale | feel |
+  |---|---|---|
+  | 1 | 1.25× | barely-there nudge |
+  | 2 | 1.5× | **soft, modern default** (talking-head, tutorials) |
+  | 3 | 1.8× | clear emphasis (UI clicks, callouts) |
+  | 4 | 2.2× | strong punch-in |
+  | 5 | 3.5× | dramatic detail |
+  | 6 | 5.0× | extreme macro |
+- **Zoom / fx / SFX:** `add-zoom` (default depth 2 = 1.5× + swoosh SFX;
   `--soundUrl=none` to silence), `add-motion-graphic` (default mouse-click SFX
   as of v1.36.0), `add-fx` (13 bundled FX overlays — film-burn, light-leak, light-flare, lens-flare-sweep, light-streaks, bokeh-drift, prism-leak, dust-scratches, film-grain, vhs-static, embers, snow-drift, film-flash; `--speed=0.25–4` adjusts loop speed, default 1; see the "Effects (FX) & transitions" section for when to reach for each), `set-region-sound` (retune/clear a placed region's
   SFX). Arg values: discovery (`asset.list-fx`).
 - **Transitions (v2.98.0):** `add-transition --transitionId=<id> --atMs=<cutMs>` —
   places a scene-change overlay CENTERED on a cut (the opaque peak masks the
   join). Pass `atMs` = the cut time between two clips (from `project.read` clip
-  boundaries). Ids (`asset.list-transitions`): fade-black, fade-white, flash,
-  light-sweep, film-burn, glitch. `--durationMs` defaults to 1000.
+  boundaries). **`atMs` here is EDITED (output) time, and add-transition has NO
+  `anchorSourceMs`** — unlike add-zoom / add-motion-graphic. If you only have a
+  source-time value (a transcript word's `startMs`), convert it first with
+  `timeline.source-to-edited --sourceMs=N` and pass the result. Ids
+  (`asset.list-transitions`): fade-black, fade-white, flash, light-sweep,
+  film-burn, glitch. `--durationMs` defaults to 1000.
+  > **Time domains at a glance.** `atMs`/`startMs`/`endMs` are ALWAYS edited
+  > (output) time. `anchorSourceMs` (source/raw-recording time) is an *extra*
+  > drift-proofing arg on **add-zoom, add-motion-graphic, add-designed-segment,
+  > add-lower-third** — pass it alongside `atMs` when `atMs` came from a
+  > transcript word so the region re-anchors across later trims. Verbs WITHOUT
+  > an anchor (**add-transition**, region edits) need a pre-converted edited time.
 - **Lower thirds (v2.96.0):** `project.add-lower-third --name="…" --title="…"
   --atMs=<ms> [--templateId=lt-*]` — ONE async call that renders the nameplate
   template (default `lt-vox-marker`) AND places it as a transparent overlay.
@@ -1240,9 +1265,14 @@ full example and when to reach for it.
 
 ### Template catalog
 
-Pick by brief. Slots in **bold** are required; the rest are optional
-(colors default to PandaStudio's electric-blue brand `#2563EB` where unset).
-All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay (transparent-capable).
+Pick by brief. Slots in **bold** are required; the rest are optional. **Any
+slot you omit falls back to the template's own designer-picked default —
+including every color** (see each template's `defaults` in `motion.list`). So you
+pass only the slots you want to change and the rest look correct out of the box;
+you never need to spell out every color. (A workspace brand kit, when set,
+overrides the template's default colors; with no brand kit you get the
+template's own palette.) All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay
+(transparent-capable).
 
 **Titles & chapter cards**
 - `creator-card` (4.5s) — full-bleed brand title / chapter card with a live dot. Bold YouTube-creator look. Slots: **headline**, eyebrow, brandColor, inkColor, dotColor.
@@ -1729,6 +1759,17 @@ pandastudio transcript.remove-silences --id=$ID --json
 #     find-replace patches the word text in-place and preserves timing.
 pandastudio transcript.find-replace --id=$ID --find="RightPanda" --replace="WritePanda" --json
 # → returns { replacedCount, wordsPatched }
+#  Matcher caveats:
+#  - Matching is case-insensitive and normalizes BOTH the find phrase and each
+#    transcript word to LETTERS + apostrophes only (digits and punctuation are
+#    ignored on both sides). So `--find="than60"` and `--find="than"` both match
+#    the word "than60"; `--find="graph, crew"` matches "graph crew". You can not
+#    target a pure-number/punctuation token (e.g. "2026" alone) precisely — it
+#    normalizes to empty; include a neighbouring letter-word in the phrase.
+#  - A multi-word `--find` collapses to the FIRST word's slot: that word's text
+#    becomes `--replace`, the other matched words are blanked. The replacement is
+#    the literal `--replace` string, so include any punctuation you want kept
+#    (the original word's trailing comma/period is not auto-preserved).
 
 # 3d. SURGICAL: delete specific words by ID
 pandastudio transcript.delete-words --id=$ID --wordIds='["clip-1:w-42","clip-1:w-43"]' --json
@@ -2172,7 +2213,7 @@ Resolve the destination first (see [HARD-GATE](#editorial-decisions--what-to-ask
 | LUT preset | by content type @ 0.5–0.8 | **`modernVibrant` @ 1.0** | `naturalEnhanced` @ 0.3 | none |
 | Background music | **only if the user asks** (then vol 0.15) | **only if the user asks** (then vol 0.30) | none | none |
 | Captions enabled | yes | **yes (required)** | yes | optional |
-| Caption template | `panda-pop` (tutorial) · `panda-clean` (pro) | **`panda-neon`** + positionY 0.65 | `panda-clean` | `panda-clean` (if any) |
+| Caption template | `bold` (tutorial) · `minimal` (pro) | **`neon`** + positionY 0.65 | `minimal` | `minimal` (if any) |
 | Export quality | `high` | `high` | `high` | `standard` (faster) |
 
 **LUT by content type** (only for `youtube-long` — other profiles use their fixed preset above):
@@ -2194,11 +2235,11 @@ not instead of them. Unlisted styles → fall back to base profile.
 
 | Style | Base profile | Pacing | LUT | Music | Caption template | Motion-graphic cadence + notes |
 |---|---|---|---|---|---|---|
-| **Ali Abdaal** (productivity / book reviews / tutorial long-form) | `youtube-long` | 1 visual change every **3–5s**; aggressive filler + silence removal | `modernVibrant` @ 0.5 | warm ambient / lofi @ 0.15–0.20 | `panda-pop`, positionY 0.85 (below lower-third zone) | Intro title card (3s held) · host lower-third at 0:04–0:09 · 3–4 right-rail concept callouts at emphasis claims · 1 stat-reveal full-frame takeover if the video cites a number · outro card 4–6s hold with "Like & Subscribe" + shimmer on handle |
-| **MKBHD** (tech reviews / product-focused long-form) | `youtube-long` | 1 change every **4–6s** — contemplative, product breathes on screen | `modernVibrant` @ 0.6 OR `cinematicTealOrange` @ 0.5 | upbeat tech-review bed @ 0.20 | `panda-clean` @ positionY 0.82 | Clean intro wordmark (2s) · minimal lower-thirds (1 total, on first product mention) · stat-reveals over product shots use chrome-gradient numbers on dark · outro: product recap card + subscribe |
-| **MrBeast** (stunts / challenges / max-retention) | `youtube-long` | 1 change every **2–3s** — very fast, shorts-like cadence | `warmSunset` @ 0.8 (saturated, warm) | dramatic orchestral bed @ 0.30 | `panda-neon`, **huge** (fontSize ~4.5rem, near the 5.0rem max), color-coded by topic, positionY 0.8 | Big chrome-gradient kinetic-type every ~5s · frequent full-frame stat takeovers with counter tweens · countdown overlays if the video has stakes · outro: "what's next" teaser card, **hold full 6s** |
-| **Veritasium / Kurzgesagt-live** (science / education long-form) | `youtube-long` | 1 change every **5–7s** — contemplative, give diagrams time to read | `naturalEnhanced` @ 0.4 | ambient / orchestral @ 0.12 | `panda-clean` @ positionY 0.85 | Explanatory diagrams as motion graphics (labeled SVGs with `power2.inOut` reveals, `stagger: 0.15` on labels) · chapter dividers with chrome-gradient section titles · one or two hero stat-reveals with counter tweens · outro: citations card + subscribe |
-| **Vox / Johnny Harris** (explainer / essay long-form) | `youtube-long` | 1 change every **4–6s** — narrative-driven | `cinematicTealOrange` @ 0.7 | cinematic bed @ 0.18 | `panda-clean` @ positionY 0.85 | Chapter cards at every act break (bold chrome-gradient section titles) · map / timeline / chart motion graphics · pull-quote callouts in right rail · outro: credits card + next video teaser |
+| **Ali Abdaal** (productivity / book reviews / tutorial long-form) | `youtube-long` | 1 visual change every **3–5s**; aggressive filler + silence removal | `modernVibrant` @ 0.5 | warm ambient / lofi @ 0.15–0.20 | `bold`, positionY 0.85 (below lower-third zone) | Intro title card (3s held) · host lower-third at 0:04–0:09 · 3–4 right-rail concept callouts at emphasis claims · 1 stat-reveal full-frame takeover if the video cites a number · outro card 4–6s hold with "Like & Subscribe" + shimmer on handle |
+| **MKBHD** (tech reviews / product-focused long-form) | `youtube-long` | 1 change every **4–6s** — contemplative, product breathes on screen | `modernVibrant` @ 0.6 OR `cinematicTealOrange` @ 0.5 | upbeat tech-review bed @ 0.20 | `minimal` @ positionY 0.82 | Clean intro wordmark (2s) · minimal lower-thirds (1 total, on first product mention) · stat-reveals over product shots use chrome-gradient numbers on dark · outro: product recap card + subscribe |
+| **MrBeast** (stunts / challenges / max-retention) | `youtube-long` | 1 change every **2–3s** — very fast, shorts-like cadence | `warmSunset` @ 0.8 (saturated, warm) | dramatic orchestral bed @ 0.30 | `neon`, **huge** (fontSize ~4.5rem, near the 5.0rem max), color-coded by topic, positionY 0.8 | Big chrome-gradient kinetic-type every ~5s · frequent full-frame stat takeovers with counter tweens · countdown overlays if the video has stakes · outro: "what's next" teaser card, **hold full 6s** |
+| **Veritasium / Kurzgesagt-live** (science / education long-form) | `youtube-long` | 1 change every **5–7s** — contemplative, give diagrams time to read | `naturalEnhanced` @ 0.4 | ambient / orchestral @ 0.12 | `minimal` @ positionY 0.85 | Explanatory diagrams as motion graphics (labeled SVGs with `power2.inOut` reveals, `stagger: 0.15` on labels) · chapter dividers with chrome-gradient section titles · one or two hero stat-reveals with counter tweens · outro: citations card + subscribe |
+| **Vox / Johnny Harris** (explainer / essay long-form) | `youtube-long` | 1 change every **4–6s** — narrative-driven | `cinematicTealOrange` @ 0.7 | cinematic bed @ 0.18 | `minimal` @ positionY 0.85 | Chapter cards at every act break (bold chrome-gradient section titles) · map / timeline / chart motion graphics · pull-quote callouts in right rail · outro: credits card + next video teaser |
 
 **Rule:** an agent authoring any "style X" edit MUST still follow the 11
 Laws from `reference/motion-philosophy.md`. The style overrides change
@@ -2419,9 +2460,9 @@ fi
 if [ "$PROFILE" != "loom" ]; then
   pandastudio caption.toggle --id=$ID --enabled=true
   TEMPLATE=$(case "$PROFILE" in
-    shorts)       echo "panda-neon";;
-    linkedin)     echo "panda-clean";;
-    youtube-long) echo "panda-pop";;
+    shorts)       echo "neon";;
+    linkedin)     echo "minimal";;
+    youtube-long) echo "bold";;
   esac)
   pandastudio caption.set-template --id=$ID --templateId=$TEMPLATE
 fi
@@ -2514,20 +2555,20 @@ to approve individual steps.
 > I'll edit this as a **YouTube long-form in Ali Abdaal style** — aggressive
 > filler + silence removal, 3–5s pacing, 4 right-rail concept callouts at
 > emphasis claims, 1 stat-reveal takeover, `modernVibrant` LUT at 0.5,
-> warm ambient music at 0.15, `panda-pop` captions at y=0.85, and a 5s
+> warm ambient music at 0.15, `bold` captions at y=0.85, and a 5s
 > outro CTA card. Motion graphics authored against motion-philosophy
 > (chrome-gradient, grid + vignette + grain). Frame-verify before export.
 > ~5 minutes.
 
 > I'll edit this as a **Short** — aggressive pacing (hook in 3s, 6–12
-> zooms/min), `modernVibrant` LUT at full intensity, `panda-neon`
+> zooms/min), `modernVibrant` LUT at full intensity, `neon`
 > captions positioned higher, music at 30%. No intro card or lower
 > thirds — they don't fit the vertical frame. Frame-verify before
 > export. ~2 minutes.
 
 > I'll edit this as a **MrBeast-style YouTube video** — 2–3s pacing
 > (very fast), `warmSunset` LUT at 0.8, dramatic orchestral bed at 0.30,
-> huge color-coded `panda-neon` captions, chrome kinetic-type every 5s,
+> huge color-coded `neon` captions, chrome kinetic-type every 5s,
 > full-frame stat takeovers, 6s outro teaser card. Motion graphics
 > authored against motion-philosophy. Frame-verify before export.
 > ~6 minutes.

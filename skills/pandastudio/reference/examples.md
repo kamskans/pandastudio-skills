@@ -464,7 +464,7 @@ If the user wants the 3D-tilted look and accepts longer build time, go with
   VO to duck under. Fade in 500 ms, fade out 1000 ms.
 - **Captions:** NONE on a pure promo. Typography motion graphics carry the
   narrative. If the user wants captions (e.g., for LinkedIn autoplay-muted),
-  use `panda-neon` positioned at `positionY=0.8` so it never overlaps the
+  use `neon` positioned at `positionY=0.8` so it never overlaps the
   typography cards.
 - **LUT on source UI clips:** `modernVibrant` at intensity 0.5 to match the
   saturated gradient aesthetic of the surrounding motion graphics.
