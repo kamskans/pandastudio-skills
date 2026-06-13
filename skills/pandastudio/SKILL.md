@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.13.0 -->
+<!-- version: 3.14.0 -->
 
 # PandaStudio
 
@@ -1191,9 +1191,12 @@ pandastudio project.add-motion-graphic --id="$PROJECT" --fromJob="$JOB" --durati
   `color` / `list` / `image`), and defaults.
 - **Image slots** — a slot of type `image` takes an **absolute file path** to an
   image; the renderer stages the file into the render. Pass a project-media path
-  or a generated image (e.g. from `media.generate-image`). Example:
-  `--slots='{"photo":"/abs/watch.png","title1":"DEEP","title2":"WATCH"}'` on
-  `vox-side-panel` drops the photo into its card.
+  or a generated image (e.g. from `media.generate-image`). Two templates take an
+  image: **`image-showcase`** (the dedicated one — a screenshot/photo on a
+  3D-tilted card; the go-to for highlighting a product page or app screen in a
+  demo, 16:9 + 9:16) and `vox-side-panel` (a small photo in its specimen card).
+  Example: `--slots='{"image":"/abs/screenshot.png","headline":"Ship faster.","eyebrow":"SEE IT IN ACTION"}'`
+  on `image-showcase`.
 - **`--fromJob` not `--file`** — pass the render `jobId` to the add tool; it
   resolves the path internally (hand-built paths truncate at the space in
   "Application Support" and silently fail).
@@ -1333,6 +1336,7 @@ template's own palette.) All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay
 - `ring-title` (4.5s, 16:9) — a rotating 3D ring of accent-tinted segments over a centered title + eyebrow. Premium 3D intro. Slots: **title**, eyebrow, bgColor, inkColor, accentColor.
 - `vox-marker` (4.5s) — heavy headline reveals word by word, then a highlighter marker sweeps behind one emphasis word and the word flips to read on it. The iconic Vox headline. Slots: eyebrow, **headline**, **emphasisWord**, bgColor, inkColor, accentColor, markInk.
 - `vox-stat` (4.5s) — a big figure pops in with an accent rule, a label, and a "SOURCE:" credit. Vox data callout (real numbers; an alternative look to `stat-reveal`). Slots: eyebrow, **value**, **label**, source, bgColor, inkColor, accentColor.
+- `image-showcase` (6s, 16:9 / **9:16**) — **the dedicated image/screenshot template.** A screenshot or photo floats in on a 3D-tilted card with a soft shadow + glass sheen, beside (16:9) or above (9:16) an optional headline. The go-to for highlighting a product page, app screen, or any image in a demo — tilt-and-present, the common product-video pattern. **Aspect-aware** (render at `--aspectRatio=9:16` and it reflows to caption-on-top, big tilted card below). Pass `--background=transparent` to float the card straight on the host footage. **Featured.** Slots: **image** (abs path), headline, eyebrow, bgColor, inkColor, accentColor.
 - `vox-quote` (5s) — oversized accent quotation mark + quote + attribution (name / role) under an accent rule. Pull-quote / testimonial. Slots: **quote**, name, role, bgColor, inkColor, accentColor.
 - `vox-annotation` (4.5s, 16:9) — a hand-drawn marker circle scribbles around a subject word with a handwritten note + curved arrow. "this is what matters" callout. Slots: **subject**, note, bgColor, inkColor, accentColor.
 - `vox-side-panel` `O` (16:9 / **9:16**) — Vox designed segment: a graph-paper half-panel with a two-line marker title, a taped specimen card, and a monospace spec list; the other half is transparent for the host. **Aspect-aware** — at 16:9 it's a left/right side panel; render at `--aspectRatio=9:16` and it reflows into a top/bottom **band** (marker titles + specs on the left, taped card on the right) for Shorts. Add via `project.add-designed-segment` (16:9: `side` left/right, cameraRatio 50; 9:16: `side` top/bottom, `cameraSide` opposite, cameraRatio 50). Slots: side, **title1**, **title2**, **subject**, spec1, spec2, spec3, paperColor, inkColor, accentColor, accent2Color.
