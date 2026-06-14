@@ -459,9 +459,9 @@ If the user wants the 3D-tilted look and accepts longer build time, go with
 
 **Default audio + captions for this recipe:**
 
-- **Music:** one of the `kinetic-product-drive-*` tracks (bundled — they were
-  generated specifically for this format). Volume `0.5–0.7` because there's no
-  VO to duck under. Fade in 500 ms, fade out 1000 ms.
+- **Music:** the `driving-promo` track (bundled — generated specifically for
+  this format), or `bright-playful` for a lighter, fun promo. Volume `0.5–0.7`
+  because there's no VO to duck under. Fade in 500 ms, fade out 1000 ms.
 - **Captions:** NONE on a pure promo. Typography motion graphics carry the
   narrative. If the user wants captions (e.g., for LinkedIn autoplay-muted),
   use `neon` positioned at `positionY=0.8` so it never overlaps the

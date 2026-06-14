@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.14.0 -->
+<!-- version: 3.15.0 -->
 
 # PandaStudio
 
@@ -1862,26 +1862,28 @@ any project without sourcing external files. Every track carries **`intents`**
 pandastudio asset.list-music --json | jq '.data.tracks'
 ```
 
-**Current library (v2):**
+**Current library (v3):**
 
 | id | category | mood | intents | recommendedFor |
 |---|---|---|---|---|
-| `tech-review-background` | corporate | energetic | tech_review, tutorial, explainer, saas_walkthrough | youtube-long, linkedin |
-| `chill-vlog-ambience` | lofi | calm | vlog, day_in_life, lifestyle, ambient_underscore | youtube-long, shorts |
-| `kinetic-product-drive-a` | electronic | energetic | product_video, kinetic_text, promo, intro, outro, product_reveal, motion_graphics | youtube-long, shorts, linkedin |
-| `kinetic-product-drive-b` | electronic | energetic | product_video, kinetic_text, promo, intro, outro, product_reveal, motion_graphics | youtube-long, shorts, linkedin |
-| `generic-underscore-a` | generic | neutral | generic, background, under_voiceover, default | youtube-long, linkedin, loom |
-| `generic-underscore-b` | generic | neutral | generic, background, under_voiceover, default | youtube-long, linkedin, loom |
+| `driving-promo` | electronic | energetic | product_video, promo, intro, outro, product_reveal, kinetic_text, motion_graphics | youtube-long, shorts, linkedin |
+| `corporate-underscore` | corporate | neutral | generic, background, under_voiceover, explainer, tutorial, saas_walkthrough, default | youtube-long, linkedin, loom |
+| `uplifting-inspirational` | cinematic | uplifting | promo, intro, brand_story, testimonial, explainer, motion_graphics | youtube-long, linkedin, shorts |
+| `chill-lofi` | lofi | calm | vlog, lifestyle, day_in_life, ambient_underscore, background | youtube-long, shorts |
+| `cinematic-build` | cinematic | dramatic | intro, cinematic, reveal, product_reveal, ambient_underscore, motion_graphics | youtube-long, shorts |
+| `bright-playful` | pop | happy | promo, vlog, kinetic_text, social, intro | shorts, youtube-long, linkedin |
 
 **Intent → track selection (use unless the user specifies a track):**
 
-- Product video / product demo / product reveal → `kinetic-product-drive-a` or `-b`
-- Kinetic text / motion graphics / promo → `kinetic-product-drive-a` or `-b`
-- YouTube **intro** or **outro** → `kinetic-product-drive-a` or `-b` (energetic hook; trim to length)
-- Tech review / tutorial / explainer / SaaS walkthrough → `tech-review-background`
-- Vlog / day-in-life / lifestyle → `chill-vlog-ambience`
-- Anything else / don't-know / "just add music" → one of the `generic-underscore-*` tracks
-- **LinkedIn / Loom:** prefer `generic-underscore-*` (neutral, won't distract from message) — never use `kinetic-product-drive-*` on LinkedIn unless the user's brief is explicitly promo/reveal
+- Product video / product demo / product reveal / promo → `driving-promo`
+- Kinetic text / motion graphics / energetic YouTube **intro** or **outro** → `driving-promo` (trim to length)
+- Big cinematic reveal / problem framing / dramatic intro that builds → `cinematic-build`
+- Brand story / testimonial / motivational feature highlight → `uplifting-inspirational`
+- Tech review / tutorial / explainer / SaaS walkthrough / under-voiceover bed → `corporate-underscore`
+- Vlog / day-in-life / lifestyle / behind-the-scenes → `chill-lofi`
+- Fun / lighthearted promo / social clip → `bright-playful`
+- Anything else / don't-know / "just add music" → `corporate-underscore` (neutral default)
+- **LinkedIn / Loom:** prefer `corporate-underscore` (neutral, won't distract from message) — only use `driving-promo` or `bright-playful` when the brief is explicitly promo/reveal/fun
 
 ```bash
 # 2. Pick by intent and add to project (agent-friendly filter)
@@ -2457,7 +2459,7 @@ fi
 if [ "$USER_ASKED_FOR_MUSIC" = "1" ]; then
   VOL=$([ "$PROFILE" = "shorts" ] && echo 0.30 || echo 0.15)
   pandastudio project.add-audio --id=$ID \
-    --path=bundled:music/tech-review-background --volume=$VOL --fadeIn=1000 --fadeOut=2000
+    --path=bundled:music/corporate-underscore --volume=$VOL --fadeIn=1000 --fadeOut=2000
 fi
 
 # 4. ACCESSIBILITY — captions per profile
