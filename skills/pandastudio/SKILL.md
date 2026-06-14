@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.16.0 -->
+<!-- version: 3.17.0 -->
 
 # PandaStudio
 
@@ -2052,6 +2052,10 @@ pandastudio project.set-aspect-ratio --id=$ID --ratio=9:16
 # Apply cinematic style
 pandastudio project.set-style --id=$ID --padding=40 --shadowIntensity=30 \
   --borderRadius=20 --motionBlurAmount=15
+
+# Enlarged custom cursor (screen recordings only — draws a bigger cursor that
+# tracks the captured cursor telemetry). 0 = off, ~1.5 = noticeably bigger.
+pandastudio project.set-style --id=$ID --cursorScale=1.5
 
 # Pick a wallpaper
 pandastudio project.set-wallpaper --id=$ID --wallpaper=gradient-night
