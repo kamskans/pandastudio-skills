@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.17.0 -->
+<!-- version: 3.17.1 -->
 
 # PandaStudio
 
@@ -2030,6 +2030,10 @@ pandastudio project.add-zoom --id=$ID --atMs=5000 --durationMs=1500 \
 # region (Screen-Studio style). Screen recordings only — needs cursor
 # telemetry. focusX/focusY are ignored. Great for walkthroughs where the
 # action moves around the screen.
+# TIP: give follow-cursor zooms at least ~2500ms. There's a ~0.5s zoom-in
+# ramp and a ~1s zoom-out ramp, so anything shorter holds for almost no time
+# and reads as "zoom in then immediately out" — the follow never shows. 2.5-4.5s
+# is the sweet spot.
 pandastudio project.add-zoom --id=$ID --atMs=5000 --durationMs=8000 \
   --depth=3 --followCursor=true
 # Toggle follow on an existing zoom:
