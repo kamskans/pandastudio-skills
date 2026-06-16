@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.17.1 -->
+<!-- version: 3.18.0 -->
 
 # PandaStudio
 
@@ -608,7 +608,7 @@ PandaStudio uploads directly to YouTube via the Google Data API v3 — no PandaS
 
 1. **Gate:** `youtube.is-configured` → if `false`, tell the user this build can't publish and stop (the other verbs will all fail).
 2. **Connect if needed:** `youtube.list-accounts` → if empty, `youtube.connect` (opens the browser for OAuth, up to ~5 min; explicit consent — never on a schedule). Tokens are stored encrypted via `safeStorage`; they never leave the machine.
-3. **Publish an export:** `export.publish-youtube --id=$EID --accountId=… --channelId=… --title=… --description=… --tags='[…]' --privacyStatus=unlisted --setThumbnail=true`. Pull `--title`/`--description` from the export row (`generatedTitle`/`generatedDescription`). Returns `{ videoId, videoUrl }`. Check `export.get` first — if `youtubeVideoId` is already set, it's published.
+3. **Publish an export:** `export.publish-youtube --id=$EID --accountId=… --channelId=… --title=… --description=… --tags='[…]' --privacyStatus=unlisted --setThumbnail=true`. Pull `--title`/`--description` from the export row (`generatedTitle`/`generatedDescription`). Returns `{ videoId, videoUrl }`. Check `export.get` first — if `youtubeVideoId` is already set, it's published. `<` and `>` are stripped from title/description automatically (YouTube rejects them) and the description is clamped to 5000 chars, so you don't need to pre-sanitize.
 4. **List a channel's videos:** `export.list-youtube --accountId=… --max=50`.
 
 **Hard caveats:**
@@ -2051,6 +2051,10 @@ pandastudio project.add-annotation --id=$ID --startMs=2000 --endMs=4000 \
   --type=text --text="Look here →" --x=50 --y=30
 
 # Switch aspect ratio (incl. 9:16 for Shorts)
+# A camera-only project whose source aspect differs from the new ratio is auto
+# cover-cropped (centered) to FILL the frame, so a 16:9 webcam in a 9:16 project
+# no longer letterboxes. (Editor adds face-aware centering on open; the headless
+# crop is centered. Screen recordings keep their letterbox + padding.)
 pandastudio project.set-aspect-ratio --id=$ID --ratio=9:16
 
 # Apply cinematic style
@@ -2066,6 +2070,15 @@ pandastudio project.set-wallpaper --id=$ID --wallpaper=gradient-night
 
 # Reframe the main recording (crop, all values normalized 0-1)
 pandastudio project.set-crop --id=$ID --x=0.1 --y=0.05 --width=0.8 --height=0.9
+
+# Move / scale the main video INSIDE the frame (drag-resize equivalent).
+# Different from set-crop: crop trims source pixels; this repositions and
+# zooms the WHOLE video within the frame. scale>1 zooms in (overflow clipped
+# to the canvas), scale<1 shrinks it so the wallpaper shows around it. x/y
+# shift the center as a fraction of the canvas (0 = centered). Global; preview
+# and export match. Pass --reset (or no x/y/scale) to clear it.
+pandastudio project.set-screen-transform --id=$ID --scale=1.4 --y=-0.05
+pandastudio project.set-screen-transform --id=$ID --reset
 
 # Face centering (auto-reframe). When a clip is cover-cropped — a 9:16 fill or a
 # top/bottom designed-segment band — the crop centers geometrically by default,
