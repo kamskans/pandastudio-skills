@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.20.0 -->
+<!-- version: 3.21.0 -->
 
 # PandaStudio
 
@@ -54,7 +54,8 @@ description: Edit videos in PandaStudio — a desktop video editor for YouTube, 
 > PandaStudio ships a curated set of **YouTube-creator motion-graphic
 > templates** — title cards, lower thirds, stat reveals, checklists,
 > comparisons, a host+panel split, animated-title overlays. They are
-> production-grade and **the primary path** for an agent:
+> production-grade and **the primary path when you are layering graphics OVER
+> existing footage** (see the Mode A / Mode B note below):
 >
 > 1. `motion_list` → see every template, its editable slots, and whether
 >    it's an overlay (sits over the video with alpha).
@@ -68,11 +69,30 @@ description: Edit videos in PandaStudio — a desktop video editor for YouTube, 
 > `slots` + `background`. The full catalog (when to use each, what's
 > editable) is in the **"Motion graphics"** section below.
 >
-> **Only author custom HTML (`motion_render_html`) when no bundled
-> template fits the brief** — a bespoke one-off, an unusual layout, a
-> brand-specific 3D treatment. That path is documented under "Custom
-> motion graphics — HTML authoring"; load
-> `reference/motion-philosophy.md` before authoring.
+> **Templates-first vs. custom depends on whether there's footage underneath:**
+>
+> - **Mode A — graphics layered OVER existing footage** (lower thirds, stat
+>   callouts, side panels, captions on a talking-head or screen recording):
+>   bundled templates are the default. Fast, on-brand, composite cleanly over the
+>   host. All the "templates first" guidance applies here.
+> - **Mode B — a video built FROM SCRATCH where the motion graphics ARE the video**
+>   (promo, explainer, intro/outro, product teaser, CTA piece — anything with NO
+>   source clip on the main track): **default to fully custom, hand-authored
+>   scenes via `motion_render_html`, NOT bundled templates.** In from-scratch work
+>   templates read as generic and "templated" — exactly the wrong feel for a
+>   hero/marketing asset, which is usually the most visible, brand-defining thing
+>   the user makes. Author each scene from the canonical shell in
+>   `reference/motion-philosophy.md`. Templates are still fine as *building blocks*
+>   inside an otherwise-custom piece (e.g. a transition between custom scenes) —
+>   just not the backbone. Reach for templates as the backbone of from-scratch
+>   work ONLY for a deliberately quick draft or when the user explicitly asks for
+>   speed over bespoke; if you do, SAY you're using templates for speed and offer
+>   the custom version.
+>
+> For Mode A, author custom HTML (`motion_render_html`) only when no bundled
+> template fits the brief — a bespoke one-off, an unusual layout, a brand-specific
+> 3D treatment. That path is documented under "Custom motion graphics — HTML
+> authoring"; load `reference/motion-philosophy.md` before authoring.
 
 > ## Video templates (storyboards): a whole video, not one overlay
 >
@@ -779,7 +799,20 @@ The profile is the source of truth for every default below. See the [Video editi
 **3. Brand / style direction.** If the user named a style ("MrBeast" / "MKBHD" / "Vox" / "Kurzgesagt" / "Veritasium" / "Linear" / "Infinite"), first see whether a bundled template fits and set its colors via `slots` (most accept brand / ink / accent colors). Only when no template matches the named look, author custom HTML — translate their palette, typography, and motion vocabulary into a composition built against [`reference/motion-philosophy.md`](reference/motion-philosophy.md) §1. If they gave no style reference AND there are multiple source clips that suggest a brand context, ASK ONE QUESTION:
    > "Any brand colors, fonts, or visual references — or default look?"
 
-If all three are clear (or already specified), proceed without asking. Combine multiple asks into a single message when possible.
+**4. Templated vs. custom for a from-scratch video.** When the brief is a video
+built FROM SCRATCH where the motion graphics ARE the whole video (promo,
+explainer, intro/outro, product teaser, CTA piece — no source clip on the main
+track), do NOT silently reach for bundled templates: they read as generic for a
+hero/marketing asset. Ask once up front:
+   > "Templated quick version, or fully custom? For a promo I'd default to fully custom scenes — they look bespoke, not templated."
+
+   If they don't care, **default to fully custom** (`motion.render-html`, scenes
+   authored from `reference/motion-philosophy.md`). Only use templates as the
+   backbone here if they explicitly choose speed — and say so. (This question does
+   NOT apply to Mode A — graphics layered over existing footage — where templates
+   stay the default and you should not ask.)
+
+If these are clear (or already specified), proceed without asking. Combine multiple asks into a single message when possible.
 </HARD-GATE>
 
 ### DO BY DEFAULT, narrate transparently
