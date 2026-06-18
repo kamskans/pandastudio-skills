@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.19.0 -->
+<!-- version: 3.20.0 -->
 
 # PandaStudio
 
@@ -1355,7 +1355,26 @@ pandastudio project.add-clip-transform-region --id=$PROJECT \
   --startMs=61000 --endMs=66000 --preset=layout-guest-full --json
 ```
 
-`layout-*` presets: `layout-side-by-side` (both, side by side / stacked), `layout-podcast` (two co-equal tiles), `layout-host-full` (speaker 1 / mediaPath only), `layout-guest-full` (speaker 2 / webcamPath only). Outside any region the clip uses its natural layout (the project preset or per-clip override from `project.set-clip-layout`). Speaker-driven flow: read `transcript.get` speaker tags, then drop a `layout-host-full`/`layout-guest-full` region over each span where you want to cut to whoever is talking. Edit/remove via `project.update-region` / `project.remove-region` with `regionType=clip-transform` (above).
+`layout-*` presets: `layout-side-by-side` (both, side by side / stacked), `layout-podcast` (two co-equal tiles), `layout-host-full` (speaker 1 / mediaPath only), `layout-guest-full` (speaker 2 / webcamPath only). Outside any region the clip uses its natural layout (the project preset or per-clip override from `project.set-clip-layout`). Edit/remove via `project.update-region` / `project.remove-region` with `regionType=clip-transform` (above).
+
+**Multi-party (host + up to 3 guests) — pick WHICH participants with the participant-aware presets.** The `layout-*` presets above are 2-person only (host=speaker 1, guest=speaker 2). For 3-4 participants, use the participant-aware family + a `--participants` list of speaker ids (`host`, `guest`, `guest-2`, `guest-3` — read them from `transcript.get` / `project.read` clip participants):
+
+```bash
+# Solo — feature just one chosen participant full-frame (e.g. the 2nd guest)
+pandastudio project.add-clip-transform-region --id=$PROJECT \
+  --startMs=30000 --endMs=45000 --preset=podcast-solo --participants='["guest-2"]' --json
+# Pair — two participants side by side (ordered left → right)
+pandastudio project.add-clip-transform-region --id=$PROJECT \
+  --startMs=46000 --endMs=60000 --preset=podcast-pair --participants='["host","guest-3"]' --json
+# Grid — everyone (omit --participants) or a chosen subset
+pandastudio project.add-clip-transform-region --id=$PROJECT \
+  --startMs=0 --endMs=30000 --preset=podcast-grid --json
+# Screen share — the shared screen + a strip of participants
+pandastudio project.add-clip-transform-region --id=$PROJECT \
+  --startMs=61000 --endMs=120000 --preset=podcast-screen-share --json
+```
+
+Presets: `podcast-solo` (participants[0] full-frame), `podcast-pair` (participants[0]=left, [1]=right), `podcast-grid` (auto grid — 2 side-by-side / 3 three-up / 4 2×2; the chosen subset or everyone), `podcast-screen-share` (shared screen + participant strip). Selections are validated against the clip's real participants; a stale id (a guest who wasn't in the call) is dropped. Speaker-driven flow: read `transcript.get` speaker tags, then drop a `podcast-solo --participants=[whoever is talking]` region over each span.
 
 > **`layout-*` is PODCAST-ONLY.** These presets only do anything on a clip with `kind === "podcast"` (a clip carrying BOTH a host and a guest source). On a normal screen/camera/upload clip there is no second speaker, so a `layout-*` region is a no-op — use the `cam-*` presets there. Confirm `kind` via `project.read` before placing a `layout-*` region.
 
