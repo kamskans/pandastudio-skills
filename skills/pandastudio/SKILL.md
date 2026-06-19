@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.21.0 -->
+<!-- version: 3.23.0 -->
 
 # PandaStudio
 
@@ -1834,6 +1834,11 @@ pandastudio transcript.delete-words --id=$ID --wordIds='["clip-1:w-42","clip-1:w
 WORDS=$(pandastudio transcript.search --id=$ID --query="this is a test" --json \
   | jq -c '[.data.matches[].wordIds | .[]]')
 pandastudio transcript.delete-words --id=$ID --wordIds="$WORDS" --json
+
+# 3f. RESTORE previously deleted words (undo a delete / filler / repeat removal).
+#     Removes the trim region(s) covering those words; silence trims are left
+#     untouched. Mirrors the editor's right-click → Restore on struck-through words.
+pandastudio transcript.restore-words --id=$ID --wordIds='["clip-1:w-42","clip-1:w-43"]' --json
 ```
 
 Every deletion translates internally into a **trim region** the export pipeline skips. It's identical to clicking the word in the editor's transcript pane and hitting delete.
@@ -2242,10 +2247,17 @@ design, so it never lands in shell history). If a verb returns "No Replicate API
 key set", tell the user to add one rather than looping.
 
 **Verbs:**
-- `export.generate-thumbnail --id=$EID` — local LLM writes a prompt from the
-  transcript → gpt-image-2 (3:2 WebP). Add `--prompt="…"` for control, or
-  `--referenceImagePath=…` to anchor on a face/logo. (Needs the export in the
-  library + a transcript.)
+- `export.generate-thumbnail --id=$EID` — gpt-image-2 (3:2). Two ways to drive it:
+  - **Controlled (preferred):** `--subject="a phone showing a first $79 Stripe sale"`
+    `--hook="FIRST SALE"` `--reaction=excitement` `--layout=reaction-split`. The
+    prompt is assembled deterministically — no transcript/LLM needed. `reaction` ∈
+    {excitement (default), shock, delight, awe, curiosity, pride, determination,
+    relief}; `layout` ∈ {reaction-split (default), subject-hero, before-after,
+    big-face, product-only, versus}. `product-only`/`versus` ignore the person.
+  - **Auto:** omit subject/hook and the local LLM suggests the brief from the
+    transcript (needs a transcript).
+  - `--prompt="…"` overrides everything with a verbatim prompt. `--referenceImagePath=…`
+    is the person's face (passed as input_images; skipped for person-less layouts).
 - `export.edit-thumbnail --id=$EID --editPrompt="…"` — chat-style refine; **one
   change per call** (runs at `low` quality). Each edit is reverable.
 - `export.set-thumbnail --id=$EID --sourcePath=…` — use a user-supplied file
