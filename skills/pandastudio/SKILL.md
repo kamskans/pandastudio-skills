@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.24.0 -->
+<!-- version: 3.25.0 -->
 
 # PandaStudio
 
@@ -1703,6 +1703,38 @@ pandastudio project.add-fx --id=$PROJECT \
 > `--speed` is most useful on `film-burn` (bump to 1.5–2 for a faster churn) and
 > the particle FX. Keep opacity restrained — a texture you *notice* is usually
 > too strong.
+
+## Narration / voiceover (Replicate TTS)
+
+Generate a voiceover for promos and explainers using the user's own Replicate
+key — no microphone needed. Three models; ElevenLabs v3 is the default and most
+expressive.
+
+### The verb
+
+```bash
+RES=$(pandastudio media.generate-narration \
+  --text="Meet PandaStudio. [excited] Edit your videos just by talking to Claude." \
+  --model=elevenlabs-v3 \
+  --json)
+AUDIO=$(echo "$RES" | jq -r '.data.audioPath')
+DUR=$(echo "$RES" | jq -r '.data.durationMs')
+
+# Place it on the timeline (startMs positions it; pass the returned durationMs)
+pandastudio project.add-audio --id="$PID" --path="$AUDIO" --startMs=0 --durationMs=$DUR
+```
+
+- **Models:** `elevenlabs-v3` (default — embed inline delivery tags in the text
+  like `[excited]`, `[whispers]`, `[sighs]`), `gemini-flash-tts` (30 voices,
+  strong multilingual; `--style` sets the tone), `minimax-turbo` (fast;
+  `--style` maps to an emotion, `--speed` 0.5-2).
+- **Voices:** omit `--voice` for the model default. Examples — gemini:
+  `Kore` / `Puck` / `Charon`; minimax: `Friendly_Person` / `Wise_Woman`.
+- **Canonical promo loop:** write the script → `media.generate-narration` →
+  `project.add-audio` at `startMs` with the returned `durationMs` → time your
+  motion graphics / B-roll to the voice.
+- **Requires a Replicate API key** (Settings → Integrations — same key as image
+  gen). If absent, the verb returns a clear error; surface it, don't loop.
 
 ## B-roll generation (Replicate gpt-image-2)
 
