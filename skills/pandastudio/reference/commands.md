@@ -70,10 +70,10 @@ Motion-graphic templates (title cards, lower thirds, end screens, etc.) with opt
 
 | Command | Args | Purpose |
 |---|---|---|
-| `motion.list` | — | Every template: `{ id, name, slots, defaults, aspectRatios, durationMs, fileUrl }`. |
+| `motion.list` | — | Returns `{ templates, registryBlocks }`. `templates`: slot-parameterized templates `{ id, name, slots, defaults, aspectRatios, durationMs, fileUrl }` (render with `motion.generate`). `registryBlocks`: standalone Hyperframes blocks `{ name, kind, title, tags, durationMs, dimensions, htmlPath }` (render the `htmlPath` with `motion.render-html`; no slots). |
 | `motion.themes` | — | Every style pack: `{ id, name, swatch, colors }`. |
 | `motion.generate` | `templateId` (string, required), `slots` (object, required), `aspectRatio` (`16:9` \| `9:16` \| `1:1`), `outputName` (string) | **Async.** Returns `{ jobId, outputPath }`. Poll `job.get` or block on `job.wait`. |
-| `motion.render-html` | `html` OR `htmlPath` (one required), `aspectRatio` (`16:9`/`9:16`/`1:1`) or explicit `width`+`height`, `durationMs` (default 2500), `frameRate` (default 30), `outputName` | **Async.** Render arbitrary HTML/CSS/JS to MP4 — escape hatch when the 19 bundled templates don't fit. Returns `{ jobId, outputPath }`. |
+| `motion.render-html` | `html` OR `htmlPath` (one required), `aspectRatio` (`16:9`/`9:16`/`1:1`) or explicit `width`+`height`, `durationMs` (default 2500), `frameRate` (default 30), `outputName` | **Async.** Render arbitrary HTML/CSS/JS to MP4 — for custom scenes, and for rendering a `registryBlocks` block by its `htmlPath` (from `motion.list`). Returns `{ jobId, outputPath }`. |
 
 Theme application: pull `motion.themes`, find the theme the user wants, merge `theme.colors` into `slots` before sending. The backend doesn't know about themes — they're a pre-render layer.
 

@@ -1,6 +1,6 @@
 # Motion-graphic templates
 
-PandaStudio ships with 19 bundled templates. The canonical, version-accurate list (with the slot schema for each) is:
+PandaStudio ships with ~48 bundled templates: our designed set (below) plus ~15 curated Hyperframes registry blocks (data-viz, social cards, code, VFX, branding — see the registry section near the end). The canonical, version-accurate list (with the slot schema for each) is:
 
 ```bash
 pandastudio motion.list --json
@@ -8,7 +8,7 @@ pandastudio motion.list --json
 
 Always discover; never hard-code. This file is a snapshot for offline reading.
 
-## All 19 templates
+## Core designed templates
 
 | id | name | aspects | slots |
 |---|---|---|---|
@@ -90,4 +90,6 @@ HP=$(pandastudio motion.list --json | jq -r '.data.registryBlocks[] | select(.na
 JOB=$(pandastudio motion.render-html --htmlPath="$HP" --durationMs=4000 --json | jq -r '.data.jobId')
 ```
 
-Caveats: they render via `motion.render-html` (not `motion.generate`), have no slots (change text by editing the HTML), and obey the same engine contract as everything else (see [motion-philosophy.md](./motion-philosophy.md)). They are bundled for the agent-render path and are not (yet) in the editor's click-to-pick template UI.
+Caveats: they render via `motion.render-html` (not `motion.generate`), have no slots (change text by editing the HTML), and obey the same engine contract as everything else (see [motion-philosophy.md](./motion-philosophy.md)).
+
+**13 of these are now curated into the editor's click-to-pick grid** (also via `motion.list` `templates` + `motion.generate`), as fixed compositions: data-viz (`data-chart`, `flowchart-vertical`), social cards (`x-post`, `reddit-post`, `spotify-card`, `macos-notification`, `instagram-follow`, `tiktok-follow`), code (`code-typing`, `code-diff`), VFX (`vfx-shatter`, `vfx-portal`), and `logo-outro`. (Registry `flowchart` and `yt-lower-third` are NOT curated — we already ship our own slot-driven versions.) They have **no editable slots** — the blocks hard-code their styling (their registry `params` are declarative metadata the HTML doesn't consume via `var()`), so they render as-designed; change content by editing the HTML or via a future per-block slot-wiring pass. The remaining registry blocks stay agent-only via `motion.render-html`.
