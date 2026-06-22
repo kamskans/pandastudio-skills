@@ -269,6 +269,22 @@ frames.
    reported `duration()` is exactly `SLOT`, regardless of what other tweens
    exist.
 
+   > **Why this is non-negotiable on our engine (verified against bundled
+   > `@hyperframes/[email protected]`).** The 0.6.53 runtime resolves an inline
+   > composition's effective duration as `Math.min(data-duration,
+   > timeline.duration())`. So a timeline SHORTER than `data-duration` collapses
+   > the scene to the timeline length — the rest of the slot truncates (early
+   > cut / black tail), exactly the bug this rule prevents. **Upstream Hyperframes
+   > has since changed this** (newer engines take duration purely from
+   > `data-duration` and HOLD the final frame, making the anchor optional and
+   > even lint-flagged). That newer behavior does NOT apply to us until we bump
+   > the bundled engine — so on 0.6.53 the anchor stays mandatory. If you ever
+   > upgrade `@hyperframes/*`, re-verify this `min()` rule before relaxing the
+   > anchor. Same reason our repeat formula uses `ceil` (§Rule 3): with the
+   > anchor present the slot length is fixed, so a slightly-overshooting last
+   > cycle is harmless; upstream's `floor` exists only to satisfy a CLI lint
+   > (`gsap_repeat_ceil_overshoot`) we don't run.
+
 2. **Determinism is absolute.** No `Math.random()`, `Date.now()`,
    `performance.now()`, `setInterval`, `setTimeout`, async/await, or
    Promise-driven side effects in the render body. HyperFrames seeks
@@ -312,6 +328,26 @@ frames.
     unwanted extra break and overlap. Use `max-width` and let it wrap.
     Exception: short display titles where each word is deliberately on its own
     line ("THE / IMMORTAL / GAME" at 130px).
+
+12. **Prefer `gsap.fromTo()` over `gsap.from()` inside any seeked scene.** The
+    engine seeks the timeline non-linearly (frame-by-frame, including backward).
+    `gsap.from()` records the element's *current* value as the end state on
+    first render — if the playhead is seeked back before that tween, GSAP can
+    "resurrect" a stale value and the element flickers or lands wrong. `fromTo()`
+    states both endpoints explicitly, so it's seek-stable. Use `from()` only for
+    one-shot top-level entrances you're sure are never seeked before; use
+    `fromTo()` everywhere inside sub-compositions.
+
+13. **One transform tween per element, ever.** Rule 8 generalized: never put two
+    concurrent tweens that both touch transform (`x`/`y`/`scale`/`rotation`) on
+    the same element, even from the same timeline — GSAP composes them onto one
+    matrix and they fight. Combine into a single tween, or animate a wrapper
+    element for the second motion.
+
+14. **Transforms are a no-op on inline elements.** `x`/`y`/`scale`/`rotation`
+    silently do nothing on an inline `<span>` or auto-width element. Give any
+    transformed element `display: inline-block` / `block` (or a width) so the
+    transform applies. Common trap with per-word kinetic typography.
 
 ---
 
@@ -373,6 +409,67 @@ tl.to("#s1-subtitle", { opacity: 0, duration: 0.3 }, 6.7);
 
 ---
 
+## Composition contract — engine internals
+
+Most of our renders are single standalone scenes (one root, one timeline) and
+never touch this. Reach for it when you build ONE composition with multiple
+timed clips, or split a scene into sub-composition files. All of the below is
+verified against the bundled `@hyperframes/[email protected]` runtime.
+
+### Tracks and clips (timed children of one composition)
+
+A clip is any element that should appear and disappear at a specific time
+within a single composition.
+
+- **Mark it `class="clip"`** (omit on `<video>`/`<audio>` — media is handled
+  separately). Without `class="clip"`, the element stays visible for the whole
+  composition, ignoring its timing.
+- **Time it with `data-start` (seconds) + `data-duration` (seconds).** A clip is
+  visible on `[data-start, data-start + data-duration]`.
+- **`data-track-index` is TEMPORAL, not visual.** Clips on the same track must
+  NOT overlap in time (the runtime treats a track as a serial lane; overlap is
+  undefined). Visual stacking is plain CSS `z-index` — not the track index.
+  (`data-layer` is the old name for this attribute and is gone in 0.6.53; emit
+  `data-track-index`.)
+- **Clips must be DIRECT children of the composition root.** Wrapping them in a
+  layout `<div>` breaks timing discovery.
+- **Relative timing:** `data-start="intro + 2"` references another clip by id
+  (start 2s after the `intro` clip). Useful for crossfade overlaps. No cycles.
+
+### Sub-compositions (splitting a scene into its own file/element)
+
+- The host slot carries `data-composition-src` (or `data-composition-file`) and
+  its OWN `data-width`/`data-height`. Pass values in with `data-variable-values`.
+- A sub-composition file's root MUST be wrapped in
+  `<template id="<composition-id>-template">` — the runtime clones the
+  `<template>` contents by that exact id. **Anything in `<head>` is discarded;**
+  put every `<style>`, `<script>`, and bit of markup INSIDE the `<template>`.
+- The host's `data-composition-id`, the sub-comp's internal root
+  `data-composition-id`, and its `window.__timelines[...]` key must all be the
+  SAME string (no `-mount`/`-slot` suffix; the `-template` suffix is only on the
+  `<template>` element's `id`).
+- **Don't `master.add(childTimeline)` by hand.** The framework auto-nests
+  registered sub-timelines; manually adding them double-seeks and desyncs.
+
+### Variables
+
+Declare `data-composition-variables` on `<html>` (typed) and read them at
+runtime with `window.__hyperframes.getVariables()`. This is how a single
+template renders with different text/numbers per use without editing the HTML —
+relevant if we ever parameterize a bundled template instead of string-replacing.
+
+### Media placement (the black-frame trap)
+
+- **A `<video>`/`<audio>` must be a DIRECT child of its host composition root.**
+  Nested inside a wrapper `<div>` or a sub-comp `<template>`, it renders black.
+- **A sub-composition cannot drive host media.** Animate media on the main
+  timeline at global time.
+- **Fades animate the `volume` property on the timeline** (not a CSS opacity on
+  the media element). Trim the source in with `data-media-start`. (`data-has-audio`
+  is a newer-engine attribute — NOT in 0.6.53, don't emit it.)
+
+---
+
 ## Animation guardrails
 
 Aesthetic guidance, not law. Break them when the brand or brief justifies it,
@@ -393,6 +490,26 @@ but justify it.
   thumbnail.
 - **`font-variant-numeric: tabular-nums`** on number columns and any animating
   count-up so digits don't jitter horizontally.
+- **Entrances longer than exits, eases mirrored.** An element should arrive
+  slower than it leaves (e.g. 0.5s in / 0.3s out) — arrivals invite the eye,
+  exits get out of the way. And the direction matters: `ease: "*.out"` for
+  entrances (decelerate into rest), `ease: "*.in"` for exits (accelerate away).
+  Getting these backwards is the single most common motion tell. See
+  [easing.md](./easing.md).
+- **Speed encodes weight.** Pick duration by the feeling, not a habit:
+  0.15–0.3s = urgent/snappy, 0.3–0.5s = professional default, 0.5–0.8s =
+  weight/gravity, 0.8–2s = cinematic. Within a scene, the slowest beat should be
+  ~3× the fastest — uniform timing reads as mechanical.
+- **Stagger by importance, and keep it tight.** When revealing N items, the
+  whole stagger should resolve in under ~500ms regardless of N (longer and the
+  viewer waits). Order the reveal by importance, not DOM order. Prefer GSAP's
+  built-in `stagger: { each: 0.06, from: "center" }` over N hand-delayed tweens —
+  it's one tween, seek-stable, and `from: "center" | "edges" | "end"` gives the
+  reveal a shape.
+- **Every scene has a build / breathe / resolve arc.** Roughly: first ~30% of
+  the slot brings elements in, the middle ~40% holds with micro-motion (the
+  "breathe" — see below), the last ~30% sets up the exit/transition. A scene
+  that's all entrance feels rushed; one that's all hold feels dead.
 
 ### Pacing
 

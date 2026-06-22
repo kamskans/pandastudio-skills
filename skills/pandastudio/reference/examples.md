@@ -1353,3 +1353,73 @@ controlled by `--durationMs` on `motion.render-html`.
 </body></html>
 ```
 
+---
+
+## Transition & kinetic-text techniques (ported from Hyperframes animation skill)
+
+Three brand-neutral motion techniques worth reaching for. All obey the engine
+contract (paused timeline, anchor for 0.6.53, no infinite repeats).
+
+### Velocity-matched transition (two scenes read as one camera move)
+
+Use on the single-combined-render path when you want the seam between two
+scenes to feel like one continuous push, not two animations. The outgoing
+element ACCELERATES out (`power.in` + motion blur), the incoming element
+DECELERATES in (`power.out` + motion blur) — velocities match at the cut.
+
+```js
+// Scene A exits accelerating + blurring (note .in ease on the exit).
+tl.to("#a-content", { x: -160, filter: "blur(14px)", opacity: 0,
+                      duration: 0.32, ease: "power3.in" }, 6.0);
+// Scene B enters decelerating, blur resolving — starts slightly BEFORE A finishes.
+tl.fromTo("#b-content",
+  { x: 200, filter: "blur(14px)", opacity: 0 },
+  { x: 0, filter: "blur(0px)", opacity: 1, duration: 0.5, ease: "power3.out" },
+  6.18);
+```
+
+The 0.18s overlap is what fuses them. Keep blur ≤16px (H.264 smears more).
+
+### Clip-path reveal mask (content slides through a fixed window)
+
+A static window stays put; content moves behind it. Reads far more designed
+than a fade. Iris and wipe variants are one `clipPath` change.
+
+```css
+.mask { clip-path: inset(0 0 0 0); overflow: hidden; }      /* full window */
+```
+```js
+// Wipe reveal: clip-path opens left→right.
+tl.fromTo(".mask",
+  { clipPath: "inset(0 100% 0 0)" },          /* fully clipped from the right */
+  { clipPath: "inset(0 0% 0 0)", duration: 0.7, ease: "power3.inOut" }, 0.2);
+
+// Iris reveal: swap the inset for a circle().
+tl.fromTo(".mask",
+  { clipPath: "circle(0% at 50% 50%)" },
+  { clipPath: "circle(75% at 50% 50%)", duration: 0.8, ease: "expo.out" }, 0.2);
+```
+
+### Per-word kinetic typography with decaying slide
+
+Each word slides up into place, and the slide distance DECAYS word-to-word
+(80px → 12px) so the line reads like a camera settling rather than a uniform
+march. Remember Rule 14: the word spans must be `display: inline-block` or the
+transform is a no-op.
+
+```html
+<h1 class="kin"><span>Talk</span> <span>don't</span> <span>type</span></h1>
+```
+```css
+.kin span { display: inline-block; }
+```
+```js
+const words = gsap.utils.toArray(".kin span");
+words.forEach((w, i) => {
+  const dist = Math.max(12, 80 - i * 18);     // decaying slide distance
+  tl.fromTo(w, { y: dist, opacity: 0 },
+               { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" },
+            0.15 + i * 0.08);                  // tight stagger, resolves <500ms
+});
+```
+

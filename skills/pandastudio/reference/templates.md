@@ -74,3 +74,20 @@ pandastudio motion.list --json | \
 ## When none of the 19 fit
 
 Use `motion.render-html` to render arbitrary HTML/CSS/JS — same Chromium-based pipeline, no slot machinery. Pass `--html` (inline) or `--htmlPath` plus dimensions / `aspectRatio` / `durationMs` / `frameRate`, get back an MP4 you can `project.add-motion-graphic` straight onto the timeline.
+
+## Hyperframes registry blocks (captions, transitions, data-viz, social cards, …)
+
+Beyond the slot templates above, `motion.list` also returns a **`registryBlocks`** array — ~110 standalone motion-graphic compositions bundled from the HeyGen Hyperframes registry (Apache-2.0). They cover categories the slot templates don't: a deep **animated-caption** family (karaoke, neon, RGB-glitch, matrix-decode, kinetic-slam, …), **shader transitions** (whip-pan, glitch, light-leak, iris, ripple), **data-viz** (data-chart, flowchart), **social cards** (x-post, reddit-post, spotify-card), **code themes** (typing, diff, 3D-extrude), and generic **VFX**.
+
+These are NOT slot-parameterized — render the block's `htmlPath` directly with `motion.render-html`, and edit the HTML if you need different text/colors:
+
+```bash
+# Discover registry blocks (name, kind, tags, durationMs, dimensions, htmlPath)
+pandastudio motion.list --json | jq '.data.registryBlocks[] | {name, tags, durationMs}'
+
+# Find an animated-caption block, then render it
+HP=$(pandastudio motion.list --json | jq -r '.data.registryBlocks[] | select(.name=="caption-kinetic-slam") | .htmlPath')
+JOB=$(pandastudio motion.render-html --htmlPath="$HP" --durationMs=4000 --json | jq -r '.data.jobId')
+```
+
+Caveats: they render via `motion.render-html` (not `motion.generate`), have no slots (change text by editing the HTML), and obey the same engine contract as everything else (see [motion-philosophy.md](./motion-philosophy.md)). They are bundled for the agent-render path and are not (yet) in the editor's click-to-pick template UI.

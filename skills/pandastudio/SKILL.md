@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.25.0 -->
+<!-- version: 3.27.0 -->
 
 # PandaStudio
 
@@ -58,7 +58,11 @@ description: Edit videos in PandaStudio — a desktop video editor for YouTube, 
 > existing footage** (see the Mode A / Mode B note below):
 >
 > 1. `motion_list` → see every template, its editable slots, and whether
->    it's an overlay (sits over the video with alpha).
+>    it's an overlay (sits over the video with alpha). It also returns
+>    `registryBlocks` — ~110 standalone Hyperframes compositions (animated
+>    captions, shader transitions, data-viz, social cards, code themes, VFX)
+>    that have no slots; render a block's `htmlPath` with `motion_render_html`.
+>    See `reference/templates.md` §"Hyperframes registry blocks".
 > 2. `motion_generate { templateId, slots, background }` → render it with
 >    your own text/colors. Returns a `jobId`.
 > 3. `job_wait` → then `project_add_motion_graphic { fromJob }` (or
