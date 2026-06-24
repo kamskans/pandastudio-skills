@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.28.0 -->
+<!-- version: 3.28.1 -->
 
 # PandaStudio
 
@@ -244,6 +244,25 @@ pandastudio workspace.switch --id=$TARGET_WS --json
 # Then re-run any pre-flight that depends on workspace state
 # (license check, youtube account list, replicate key check)
 ```
+
+### Project-look defaults (v1.49.1+)
+
+Save a workspace's preferred **look** once so every NEW project and fresh recording starts from it — the user doesn't re-pick a background / caption style each time. Per-workspace. Covers background (`wallpaper`), `captionSettings`, and editor `editorDefaults` (padding, shadow, corner radius, blur). The editor also exposes this as a "Save as default for new projects" button.
+
+```bash
+# Read the current defaults (null = none set)
+pandastudio workspace.get-project-defaults --json
+
+# Set them — pass any subset; unknown fields are dropped.
+pandastudio workspace.set-project-defaults \
+  --defaults='{"wallpaper":"/wallpapers/wallpaper5.jpg","captionSettings":{"enabled":true,"templateId":"editorial"},"editorDefaults":{"padding":18,"borderRadius":8}}' \
+  --json
+
+# Clear them
+pandastudio workspace.set-project-defaults --defaults=null --json
+```
+
+Use when the user says things like "use this background for all my videos" or "always start new projects with these captions". Applies to projects/recordings created AFTER it's set — it doesn't retro-edit existing projects.
 
 ## Organising projects with folders (v1.26.9+)
 
