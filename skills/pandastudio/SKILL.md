@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.28.1 -->
+<!-- version: 3.32.0 -->
 
 # PandaStudio
 
@@ -1050,6 +1050,34 @@ you: which verb, in what order, and the non-obvious gotchas.
   `--soundUrl=none` to silence), `add-motion-graphic` (default mouse-click SFX
   as of v1.36.0), `add-fx` (13 bundled FX overlays — film-burn, light-leak, light-flare, lens-flare-sweep, light-streaks, bokeh-drift, prism-leak, dust-scratches, film-grain, vhs-static, embers, snow-drift, film-flash; `--speed=0.25–4` adjusts loop speed, default 1; see the "Effects (FX) & transitions" section for when to reach for each), `set-region-sound` (retune/clear a placed region's
   SFX). Arg values: discovery (`asset.list-fx`).
+- **Spotlight / blur (v1.50.0):** `add-spotlight --atMs=<ms> --durationMs=<ms>
+  [--kind=spotlight|blur]` — a focus rect over the video. `kind=spotlight`
+  (default) DIMS everything outside the rect (draw the eye to one spot);
+  `kind=blur` BLURS everything inside it (hide an email, username, or other
+  sensitive detail in a screen recording). Rect placement is `--x --y --width
+  --height` as 0..1 fractions of the video (default a centred half-size box,
+  `x=y=0.25 width=height=0.5`). `--roundness` (px corner radius, default 16),
+  `--feathering` (px soft edge, default 12). Spotlight: `--maskOpacity` 0..1
+  (surround darkness, default 0.6). Blur: `--blurAmount` px (default 12). The
+  rect tracks content through zooms. `atMs` is EDITED time (no anchor arg).
+  Edit or delete after placing (v1.85.0): `update-spotlight --regionId=<id>
+  [--startMs --endMs --kind --x --y --width --height --roundness --feathering
+  --maskOpacity --blurAmount]` patches only the fields you pass (move/resize,
+  retime, restyle, or flip spotlight<->blur); `remove-spotlight --regionId=<id>`
+  deletes it. Get ids from `project.read` under `editor.spotlightRegions[].id`.
+- **See a frame to place it (v1.85.0):** `render-frame --atMs=<ms> [--outPath=<png>]`
+  composites the preview frame at that edited-time to a PNG and returns
+  `{ path, width, height, timeMs, maskRect }`. A vision model should `read` the
+  returned `path` to LOCATE on-screen text/UI (e.g. the email to blur), then place
+  a focus region. `maskRect` is the video content rect as 0..1 fractions of the
+  image — the SAME space as spotlight/blur x/y/width/height. Convert an image-space
+  box (ix,iy,iw,ih) to region coords: `x=(ix-maskRect.x)/maskRect.width`,
+  `y=(iy-maskRect.y)/maskRect.height`, `width=iw/maskRect.width`,
+  `height=ih/maskRect.height`. Typical privacy-blur flow: `render-frame` →
+  read PNG → locate text → `add-spotlight --kind=blur` with converted coords →
+  `render-frame` again to verify → `export.start`. Caveats: existing focus
+  regions are NOT drawn (you see content clearly); the frame reflects any active
+  zoom at that time, so prefer an un-zoomed moment for placement.
 - **Transitions (v2.98.0):** `add-transition --transitionId=<id> --atMs=<cutMs>` —
   places a scene-change overlay CENTERED on a cut (the opaque peak masks the
   join). Pass `atMs` = the cut time between two clips (from `project.read` clip
@@ -2261,9 +2289,8 @@ pandastudio project.update-region --id=$ID \
 # regionType: zoom | trim | speed | annotation | fx | overlay | audio-overlay
 
 # Export defaults (pre-fills the Export dialog; CLI export.start uses its own --quality)
+# PandaStudio is a video-only exporter; format is always mp4.
 pandastudio project.set-export-settings --id=$ID --quality=source --format=mp4
-pandastudio project.set-export-settings --id=$ID --format=gif \
-  --gifFrameRate=30 --gifLoop=true --gifSizePreset=large
 ```
 
 ## Captions
