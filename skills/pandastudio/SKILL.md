@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.32.0 -->
+<!-- version: 3.33.0 -->
 
 # PandaStudio
 
@@ -2042,6 +2042,32 @@ pandastudio project.add-audio --id=$ID \
 Among tracks that match an intent, rotate between variants (`-a` and `-b`) or
 pick by `durationMs` closest to what the project needs. Never pick by filename
 — always query `asset.list-music` so new tracks get picked up automatically.
+
+### Custom music — generate an original track (Lyria-2)
+
+When the bundled library doesn't cover what the user wants (a specific genre,
+mood, or instrument combination), generate an original instrumental track with
+`media.generate-music` (Replicate / Google Lyria-2). The bundled library is the
+faster default for common moods — reach for generation only when the user asks
+for something specific/custom. Requires the user's Replicate API key (Settings →
+Integrations). Output is instrumental only, ~30s, 48kHz stereo — loop it for
+longer videos.
+
+```bash
+# Describe genre, mood, instruments, tempo, use-case. Returns { audioPath, durationMs }.
+RES=$(pandastudio media.generate-music \
+  --prompt="upbeat lo-fi hip hop with mellow piano and soft vinyl crackle, relaxed, for a coding montage" \
+  --negativePrompt="vocals, harsh, distortion" --json)
+MUSIC=$(echo "$RES" | jq -r '.data.audioPath')
+DUR=$(echo "$RES" | jq -r '.data.durationMs')
+
+# Place it as background music, sized to the clip (loops/repeats for longer videos).
+pandastudio project.add-audio --id=$ID \
+  --audioPath="$MUSIC" --volume=0.3 --fadeIn=500 --fadeOut=500 --json
+```
+
+Canonical custom-music loop: `media.generate-music` → `project.add-audio`. Pass a
+`seed` for reproducible results.
 
 ### Color grading clips (LUT presets)
 
