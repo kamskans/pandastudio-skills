@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.33.0 -->
+<!-- version: 3.36.0 -->
 
 # PandaStudio
 
@@ -661,6 +661,26 @@ PandaStudio uploads directly to YouTube via the Google Data API v3 — no PandaS
 - **Don't cross workspaces:** if the active workspace lacks the connected account, ASK before switching — publishing to the wrong client's channel is the worst mistake.
 
 (Full arg schemas for every `youtube.*` / `export.*-youtube` verb: `reference/commands.md`.)
+
+## Publishing to Instagram (Reels)
+
+Instagram Reel publishing goes through PandaStudio's license-server broker (which holds a Composio key), not direct OAuth. The rendered video uploads **straight to Composio storage via a presigned URL — the bytes never pass through our server**, so there's no per-publish cost. Requires an activated license.
+
+**Key constraint:** Instagram's API only publishes from **Business or Creator accounts** (a Meta restriction — Personal accounts cannot, via any tool). Always check `instagram.account` first.
+
+**Flow** (only when the user asks to publish):
+
+1. **Connect if needed:** `instagram.connect` → opens the browser for consent, returns `{ connectionId, redirectUrl }`. Then poll `instagram.status --connectionId=…` until `active: true`.
+2. **Verify the account can publish:** `instagram.account` → if `publishable` is false (Personal account), tell the user to switch to a Business/Creator account in the Instagram app and reconnect; do not attempt to publish.
+3. **Caption (optional):** `llm.generate-caption --id=$EID` writes a Reel caption (punchy hook + a few hashtags) from the transcript on the local model — no API key. Use its output as `--caption` below, or let the user write their own.
+4. **Publish an export:** `export.publish-instagram --id=$EID --caption='…' --shareToFeed=true`. Returns `{ mediaId, permalink }`. Long-running: Instagram processes the Reel for ~30-120 s before it's live.
+
+**Hard caveats:**
+- **Short-form only.** Instagram takes Reels (9:16, up to ~90 s). Export a Reel-appropriate clip — don't push a long-form 16:9 video.
+- **Rate limit:** 25 published posts per 24 h per account; surface a quota error rather than retrying.
+- **Hashtags go in the caption** (max 2200 chars). There's no separate tags field.
+
+(Full arg schemas for every `instagram.*` / `export.publish-instagram` verb: `reference/commands.md`.)
 
 ## Editorial decisions — what to ask, what to assume, what NEVER to ask
 
@@ -1429,6 +1449,58 @@ template's own palette.) All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay
 - `vox-annotation` (4.5s, 16:9) — a hand-drawn marker circle scribbles around a subject word with a handwritten note + curved arrow. "this is what matters" callout. Slots: **subject**, note, bgColor, inkColor, accentColor.
 - `vox-side-panel` `O` (16:9 / **9:16**) — Vox designed segment: a graph-paper half-panel with a two-line marker title, a taped specimen card, and a monospace spec list; the other half is transparent for the host. **Aspect-aware** — at 16:9 it's a left/right side panel; render at `--aspectRatio=9:16` and it reflows into a top/bottom **band** (marker titles + specs on the left, taped card on the right) for Shorts. Add via `project.add-designed-segment` (16:9: `side` left/right, cameraRatio 50; 9:16: `side` top/bottom, `cameraSide` opposite, cameraRatio 50). Slots: side, **title1**, **title2**, **subject**, spec1, spec2, spec3, paperColor, inkColor, accentColor, accent2Color.
 - `paper-panel` `O` (16:9 / **9:16**, v2.99.0) — designed segment: a torn-paper sheet carrying a two-line title (the second line accented with a hand-drawn underline) + a short subtitle; the other half is transparent for the host. The cleanest, most editorial of the panels. **Aspect-aware** — at 16:9 it's a left/right side panel (camera 55%, panel 45%); render at `--aspectRatio=9:16` and the sheet becomes a top/bottom **band** with a horizontal torn edge for Shorts. Add via `project.add-designed-segment` (16:9: `side` left/right; 9:16: `side` top/bottom, `cameraSide` opposite; cameraRatio 55 either way). Slots: side (16:9 `left`/`right`, 9:16 `top`/`bottom`), **title1**, **title2** (accented line), subtitle, paperColor, inkColor, accentColor.
+
+#### Import a podcast from separate files (host + guest recorded apart)
+
+When the two (or more) speakers were recorded SEPARATELY — e.g. local tracks
+exported from Zoom/Riverside, or two phone cameras — assemble them into a single
+two-speaker podcast composite with **`project.add-podcast-clip`**. This produces
+the exact same representation as an in-app/remote podcast recording (host =
+mediaPath, guests = `participants[]`, `kind: "podcast"`), so every podcast verb
+below (layout-over-time, per-speaker transcript editing) works on it.
+
+```bash
+# Host + one guest (2-party). Auto-syncs the guest to the host by default.
+pandastudio project.add-podcast-clip --id=$PROJECT \
+  --media="/path/host.mp4" --guests='["/path/guest.mp4"]' --json
+
+# 3-4 participants: pass guests in order (guest, guest-2, guest-3).
+pandastudio project.add-podcast-clip --id=$PROJECT \
+  --media="/path/host.mp4" \
+  --guests='["/path/guest1.mp4","/path/guest2.mp4"]' \
+  --labels='["Alex (host)","Sam","Jordan"]' --json
+```
+
+- **Auto-sync**: each guest is audio-aligned to the host (energy-envelope cross-
+  correlation) and the offset stored on the participant. Pass `--autoSync=false`
+  to assemble with zero offsets. Re-run later with **`project.auto-sync-podcast
+  --clipId=…`**. The response includes a per-guest `{ offsetMs, confidence,
+  rawOffsetMs }` report. **It only applies a shift when confident** (correlation
+  ≥ 0.35): a low-confidence result leaves `offsetMs` at 0 (so tracks recorded in
+  alignment, or isolated per-mic remote tracks that don't cross-correlate, are
+  never shifted by a spurious peak) — `rawOffsetMs` shows the rejected guess.
+  Nudge manually with `project.set-participant-offset` when needed.
+- **Manual nudge**: **`project.set-participant-offset --clipId=… --speaker=guest|guest-2|guest-3 --offsetMs=…`**
+  shifts one guest's video AND audio vs the host (±10000; positive delays; 0
+  clears). The N-party analogue of `project.set-webcam-offset` (guest-1 only).
+  The host is the reference clock and can't be offset.
+- **Quick 2-party shortcut**: `project.add-clip --media=host --webcam=guest`
+  also makes a podcast composite (no auto-sync; use `add-podcast-clip` for that
+  or 3+ speakers).
+- **Per-speaker transcription**: run `transcript.transcribe` after assembling.
+  For a podcast composite it transcribes EACH participant source separately and
+  merges into one speaker-attributed transcript (words tagged
+  `host`/`guest`/`guest-2`…). `transcript.get` returns those `speaker` tags, and
+  `transcript.delete-words` / `remove-fillers` / `remove-silences` operate across
+  the merged conversation — cutting a moment removes it from every speaker's
+  video at once, exactly like a recorded podcast.
+- **Layout**: the project's webcam layout is set to `podcast` automatically;
+  3-4 participants auto-grid. Change it over time with the `layout-*` /
+  `podcast-*` clip-transform presets (below).
+
+> UI parity: the Home screen's **Import video** card runs this same flow — pick
+> ONE file for a single clip, or SEVERAL (host first, then guests) to assemble a
+> podcast composite; auto-sync runs in the background.
 
 #### Podcast: change layout over time (within ONE recording)
 

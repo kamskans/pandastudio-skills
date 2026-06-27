@@ -95,6 +95,18 @@ The export library (MyExports view). Read + patch only — there's no `export.st
 | `export.get` | `id` (string, required) | Single entry by id. |
 | `export.update` | `id` (string, required), `patch` (object, required) | Patch entry fields (e.g. `generatedTitle`, `generatedDescription`). |
 | `export.delete` | `id` (string, required) | Delete the library row (does NOT delete the underlying MP4 on disk). |
+| `export.publish-instagram` | `id` (required), `caption`, `shareToFeed` (default true) | Publish an export as an Instagram Reel via the broker. Requires a connected Business/Creator account. Returns `{ mediaId, permalink }`. Long-running (~30-120s). |
+
+## instagram.*
+
+Reel publishing via the license-server Composio broker. Requires an activated license + a connected Business/Creator account (Personal accounts can't publish — a Meta restriction). The exported video uploads straight to Composio via a presigned URL; bytes never transit our server.
+
+| Command | Args | Purpose |
+|---|---|---|
+| `instagram.connect` | — | Open the browser to connect an account. Returns `{ connectionId, redirectUrl }`; then poll `instagram.status`. |
+| `instagram.status` | `connectionId` (optional) | `{ status, active }`. Poll after connect until `active`. |
+| `instagram.account` | — | `{ connected, account, error }`. `account.publishable` is true only for Business/Creator. |
+| `instagram.disconnect` | — | Remove the connection. Published Reels stay on Instagram. |
 
 ## transcript.* (v1.9.1)
 
@@ -143,6 +155,7 @@ PandaStudio bundles Gemma 4 E2B (~2B params). Good for summarisation / classific
 | `llm.generate-title` | `id` \| `path`, `maxChars` (default 70) | **Project-aware.** Reads the merged transcript, returns a YouTube-ready title. |
 | `llm.generate-description` | `id` \| `path`, `maxChars` (default 400) | **Project-aware.** Returns a 3-5 sentence description. |
 | `llm.generate-timestamps` | `id` \| `path`, `maxChapters` (default 8) | **Project-aware.** Returns `[{ timeMs, label }, …]` chapter markers. |
+| `llm.generate-caption` | `id` \| `path`, `maxChars` (default 2200) | **Project-aware.** Returns an Instagram Reel caption (punchy hook + hashtags) for `export.publish-instagram`. |
 
 ## job.*
 
