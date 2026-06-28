@@ -85,6 +85,8 @@ SVG path drawing · Canvas 2D procedural art · CSS 3D transforms · per-word ki
 
 ## Determinism guardrails (silent bugs — must obey)
 
+> ⚠ **UNITS: `data-duration` and `data-start` are in SECONDS — not milliseconds.** This is the **one** place in PandaStudio measured in seconds; everything else you touch (`atMs`, `durationMs`, transcript `startMs`/`endMs`, the project API) is milliseconds. `data-duration="6"` is 6 seconds; `data-duration="6000"` is 100 minutes. **A 3-or-more-digit `data-duration` is almost always a millisecond value pasted in by habit — divide by 1000.** This is the #1 first-render failure: you've been working in ms, so consciously switch to seconds when you author the HTML. Same for `data-start`, and GSAP tween `duration:`/delays (seconds).
+
 These won't be caught by lint/validate but **break the rendered frames**:
 
 - **One paused timeline per composition** — exactly one `gsap.timeline({ paused: true })` at `window.__timelines["<id>"]`, built synchronously at load. Render duration = root `data-duration`, not timeline length.
