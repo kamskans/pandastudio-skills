@@ -70,7 +70,7 @@ Use when the user says "rename this project", "call it X", or after `llm.generat
 PandaStudio ships two transcription engines under the hood:
 
 - **Parakeet TDT v3** (default, "auto") — auto-detects English + 25 European languages, word-level timestamps native, ~473 MB model, ~30× realtime on CPU. Preserves filler words ("um", "uh", repeats) which is critical for the transcript-based editor. Bundled download on first use.
-- **Whisper Large-v3-turbo** — for Chinese, Japanese, Korean, Hindi, Arabic, Thai. ~1.1 GB Q5_0 GGUF, lazy-downloaded on first non-European language selection. Same word-level-timestamps contract via `set_token_timestamps + set_max_len(1) + set_split_on_word`.
+- **Whisper Large-v3-turbo** — for Chinese, Japanese, Korean, Hindi, Arabic, Thai, Tamil, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi. ~1.1 GB Q5_0 GGUF, lazy-downloaded on first non-European language selection. Same word-level-timestamps contract via `set_token_timestamps + set_max_len(1) + set_split_on_word`.
 
 The setting is **workspace-scoped**: a user can run an English channel in one workspace and a Mandarin channel in another without crosstalk.
 
@@ -172,7 +172,7 @@ user explicitly wants karaoke-style timing.
 
 **Caveats for this flow:**
 
-- **Non-European languages** (Chinese, Japanese, Korean, Hindi, Arabic, Thai) need the Whisper
+- **Non-European languages** (Chinese, Japanese, Korean, Hindi, Arabic, Thai, Tamil, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi) need the Whisper
   model switch first — see the "Transcription languages" section above. For English + 25
   European languages, the default Parakeet engine just works.
 - **The project is a real artifact.** `project.new` writes a `.pandastudio` file. If the user
