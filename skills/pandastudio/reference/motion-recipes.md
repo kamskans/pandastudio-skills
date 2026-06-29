@@ -87,6 +87,8 @@ SVG path drawing · Canvas 2D procedural art · CSS 3D transforms · per-word ki
 
 > ⚠ **UNITS: `data-duration` and `data-start` are in SECONDS — not milliseconds.** This is the **one** place in PandaStudio measured in seconds; everything else you touch (`atMs`, `durationMs`, transcript `startMs`/`endMs`, the project API) is milliseconds. `data-duration="6"` is 6 seconds; `data-duration="6000"` is 100 minutes. **A 3-or-more-digit `data-duration` is almost always a millisecond value pasted in by habit — divide by 1000.** This is the #1 first-render failure: you've been working in ms, so consciously switch to seconds when you author the HTML. Same for `data-start`, and GSAP tween `duration:`/delays (seconds).
 
+> ⚠ **GSAP must be LOADED — the engine does NOT provide it.** Custom HTML that calls `gsap.timeline()` without loading GSAP renders a **STATIC end-frame with ZERO animation**: the timeline throws, nothing registers on `window.__timelines`, and the producer captures the final DOM state for every frame. Bundled templates load it via `<script src="_shared/gsap.min.js">`. As of v1.56.0 `motion.render-html` **auto-injects** GSAP when your HTML uses `gsap` but loads none — but on older app builds you MUST load it yourself (inline the lib, or `<script src="gsap.min.js">` with the file sitting beside your HTML). **If a render looks like a frozen slideshow with no motion, GSAP almost certainly didn't load — verify a frame at t=0.05s shows the PRE-entrance state (elements hidden/offset), not the settled end state.**
+
 These won't be caught by lint/validate but **break the rendered frames**:
 
 - **One paused timeline per composition** — exactly one `gsap.timeline({ paused: true })` at `window.__timelines["<id>"]`, built synchronously at load. Render duration = root `data-duration`, not timeline length.
@@ -94,9 +96,20 @@ These won't be caught by lint/validate but **break the rendered frames**:
 - **Animate only visual properties** — transforms, opacity, filters, colors. Never `display`/`visibility`. No `gsap.set` on a later scene's clips (it fires at t=0 under seek).
 - **`fromTo`, not `to`** for anything that must be correct at t=0 — a bare `to` leaves the element in its final state when seeked to time 0.
 - **Sized root** — the standalone root needs explicit px width/height and a resolved height chain; a `height:100%` child of an unsized parent collapses to ~0 (content piles top-left). Not linted.
+- **Declare `data-width`/`data-height` on the composition root** — the element carrying `data-composition-id`, e.g. `<div data-composition-id="s1" data-width="1920" data-height="1080" data-duration="8">`. ⚠ The @hyperframes engine sizes the composition from THESE attributes, **NOT** from `motion.render-html`'s `--aspectRatio` / `--width` / `--height` args — for custom HTML those args are silently ineffective. **Omit `data-width`/`data-height` and the render defaults to 1080×1920 PORTRAIT** — so a 16:9 promo comes out vertical and gets letterboxed when dropped on a 16:9 timeline. This is the #1 wrong-aspect bug. Sizes: 16:9 → `data-width="1920" data-height="1080"`; 9:16 → `1080`/`1920`; 1:1 → `1080`/`1080`. (Bundled templates already declare these; only hand-authored HTML forgets them.)
 - **Full-screen fills go on a full-bleed child** (`position:absolute; inset:0`), never the composition root — the producer can drop the root's own `background` and render black.
 - **Unique ids across the assembled page** — prefix sub-composition ids with the composition id (`#<id>-hero`). Duplicate `<video>`/`<img>` ids render blank.
 - **`<video>`/`<audio>` must be a direct child of the host root** (never inside a sub-comp `<template>`); the framework owns playback.
 - **No `<br>` in body text**; transformed elements must be block-level + sized.
 
 Run `motion.verify-frames` (vision check) on midpoints before considering a render done.
+
+## Motion-quality gate — do NOT ship the floor
+
+`motion.verify-frames` on one still per scene checks LAYOUT, not MOTION — a render can pass every technical check and still be a frozen slideshow (this is exactly how a bland, un-animated promo ships unnoticed). Before declaring a from-scratch / promo render done:
+
+1. Extract **3+ frames WITHIN each scene** (≈10%, 50%, 90% of its duration), not one per scene, and `read` them.
+2. **They MUST visibly differ** — elements entering, a camera push, a gradient sweep, particles drifting. If consecutive in-scene frames look identical, the scene is STATIC = the floor (or GSAP didn't load — see the guardrail above). Re-author; do not ship.
+3. Confirm each scene composes **≥2 motion techniques** (e.g. kinetic per-word type + camera push + sweep), and that **scene transitions** sit between clips.
+
+> "Static text fading in on a flat background is the lowest tier of motion graphics, in any style." (motion-philosophy.md). Looking at one still per scene is precisely how the floor ships unnoticed — the frames look fine because layout is fine. Verify MOTION, not just layout.

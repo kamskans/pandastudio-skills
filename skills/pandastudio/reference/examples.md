@@ -325,62 +325,69 @@ reference/motion-philosophy.md for the page contract + canonical shell).
 ### Creating a pure motion-graphics promo (no source footage)
 
 <HARD-RULE>
-**Always concat before placing on the timeline.**
-When you render multiple scenes (intro, body, CTA, …), you MUST join them with
-`motion.concat` into a single MP4 **before** calling `project.add-clip`.
-Never place individual scene segments as separate timeline clips.
+**Default to SEPARATE clips on the timeline — one clip per scene.** The editor
+is the whole point: the user previews each scene, trims it, reorders it, tweaks
+its colors, or re-renders just that one. Concatenating every scene into a single
+MP4 throws all of that away — they can no longer touch an individual scene. So
+for any promo destined for the editor (the normal case), `project.add-clip` each
+rendered scene individually, in order.
 
-Why: PandaStudio's timeline treats each clip as an independent source with its
-own audio decode context. Multiple motion-graphic clips therefore play as
-separate back-to-back sources — no cross-clip transitions, no unified audio,
-and any background music starts again between clips. A single concatenated MP4
-plays as one seamless piece with one audio decode pass.
+Audio is a PROJECT-LEVEL overlay, not baked per scene: add the music bed and any
+voiceover with `project.add-audio` spanning the whole timeline (positioned by
+`startMs`/`endMs`). Because audio lives at the project level, separate scene
+clips still play under one continuous music/VO pass — the old "music restarts
+between clips" worry does NOT apply. Cross-scene transitions are editor regions
+(`project.add-transition`) placed at the clip boundaries.
 
-The only exception: if the user explicitly says "I want each scene as its own
-clip so I can trim them independently" — even then, add clips individually only
-after asking to confirm.
+**Concat into ONE clip ONLY when the user explicitly wants a single flat file to
+post directly with no editing** ("just give me the MP4, I'm uploading it as-is").
+Then `motion.concat` the scenes and add the one file. Every other case: separate
+clips. (This reverses the earlier "always concat" guidance, which was wrong — it
+fought the editor-first workflow and the project-level audio model.)
 </HARD-RULE>
 
 When the user wants a promo video with no recorded footage — only rendered scenes:
 
 ```bash
-# STEP 1: Create the project FIRST, before rendering anything.
-# If you render scenes first and the render pipeline fails mid-way,
-# you have no project to attach the completed scenes to.
-P=$(pandastudio project.new --name="WritePanda Promo" --json)
+# STEP 1: Create the project FIRST, set its aspect, before rendering anything,
+# so completed scenes always have a home.
+P=$(pandastudio project.new --name="Promo" --json)
 ID=$(echo "$P" | jq -r '.data.id')
+pandastudio project.set-aspect-ratio --id=$ID --ratio=16:9   # NOTE: arg is --ratio, NOT --aspect
 
-# STEP 2: Render scenes — renders are serialized by a mutex, so only
-# one motion.render-html runs at a time. Always use job.wait after each
-# render before starting the next. RENDER_BUSY means a render is already
-# in progress; retry after job.wait completes.
-JOB1=$(pandastudio motion.render-html \
-  --htmlPath=/tmp/scene1.html --durationMs=4000 --json | jq -r '.data.jobId')
-JOB2=$(pandastudio motion.render-html \
-  --htmlPath=/tmp/scene2.html --durationMs=3000 --json | jq -r '.data.jobId')
-# Both running in parallel now. Wait on each result.
-SCENE1=$(pandastudio job.wait --id="$JOB1" --json | jq -r '.data.job.result.outputPath')
-SCENE2=$(pandastudio job.wait --id="$JOB2" --json | jq -r '.data.job.result.outputPath')
-SCENE2=$(pandastudio job.wait --id="$JOB2" --json | jq -r '.data.job.result.outputPath')
+# STEP 2: Render scenes SEQUENTIALLY. Renders are serialized by a mutex —
+# firing a second render before the first finishes returns RENDER_BUSY (null
+# jobId), silently dropping that scene. Always job.wait each render before
+# firing the next.
+# ⚠ Each scene's HTML MUST declare data-width/data-height on its composition
+# root (see motion-recipes.md guardrails) or it renders 1080x1920 PORTRAIT
+# regardless of any --aspectRatio/--width/--height arg.
+PATHS=()
+for s in 1 2 3; do
+  J=$(pandastudio motion.render-html --htmlPath=/tmp/scene$s.html --durationMs=4000 --json | jq -r '.data.jobId')
+  P=$(pandastudio job.wait --id="$J" --timeoutMs=600000 --json | jq -r '.data.job.result.outputPath')
+  PATHS+=("$P")
+done
 
-# STEP 3: ALWAYS concat first — ONE clip on the timeline.
-# motion.concat is a lossless stream copy; completes in < 1 s.
-FINAL=$(pandastudio motion.concat \
-  --clips="[$SCENE1,$SCENE2]" \
-  --outputName=promo-final \
-  --json | jq -r '.data.outputPath')
+# STEP 3: Add each scene as its OWN clip, in order (the default — keeps them
+# individually editable in the timeline).
+for P in "${PATHS[@]}"; do
+  pandastudio project.add-clip --id=$ID --media="$P" --json
+done
 
-# STEP 4: Add the single merged MP4 as one clip.
-pandastudio project.add-clip --id=$ID --media="$FINAL" --json
+# STEP 4: Add audio at the PROJECT level — music bed + any voiceover — timed
+# across the whole timeline (cumulative scene starts). OPT-IN: only add music
+# when the user asked for it.
+pandastudio project.add-audio --id=$ID --audioPath=/path/to/music.mp3 --startMs=0 --volume=0.16 --json
 
-# STEP 5: Add background music — OPT-IN, only when the user asked for a
-# music bed. Omit for any edit where music wasn't requested.
-pandastudio project.add-audio --id=$ID --audioPath=/path/to/music.mp3 \
-  --volume=0.6 --json
-
-# STEP 6: Preview, then export
+# STEP 5: Preview, then export
 pandastudio preview.show --id=$ID
 pandastudio export.start --id=$ID --quality=high --json
+
+# ── ONE-FILE EXCEPTION (only when the user wants a single flat MP4, no editing):
+#   FINAL=$(pandastudio motion.concat --clips="[\"${PATHS[0]}\",\"${PATHS[1]}\"]" \
+#     --outputName=promo --json | jq -r '.data.outputPath')
+#   pandastudio project.add-clip --id=$ID --media="$FINAL" --json
 ```
 
 ### Recipe: SaaS product promo / intro video (the "Teamble / Linear / Arc" style)
@@ -599,9 +606,10 @@ pandastudio export.start --id=$ID --quality=high --json
 - **Default Panda green theme on a SaaS product promo.** It reads as tutorial/
   educational, not product-marketing. Use `mkbhd` or author custom HTML with
   the product's actual brand palette.
-- **Skipping `motion.concat` between motion-graphic scenes.** Revisit the
-  hard-rule at the top of the promo section — always merge before adding to
-  timeline.
+- **Concatenating scenes into one clip when the user will edit in PandaStudio.**
+  The default is SEPARATE clips (one per scene) so each stays individually
+  editable — see the hard-rule at the top of the promo section. Only `motion.concat`
+  into one file when the user explicitly wants a single flat MP4 to post as-is.
 - **Forgetting the CTA/outro.** A promo without a CTA is a trailer. Always
   include Act 7 with a URL, brand lockup, or "Try it today" line.
 
@@ -999,13 +1007,17 @@ If any frame fails, iterate the motion graphic and re-run
 `motion.verify-frames` before `export.start`. **No shipping un-looked-at
 work.**
 
-### Assembling multi-scene motion graphics — always use motion.concat
+### Assembling multi-scene motion graphics — separate clips by default, concat only for one-file delivery
 
-**This is the mandatory last step whenever you render more than one scene.**
+**Default: add each scene as its OWN clip** (`project.add-clip` per scene, in
+order) so the user can preview/trim/reorder/re-render each one in the editor.
 Render every scene **sequentially** (renders are serialized by a mutex —
 only one motion.render-html runs at a time; always call job.wait between
-renders), then join them into one final MP4 with `motion.concat` before
-touching the project timeline. The concat is a lossless stream copy — no
+renders before firing the next, or the second returns RENDER_BUSY).
+
+**Only when the user explicitly wants a single flat file to post as-is** (no
+editing) do you join them into one MP4 with `motion.concat` before adding to
+the timeline. The concat is a lossless stream copy — no
 re-encode, completes in < 1 second.
 
 **Renders are serialized by a mutex — only one motion.render-html runs
