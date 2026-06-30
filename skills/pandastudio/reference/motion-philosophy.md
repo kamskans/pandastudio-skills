@@ -252,38 +252,27 @@ These are about correctness, not taste. Violating any one of them produces a
 broken composition — black-frame flashes, time-wobble, dropped scenes, off-by-
 frames.
 
-1. **Timelines fill their slot.** HyperFrames hides a sub-composition the moment
-   `timeline.duration() < data-duration` → black-frame flash. **Every** GSAP
-   timeline ends with a no-op duration anchor:
+1. **Duration comes from `data-duration`; the scene holds its final frame.**
+   The bundled engine is now **`@hyperframes/[email protected]`** (verified live, June 2026).
+   On 0.7.17 the render length is taken **purely from the root `data-duration`**
+   and the composition **HOLDS its last frame** for the full slot — so a timeline
+   shorter than `data-duration` no longer truncates. **The old `tl.to({}, {
+   duration: SLOT }, 0)` "Law #1 anchor" is NO LONGER required** (empirically
+   confirmed: a 2.5s `data-duration` with ~1.5s of tweens and no anchor renders
+   the full 2.5s and holds). Keeping an anchor is harmless, but don't rely on it
+   and don't treat it as mandatory.
 
    ```js
-   const SLOT = 6;  // matches data-duration on the <stage>
    const tl = gsap.timeline({ paused: true });
-   tl.from(...);  // entrance
-   tl.to(...);    // any held mid-beats
-   tl.to({}, { duration: SLOT }, 0);  // anchor — DO NOT REMOVE
-   window.__timelines["scene-id"] = tl;
+   tl.to(...);   // entrances / motion (see Rule 12 for the engine's seek model)
+   window.__timelines["scene-id"] = tl;   // no anchor needed on 0.7.17
    ```
 
-   The anchor goes at position 0 with the full slot duration so the timeline's
-   reported `duration()` is exactly `SLOT`, regardless of what other tweens
-   exist.
-
-   > **Why this is non-negotiable on our engine (verified against bundled
-   > `@hyperframes/[email protected]`).** The 0.6.53 runtime resolves an inline
-   > composition's effective duration as `Math.min(data-duration,
-   > timeline.duration())`. So a timeline SHORTER than `data-duration` collapses
-   > the scene to the timeline length — the rest of the slot truncates (early
-   > cut / black tail), exactly the bug this rule prevents. **Upstream Hyperframes
-   > has since changed this** (newer engines take duration purely from
-   > `data-duration` and HOLD the final frame, making the anchor optional and
-   > even lint-flagged). That newer behavior does NOT apply to us until we bump
-   > the bundled engine — so on 0.6.53 the anchor stays mandatory. If you ever
-   > upgrade `@hyperframes/*`, re-verify this `min()` rule before relaxing the
-   > anchor. Same reason our repeat formula uses `ceil` (§Rule 3): with the
-   > anchor present the slot length is fixed, so a slightly-overshooting last
-   > cycle is harmless; upstream's `floor` exists only to satisfy a CLI lint
-   > (`gsap_repeat_ceil_overshoot`) we don't run.
+   > **History:** the prior 0.6.53 runtime resolved duration as
+   > `Math.min(data-duration, timeline.duration())`, which truncated short
+   > timelines — that's why the anchor used to be mandatory. The 0.6.53 → 0.7.17
+   > upgrade (June 2026) changed this. If you ever change the engine version
+   > again, re-verify duration + the seek model in Rule 12 before trusting these.
 
 2. **Determinism is absolute.** No `Math.random()`, `Date.now()`,
    `performance.now()`, `setInterval`, `setTimeout`, async/await, or
@@ -329,14 +318,40 @@ frames.
     Exception: short display titles where each word is deliberately on its own
     line ("THE / IMMORTAL / GAME" at 130px).
 
-12. **Prefer `gsap.fromTo()` over `gsap.from()` inside any seeked scene.** The
-    engine seeks the timeline non-linearly (frame-by-frame, including backward).
-    `gsap.from()` records the element's *current* value as the end state on
-    first render — if the playhead is seeked back before that tween, GSAP can
-    "resurrect" a stale value and the element flickers or lands wrong. `fromTo()`
-    states both endpoints explicitly, so it's seek-stable. Use `from()` only for
-    one-shot top-level entrances you're sure are never seeked before; use
-    `fromTo()` everywhere inside sub-compositions.
+12. **The 0.7.17 seek model — entrances must be MASKED or CONTINUOUS (this is the
+    one that bites hardest).** The engine renders each element at its **CSS value
+    EXCEPT during a tween's active window**, and **reverts to the CSS value after
+    the tween ends** — it does NOT hold a tween's end state. Verified live on
+    0.7.17 (a `from`/`fromTo` element is visible before its tween starts; a CSS
+    `opacity:0` element animated to `1` with `.to` reverts to `0` after). Design
+    around it:
+    - **An element's CSS state MUST equal its final resting state.** Never put
+      `opacity:0` (or any hidden state) in CSS on content that should end up
+      visible — after its reveal tween it reverts to `0` and vanishes.
+    - **Bare `from`/`fromTo` entrances FLICKER on un-masked content.** Before the
+      tween the element shows its CSS (final, visible) value; at the tween start
+      it snaps to the `from` and animates back — appear → snap away → re-enter.
+    - **Appear-then-gone elements work naturally** (a wipe/cover whose final state
+      IS hidden: CSS hidden → `to` cover → `to` reveal → reverts to CSS hidden).
+      This is exactly how the bundled templates' grid-wipe masks their entrance.
+    - **Continuous motion is safe**: a tween spanning the whole `data-duration`
+      (camera push, parallax drift, gradient sweep, an always-animating waveform/
+      EQ) animates every frame with no before/after-window flash.
+
+    **Two correct ways to author a scene — use one or both:**
+    - **(A) Masked entrances:** content sits at its CSS-visible resting state;
+      play `from`/`fromTo` entrances UNDER a covering transition (a panel/wipe
+      that covers the frame for the first ~0.4–0.7s, then clears), so the
+      pre-tween flash is hidden. Dramatic staged reveals, like the templates.
+    - **(B) Continuous-motion:** content is present from frame 0 (CSS-visible),
+      and the life comes from full-duration tweens (camera, drift, sweep, the
+      feature's own animation). Simplest and flicker-proof.
+
+    **Never** ship bare `from`/`fromTo` entrances on un-masked persistent content
+    (that is the flicker bug), and **never** rely on CSS-hidden + `.to` to keep
+    content visible (it reverts). (On the old 0.6.53 engine `fromTo` held its
+    from-state, which is why the prior "prefer fromTo" guidance worked then and is
+    wrong now — see Rule 1 history.)
 
 13. **One transform tween per element, ever.** Rule 8 generalized: never put two
     concurrent tweens that both touch transform (`x`/`y`/`scale`/`rotation`) on
