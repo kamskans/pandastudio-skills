@@ -252,27 +252,35 @@ These are about correctness, not taste. Violating any one of them produces a
 broken composition — black-frame flashes, time-wobble, dropped scenes, off-by-
 frames.
 
-1. **Duration comes from `data-duration`; the scene holds its final frame.**
-   The bundled engine is now **`@hyperframes/[email protected]`** (verified live, June 2026).
-   On 0.7.17 the render length is taken **purely from the root `data-duration`**
-   and the composition **HOLDS its last frame** for the full slot — so a timeline
-   shorter than `data-duration` no longer truncates. **The old `tl.to({}, {
-   duration: SLOT }, 0)` "Law #1 anchor" is NO LONGER required** (empirically
-   confirmed: a 2.5s `data-duration` with ~1.5s of tweens and no anchor renders
-   the full 2.5s and holds). Keeping an anchor is harmless, but don't rely on it
-   and don't treat it as mandatory.
+0. **Load GSAP via `<script src="_shared/gsap.min.js"></script>` — nothing else.**
+   This is the single most common reason a custom composition renders as a
+   **frozen, static frame with no animation at all.** The @hyperframes engine
+   does NOT provide `gsap` as a global; your HTML must load it. The renderer
+   **inlines the bundled library wherever it sees a gsap `<script src>`** — so
+   reference it the way the templates do: `<script src="_shared/gsap.min.js">`.
+   Do **NOT** use a bare `<script src="gsap.min.js">` (sits in no directory the
+   render sandbox serves), a relative `../gsap.js`, or a CDN URL (the headless
+   shell often has no network) — a dead `<script src>` fails **silently**: `gsap`
+   is undefined, `gsap.timeline()` throws, nothing registers on
+   `window.__timelines`, and the producer emits a static end-frame. The render
+   "succeeds" and looks completely still. If you ever see a static render, check
+   this FIRST. (The renderer now also fails loudly when a composition uses `gsap`
+   with no inlined library, but `_shared/gsap.min.js` is the contract — use it.)
+
+1. **Duration comes from `data-duration`; anchor the timeline to the full slot.**
+   The bundled engine is **`@hyperframes/[email protected]`** (verified live, June 2026).
+   The render length is taken from the root `data-duration`. **Include the
+   `tl.to({}, { duration: SLOT }, 0)` anchor** so the timeline's own length spans
+   the whole slot and the scene holds cleanly through its hold — every bundled
+   template does this. Without it a timeline whose tweens end early can leave the
+   seek mapping short. Treat the anchor as part of the boilerplate, not optional.
 
    ```js
    const tl = gsap.timeline({ paused: true });
-   tl.to(...);   // entrances / motion (see Rule 12 for the engine's seek model)
-   window.__timelines["scene-id"] = tl;   // no anchor needed on 0.7.17
+   tl.to(...);   // entrances / motion (see Rule 12 for entrance patterns)
+   tl.to({}, { duration: SLOT }, 0);      // anchor — extends timeline to the full slot
+   window.__timelines["scene-id"] = tl;   // register so the engine can seek it
    ```
-
-   > **History:** the prior 0.6.53 runtime resolved duration as
-   > `Math.min(data-duration, timeline.duration())`, which truncated short
-   > timelines — that's why the anchor used to be mandatory. The 0.6.53 → 0.7.17
-   > upgrade (June 2026) changed this. If you ever change the engine version
-   > again, re-verify duration + the seek model in Rule 12 before trusting these.
 
 2. **Determinism is absolute.** No `Math.random()`, `Date.now()`,
    `performance.now()`, `setInterval`, `setTimeout`, async/await, or
@@ -318,40 +326,48 @@ frames.
     Exception: short display titles where each word is deliberately on its own
     line ("THE / IMMORTAL / GAME" at 130px).
 
-12. **The 0.7.17 seek model — entrances must be MASKED or CONTINUOUS (this is the
-    one that bites hardest).** The engine renders each element at its **CSS value
-    EXCEPT during a tween's active window**, and **reverts to the CSS value after
-    the tween ends** — it does NOT hold a tween's end state. Verified live on
-    0.7.17 (a `from`/`fromTo` element is visible before its tween starts; a CSS
-    `opacity:0` element animated to `1` with `.to` reverts to `0` after). Design
-    around it:
-    - **An element's CSS state MUST equal its final resting state.** Never put
-      `opacity:0` (or any hidden state) in CSS on content that should end up
-      visible — after its reveal tween it reverts to `0` and vanishes.
-    - **Bare `from`/`fromTo` entrances FLICKER on un-masked content.** Before the
-      tween the element shows its CSS (final, visible) value; at the tween start
-      it snaps to the `from` and animates back — appear → snap away → re-enter.
-    - **Appear-then-gone elements work naturally** (a wipe/cover whose final state
-      IS hidden: CSS hidden → `to` cover → `to` reveal → reverts to CSS hidden).
-      This is exactly how the bundled templates' grid-wipe masks their entrance.
-    - **Continuous motion is safe**: a tween spanning the whole `data-duration`
-      (camera push, parallax drift, gradient sweep, an always-animating waveform/
-      EQ) animates every frame with no before/after-window flash.
+12. **Entrances: animate from a hidden CSS base with `tl.to(...)` (the template
+    pattern).** The engine seeks the paused timeline frame-by-frame; a completed
+    tween HOLDS its end state for the rest of the timeline (standard GSAP — the
+    anchor in Rule 1 keeps the timeline long enough to hold through the slot).
+    So the proven, bullet-proof entrance is:
+    - Give the element a **hidden CSS base** — `opacity: 0; transform: translateY(20px)`.
+    - **Reveal it with `tl.to(...)`** to the visible state at a staggered offset:
+      `tl.to('.title', { opacity: 1, y: 0, duration: 0.5 }, 0.3)`. Before its
+      offset it's hidden (CSS base); during the tween it animates in; after, it
+      holds visible. This is exactly what every bundled template does.
 
-    **Two correct ways to author a scene — use one or both:**
-    - **(A) Masked entrances:** content sits at its CSS-visible resting state;
-      play `from`/`fromTo` entrances UNDER a covering transition (a panel/wipe
-      that covers the frame for the first ~0.4–0.7s, then clears), so the
-      pre-tween flash is hidden. Dramatic staged reveals, like the templates.
-    - **(B) Continuous-motion:** content is present from frame 0 (CSS-visible),
-      and the life comes from full-duration tweens (camera, drift, sweep, the
-      feature's own animation). Simplest and flicker-proof.
+    ```css
+    .title { opacity: 0; transform: translateY(20px); }   /* hidden base */
+    ```
+    ```js
+    tl.to('.title', { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' }, 0.3);
+    ```
 
-    **Never** ship bare `from`/`fromTo` entrances on un-masked persistent content
-    (that is the flicker bug), and **never** rely on CSS-hidden + `.to` to keep
-    content visible (it reverts). (On the old 0.6.53 engine `fromTo` held its
-    from-state, which is why the prior "prefer fromTo" guidance worked then and is
-    wrong now — see Rule 1 history.)
+    - **`gsap.from`/`fromTo` are also fine** — they define the hidden start
+      explicitly and hold the end. Use whichever reads cleaner.
+    - **Continuous motion** (camera push, drift, gradient sweep, an always-running
+      waveform/EQ) is a full-`data-duration` tween — it carries life through the
+      hold so a scene never feels frozen after its entrances finish.
+
+    > **If a scene renders STATIC or flickers, it is almost never the entrance
+    > style — it is GSAP failing to load (Rule 0) or a JS error in the timeline
+    > IIFE (which stops registration on `window.__timelines`).** Check those
+    > first. (Earlier skill versions blamed a "0.7.17 seek model that reverts to
+    > CSS"; that was a misdiagnosis from a test where GSAP never loaded. There is
+    > no such reversion — completed tweens hold normally.)
+
+12b. **Never animate (or even render) a giant `box-shadow`.** The classic
+    spotlight/dim trick — a small element with `box-shadow: 0 0 0 9999px rgba(...)`
+    to darken everything around it — makes the frame-capture renderer rasterize a
+    ~20,000px shadow every frame. It **exhausts the GPU and crashes the app**
+    (especially when animated, and worst with a `backdrop-filter` in the same
+    scene). To dim-except-a-region: use a **flat full-bleed scrim** (`inset:0;
+    background: rgba(8,8,12,0.5)`, rasterized once) with a **bright ringed
+    highlight** on top (`box-shadow: 0 0 0 3px <accent>, 0 0 46px <glow>`). Keep
+    any box-shadow spread bounded (tens of px, not thousands). And animate
+    **transforms** (`x`/`y`/`scale`), never layout properties (`left`/`top`/
+    `width`) — layout animation forces per-frame relayout + repaint.
 
 13. **One transform tween per element, ever.** Rule 8 generalized: never put two
     concurrent tweens that both touch transform (`x`/`y`/`scale`/`rotation`) on
