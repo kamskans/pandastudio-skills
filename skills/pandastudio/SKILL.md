@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.44.0 -->
+<!-- version: 3.45.0 -->
 
 # PandaStudio
 
@@ -612,11 +612,18 @@ you: which verb, in what order, and the non-obvious gotchas.
   or `null`). Use it when the user says "this one" / "what's open" — don't ask
   for an id. `null` ≠ "no projects exist"; fall back to `project.list`.
 - **`project.read --id`** → full state. Key fields the schema won't spell out:
-  clips at `mainTrack.clips[]`, overlays at `editor.mediaOverlayRegions[]`;
-  `editedDurationMs` (post-trim — use for cadence planning), `sourceDurationMs`,
-  `trimCount`, and per-clip `clipStates[].kind` (`camera` / `screen` / `upload`,
-  your visual-strategy signal). Pass `--includeTranscript=false` after the first
-  read.
+  - **clips** at `mainTrack.clips[]` — each carries `sourceDurationMs` (the
+    clip's own length); there is **no per-clip `durationMs`** on the raw clip.
+    For a normalized per-clip view use the top-level `clipStates[]`, where each
+    entry has `clipId`, `durationMs` (= sourceDurationMs), `kind`, `transcribed`.
+  - **motion-graphic / transition overlays** at `editor.mediaOverlayRegions[]`.
+  - **audio overlays** (voiceover, music) at **top-level `project.audioOverlays[]`**
+    — NOT under `editor`. Different array from the visual overlays.
+  - **top-level read summary fields**: `aspectRatio`, `editedDurationMs`
+    (post-trim — use for cadence planning), `sourceDurationMs`, `totalTrimmedMs`,
+    `trimCount`, and per-clip `clipStates[].kind` (`camera`/`screen`/`upload`,
+    your visual-strategy signal).
+  Pass `--includeTranscript=false` after the first read.
 
 ### Adding things — the gotchas (call discovery for the arg schemas)
 
@@ -1348,14 +1355,19 @@ pandastudio export.start --id=$ID --quality=$QUALITY --json | jq -r '.data.jobId
 
 ### Performance — keep wall-clock minimal
 
-Motion-graphic renders dominate (60–90s for ~6 scenes); everything else is
+Motion-graphic renders dominate (each scene ~20–45s); everything else is
 rounding error. The levers:
-- **Fire all `motion.render-html` renders in parallel**, collect jobIds, then
-  `job.wait` each — never `job.wait` between fires.
+- **`motion.render-html` renders are SERIAL — fire ONE, `job.wait` it, then the
+  next.** A single-render mutex serializes them; a second concurrent render
+  returns `{ ok:false, error:"RENDER_BUSY" }` (parallel renders share GPU /
+  scratch / headless-shell state and wedge). Do NOT fire all renders at once.
 - **Run `audio.clean` in the background** (capture its jobId right after
-  transcribe; `job.wait` only before `export.start`).
-- **Pre-flight HTML with `motion.screenshot`** before a full render — a 2s
-  screenshot beats a 30–60s wasted render.
+  transcribe; `job.wait` only before `export.start`). This IS safe to overlap
+  with a render — the serial limit is render-to-render only.
+- **Pre-flight HTML with `motion.screenshot`** before a full render — a ~2s
+  screenshot at `--atMs=<mid-scene>` beats a 20–45s wasted render. It inlines
+  GSAP and seeks the paused timeline, so it previews the animated frame (not
+  the static pre-JS DOM).
 - **Re-read sparingly**: pass `--includeTranscript=false` after the first
   `project.read`, and reuse the `{ project }` each mutation returns instead of
   re-reading.

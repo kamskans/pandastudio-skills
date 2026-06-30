@@ -446,7 +446,7 @@ than 40, it will feel frenetic — that's fine for Shorts, wrong for a 16:9 prom
 Each row authors as its own HTML composition. Every composition starts
 from the canonical shell in `reference/motion-philosophy.md` §7 (grid
 + vignette + grain + chrome-gradient heading styles + Law #11 anchor).
-Run all renders in parallel, concat the sequence.
+Render each scene one at a time (renders are mutexed — serial), then concat the sequence.
 
 **PandaStudio limitation — honest note:** the editor does NOT render 3D
 perspective tilts on screen-recording clips. The Teamble reference achieves
@@ -483,7 +483,8 @@ and build from the canonical shell in §7. Every scene inherits the grid
 + vignette + grain background, chrome-gradient heading class, and the
 Law #11 timeline anchor. Author each scene's HTML as its own file
 (`/tmp/scene-hook.html`, `/tmp/scene-brand.html`, etc.), render them
-**all in parallel**, then concat.
+**one at a time** (renders are serialized — a concurrent call returns
+RENDER_BUSY), then concat.
 
 ```bash
 # ── Setup ─────────────────────────────────────────────────────────
@@ -511,39 +512,25 @@ MUSIC=$(pandastudio asset.list-music --json \
 # Each file starts from the canonical shell in §7 of motion-philosophy.md.
 # Load philosophy → pick primitives from §1.4 → compose → save.
 
-# ── Fire every render in parallel ────────────────────────────────
-# Since v1.17 each motion.render-html call spawns its own Chromium
-# process. 3+ concurrent renders finish in the time of one (~5× speedup).
-# Collect ALL jobIds first, THEN job.wait each — no job.wait between fires.
-HOOK_JOB=$(pandastudio motion.render-html \
-  --htmlPath=/tmp/scene-hook.html     --durationMs=2500 --json | jq -r '.data.jobId')
-BRAND_JOB=$(pandastudio motion.render-html \
-  --htmlPath=/tmp/scene-brand.html    --durationMs=2000 --json | jq -r '.data.jobId')
-P1_JOB=$(pandastudio motion.render-html \
-  --htmlPath=/tmp/scene-p1.html       --durationMs=1800 --json | jq -r '.data.jobId')
-P2_JOB=$(pandastudio motion.render-html \
-  --htmlPath=/tmp/scene-p2.html       --durationMs=1800 --json | jq -r '.data.jobId')
-P3_JOB=$(pandastudio motion.render-html \
-  --htmlPath=/tmp/scene-p3.html       --durationMs=1800 --json | jq -r '.data.jobId')
-ACTBREAK_JOB=$(pandastudio motion.render-html \
-  --htmlPath=/tmp/scene-actbreak.html --durationMs=2000 --json | jq -r '.data.jobId')
-BENEFIT_JOB=$(pandastudio motion.render-html \
-  --htmlPath=/tmp/scene-benefit.html  --durationMs=2500 --json | jq -r '.data.jobId')
-STAT_JOB=$(pandastudio motion.render-html \
-  --htmlPath=/tmp/scene-stat.html     --durationMs=2000 --json | jq -r '.data.jobId')
-OUTRO_JOB=$(pandastudio motion.render-html \
-  --htmlPath=/tmp/scene-outro.html    --durationMs=3000 --json | jq -r '.data.jobId')
-
-# All nine renders are now racing in parallel. Collect results.
-HOOK=$(pandastudio     job.wait --id=$HOOK_JOB     --json | jq -r '.data.job.result.outputPath')
-BRAND=$(pandastudio    job.wait --id=$BRAND_JOB    --json | jq -r '.data.job.result.outputPath')
-P1=$(pandastudio       job.wait --id=$P1_JOB       --json | jq -r '.data.job.result.outputPath')
-P2=$(pandastudio       job.wait --id=$P2_JOB       --json | jq -r '.data.job.result.outputPath')
-P3=$(pandastudio       job.wait --id=$P3_JOB       --json | jq -r '.data.job.result.outputPath')
-ACTBREAK=$(pandastudio job.wait --id=$ACTBREAK_JOB --json | jq -r '.data.job.result.outputPath')
-BENEFIT1=$(pandastudio job.wait --id=$BENEFIT_JOB  --json | jq -r '.data.job.result.outputPath')
-STAT=$(pandastudio     job.wait --id=$STAT_JOB     --json | jq -r '.data.job.result.outputPath')
-OUTRO=$(pandastudio    job.wait --id=$OUTRO_JOB    --json | jq -r '.data.job.result.outputPath')
+# ── Render each scene SERIALLY ───────────────────────────────────
+# motion.render-html is guarded by a single-render mutex: only one render
+# runs at a time, and a second concurrent call returns RENDER_BUSY. So
+# render one scene, job.wait it, capture its path, then the next. A small
+# helper keeps it tidy:
+render() {  # $1=htmlPath  $2=durationMs
+  local jid
+  jid=$(pandastudio motion.render-html --htmlPath="$1" --durationMs="$2" --json | jq -r '.data.jobId')
+  pandastudio job.wait --id="$jid" --json | jq -r '.data.job.result.outputPath'
+}
+HOOK=$(render     /tmp/scene-hook.html     2500)
+BRAND=$(render    /tmp/scene-brand.html    2000)
+P1=$(render       /tmp/scene-p1.html       1800)
+P2=$(render       /tmp/scene-p2.html       1800)
+P3=$(render       /tmp/scene-p3.html       1800)
+ACTBREAK=$(render /tmp/scene-actbreak.html 2000)
+BENEFIT1=$(render /tmp/scene-benefit.html  2500)
+STAT=$(render     /tmp/scene-stat.html     2000)
+OUTRO=$(render    /tmp/scene-outro.html    3000)
 
 # ── Act 4: Product snippets (screen recordings + zooms) ──────────
 # The user provides a full-UI screen recording as $UI_REC.
@@ -1026,25 +1013,24 @@ next. RENDER_BUSY means a render is already in progress; retry after
 job.wait completes.
 
 ```bash
-# 1. Fire every scene in parallel. Collect jobIds first, then job.wait
-#    each — the second fire doesn't block on the first.
+# 1. Render each scene SERIALLY — renders are mutexed (one at a time; a
+#    concurrent motion.render-html returns RENDER_BUSY). Render, job.wait,
+#    capture the path, then the next scene.
 INTRO_JOB=$(pandastudio motion.render-html \
   --htmlPath=/tmp/intro.html --durationMs=3000 \
   --outputName=scene-intro --json | jq -r '.data.jobId')
+INTRO_PATH=$(pandastudio job.wait --id="$INTRO_JOB" --json | jq -r '.data.job.result.outputPath')
 
 PRODUCT_JOB=$(pandastudio motion.render-html \
   --htmlPath=/tmp/product.html --durationMs=5000 \
   --assets=/Users/me/product1.png,/Users/me/product2.png \
   --outputName=scene-product --json | jq -r '.data.jobId')
+PRODUCT_PATH=$(pandastudio job.wait --id="$PRODUCT_JOB" --json | jq -r '.data.job.result.outputPath')
 
 CTA_JOB=$(pandastudio motion.render-html \
   --htmlPath=/tmp/cta.html --durationMs=2000 \
   --outputName=scene-cta --json | jq -r '.data.jobId')
-
-# All three Chromium processes are now racing to finish. Collect results.
-INTRO_PATH=$(pandastudio job.wait --id="$INTRO_JOB"   --json | jq -r '.data.job.result.outputPath')
-PRODUCT_PATH=$(pandastudio job.wait --id="$PRODUCT_JOB" --json | jq -r '.data.job.result.outputPath')
-CTA_PATH=$(pandastudio job.wait --id="$CTA_JOB"     --json | jq -r '.data.job.result.outputPath')
+CTA_PATH=$(pandastudio job.wait --id="$CTA_JOB" --json | jq -r '.data.job.result.outputPath')
 
 # 2. Merge into ONE MP4 — then add that single file to the project.
 #    Never add individual scene files as separate project.add-clip calls.

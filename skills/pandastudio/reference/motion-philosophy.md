@@ -164,9 +164,12 @@ Why this is the default for promos:
   pushes the engine hard (memory + capture time). Six 5-second renders are
   cheaper than one 30s render, and each is small enough to render reliably
   on slower machines.
-- **Parallel-friendly.** Render-pool supports multiple concurrent jobs on
-  Apple Silicon — multiple short scenes can be in flight at once where a
-  single long render is fully serial.
+- **Smaller renders are more reliable.** Each short scene renders well within
+  the engine's memory/capture ceiling. NOTE: renders are **serial** — a
+  single-render mutex means only one `motion.render-html` runs at a time (a
+  second concurrent call returns `RENDER_BUSY`). Fire one, `job.wait`, repeat.
+  The win over a single long render is reliability + reorderability, not
+  parallelism.
 
 When you DO want a single combined MP4 (e.g., user explicitly says "give me
 one file I can post directly"), use `motion.concat` to stitch the scene MP4s
