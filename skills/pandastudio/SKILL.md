@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.41.0 -->
+<!-- version: 3.42.0 -->
 
 # PandaStudio
 
@@ -85,8 +85,11 @@ description: Edit videos in PandaStudio — a desktop video editor for YouTube, 
 >   scenes via `motion_render_html`, NOT bundled templates.** In from-scratch work
 >   templates read as generic and "templated" — exactly the wrong feel for a
 >   hero/marketing asset, which is usually the most visible, brand-defining thing
->   the user makes. Author each scene from the canonical shell in
->   `reference/motion-philosophy.md`. Templates are still fine as *building blocks*
+>   the user makes. **Load [`reference/promo-and-mg-videos.md`](reference/promo-and-mg-videos.md)
+>   first — it is the design bar for this case:** every scene a DISTINCT
+>   composition that SHOWS its point (don't headline features — depict them), one
+>   system never one layout, rotate layout archetypes. Then author each scene from
+>   the canonical shell in `reference/motion-philosophy.md`. Templates are still fine as *building blocks*
 >   inside an otherwise-custom piece (e.g. a transition between custom scenes) —
 >   just not the backbone. Reach for templates as the backbone of from-scratch
 >   work ONLY for a deliberately quick draft or when the user explicitly asks for
@@ -755,18 +758,26 @@ points should be full of graphics.**
    — each is a candidate. If a 5-minute video has ten clear points, ~ten
    graphics is reasonable. **Under-graphicking is as much a failure as the
    wrong graphic** — when a beat clearly wants a visual, add one.
-3. **Repetition is good — it creates consistency.** Reusing one title style for
-   every chapter, or one designed segment (e.g. `paper-panel` / `vox-side-panel`)
-   across many explainer beats, makes a video feel *designed*, not random. Never
-   skip a template just because you already used it. (The earlier "don't repeat"
-   guidance was wrong — ignore it.)
+3. **Vary every scene — consistency comes from a shared SYSTEM, not a repeated
+   layout.** Hold ONE design system across the video (same palette, type family,
+   motion vocabulary) so it feels cohesive — but give every scene a **distinct
+   composition**. Reusing one layout (or one template) beat after beat with only
+   the text swapped is the #1 way a video reads as a flat, templated slideshow —
+   and it is fatal for a from-scratch / promo video where the graphics ARE the
+   video (see [`reference/promo-and-mg-videos.md`](reference/promo-and-mg-videos.md)).
+   The ONLY repetition that belongs is a recurring *functional overlay* on real
+   footage — e.g. the same lower-third name-plate style each time a person is
+   introduced — which is a consistent repeated ELEMENT, not a repeated SCENE.
+   (This replaces the earlier "repetition is good, reuse freely" guidance, which
+   produced templated, monotonous output.)
 4. **The ONE hard line: never misuse a purpose-specific template.** A few
    templates *mean* something — use them only when the content matches:
    `stat-reveal` → a real number (never a generic title) · `comparison` →
    exactly two things contrasted · `flowchart` → an actual sequence of steps ·
    `key-takeaways` → a list of points · `yt-lower-third` → introducing a
    person/channel. Everything else (the title family, `split-panel`, the
-   parallax reveals) is **generic — reuse freely.** See the class column below.
+   parallax reveals) is **generic** — usable on any beat — but still vary the
+   composition beat to beat; don't lean on one look for the whole video (Rule §3).
 5. **Camera-only / imported footage → lead with a PREMIUM designed segment.**
    When the clip's `kind` is `"camera"` (talking-head) or `"upload"` (imported),
    there's no screen to zoom into, so a static frame is what makes it look flat.
@@ -783,9 +794,10 @@ points should be full of graphics.**
    produced looks we ship, and on an "engaging / cinematic / level it up" brief
    you should prefer them over the plainer templates (`split-panel`, the basic
    title cards):
-   - **Reusable freely:** `paper-panel`, `vox-side-panel` (side panels) and
-     `vox-marker` (the highlighter headline reveal) — use these as often as the
-     content allows.
+   - **Strong workhorses:** `paper-panel`, `vox-side-panel` (side panels) and
+     `vox-marker` (the highlighter headline reveal) — reach for these on
+     explainer beats over real footage, but vary the side, content, and which
+     one you use; don't repeat a single panel across the whole video (Rule §3).
    - **Reach for the moment the content gives you the hook:** `vox-stat` (a real
      number / metric), `vox-quote` (a quote or testimonial), `vox-annotation`
      (circle/callout a specific subject word).
@@ -799,13 +811,16 @@ points should be full of graphics.**
 
 ### Selection guide (beat → template)
 
-"Class" tells you how freely to reuse it: **Generic** = reuse anytime · **Purpose**
-= only when the content matches · **Semi-generic** = reusable, has a natural fit.
+"Class" tells you when a template fits: **Generic** = usable on any beat ·
+**Purpose** = only when the content matches · **Semi-generic** = usable, has a
+natural fit. **Across a video, vary your compositions — don't repeat one look
+(Rule §3).** "Generic" means it has no content prerequisite, NOT "repeat it
+every scene."
 
 | What's happening in the video | Reach for | Class |
 |---|---|---|
-| Open / chapter / section title | `creator-card`, `transitions-3d`, `grain-overlay`, `transitions-destruction`, `caption-parallax-layers` — pick a look, reuse it per section | **Generic** — repeat freely |
-| Explainer beat, host on camera/imported footage | **`paper-panel`** (torn-paper sheet + two-line title) or **`vox-side-panel`** (graph-paper/specimen look) FIRST — the premium designed segments that level the video up. `split-panel` (clean brand panel + bullets) only as a plainer fallback / for variety. Pick a look and reuse it. | **Generic workhorse** — repeat freely |
+| Open / chapter / section title | `creator-card`, `transitions-3d`, `grain-overlay`, `transitions-destruction`, `caption-parallax-layers` — vary the look across sections | **Generic** |
+| Explainer beat, host on camera/imported footage | **`paper-panel`** (torn-paper sheet + two-line title) or **`vox-side-panel`** (graph-paper/specimen look) — the premium designed segments that level the video up. `split-panel` (clean brand panel + bullets) is the plainer fallback. Alternate side, content, and panel across beats. | **Generic workhorse** |
 | Hero reveal / intro / "ways to use it" recap | `parallax-zoom`, `parallax-unzoom` | Semi-generic |
 | Introduce a person / channel / "subscribe" | `yt-lower-third` | Purpose |
 | A real number / metric / result | `stat-reveal` | **Purpose — numbers only** |
@@ -1427,7 +1442,8 @@ collect ALL such questions in a single message — never one-at-a-time.
 - [`reference/templates.md`](reference/templates.md) — what each motion-graphic template looks like, with the slots it accepts and which aspect ratios it supports.
 - [`reference/motion-philosophy.md`](reference/motion-philosophy.md) — **the aesthetic contract.** Laws, visual vocabulary, easing dictionary, canonical shell, pre-flight checklist. Load this BEFORE authoring any motion graphic. This is what raises output from "template-filled" to "HyperFrames-quality".
 - [`reference/video-authoring.md`](reference/video-authoring.md) — **3-mode delivery playbook.** Mode A (9:16 camera-only), Mode B (9:16 screen-rec + PiP face — PandaStudio's unique mode), Mode C (16:9 YouTube side-overlay). Face choreography, caption safe zones, audio-sync protocol, frame verification. Load this for any shorts/YouTube authoring task.
-- [`reference/motion-recipes.md`](reference/motion-recipes.md) — menu of ~30 named, seek-safe motion patterns + scene transitions + the **determinism guardrails** (incl. the `data-duration`/`data-start` are-in-SECONDS rule). Read when authoring custom motion for a specific beat.
+- [`reference/promo-and-mg-videos.md`](reference/promo-and-mg-videos.md) — **the design bar for a from-scratch promo / all-motion-graphics video** (the graphics ARE the video). Show-don't-tell map, scene-variety archetypes, the templated-slideshow anti-pattern, and the motion/depiction/variety quality gate. Load this FIRST for any promo / teaser / explainer-from-scratch.
+- [`reference/motion-recipes.md`](reference/motion-recipes.md) — menu of ~30 named, seek-safe motion patterns + scene transitions + the **determinism guardrails** (incl. the `data-duration`/`data-start` are-in-SECONDS rule, the GSAP-must-load rule, and the motion-quality gate). Read when authoring custom motion for a specific beat.
 - [`reference/motion-templates.md`](reference/motion-templates.md) — background modes, designed segments, and the full bundled-template catalog (incl. podcast layouts). Read when picking/rendering a template via `motion.generate`.
 - [`reference/custom-html.md`](reference/custom-html.md) — the render verbs (`motion.screenshot`/`render-html`/`concat`), transparent overlays + frosted glass, add-by-jobId. Read alongside motion-philosophy when authoring custom HTML.
 - [`reference/visual-edits.md`](reference/visual-edits.md) — zooms (incl. follow-cursor + `--anchorSourceMs`), trims, speed, crop/reframe, face centering, webcam + per-section podcast layouts, speaker-driven editing. Read for any visual edit.
