@@ -32,6 +32,31 @@ Three rules, in priority order:
 
 ---
 
+## Audio: decide voiceover & music FIRST (they drive timing)
+
+Narration and a music bed are core capabilities, not afterthoughts. For a promo,
+**ASK the user whether to include them before building** (`media.generate-narration`
+— 3 TTS models; `media.generate-music` / `asset.list-music`) — don't silently ship
+a silent video. Once decided, the order of operations matters:
+
+- **If there's narration, generate the VO BEFORE timing any visuals.** TTS length
+  is unpredictable and usually runs LONGER than your read-aloud estimate (a ~30s
+  script came back 42s). Generate each line with `media.generate-narration`, read
+  the returned `durationMs`, then set each scene's `data-duration` to its line
+  length **+ ~0.8s** of breathing room. Author visuals first and you guarantee a
+  full re-time + re-render pass once the real VO lengths land.
+- **Music shorter than the timeline.** `media.generate-music` (Lyria-2) returns a
+  fixed ~30s instrumental. For a longer video, in order of preference: (1) **LOOP
+  it** — add the same track as back-to-back `project.add-audio` regions, each with a
+  short `--fadeIn`/`--fadeOut` (~500ms) at the seam so the join is inaudible; (2)
+  generate two different ~30s tracks and sequence them; (3) trim the timeline to the
+  music. Bundled `asset.list-music` tracks list their real `durationMs` — pick one
+  long enough and you skip looping entirely.
+- `project.add-audio` honors `--fadeIn`/`--fadeOut` (ms); the export mixer applies
+  them. Put a fade-out on the final music region so the bed doesn't cut off hard.
+
+---
+
 ## ❌ The #1 promo failure — the templated slideshow
 
 **Building one scene shell (background + eyebrow + big headline + a pill below)

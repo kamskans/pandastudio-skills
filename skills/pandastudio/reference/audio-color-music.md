@@ -54,6 +54,12 @@ pandastudio project.remove-audio --id=$ID --overlayId=audio-1 --json
 3. `--durationMs` fallback
 4. Probed real file duration (when nothing else is specified)
 
+**Fades** — `--fadeIn` / `--fadeOut` (ms) add a ramp at the overlay's audible
+start / end; the export mixer applies them (`afade`). Fade-out needs a bounded
+overlay (`endMs`/`maxDurationMs` set) so the end time is known; it's ignored on an
+uncapped full-length overlay. Use a fade-out on the final music region so the bed
+doesn't cut off hard, and short (~500ms) fades at a loop seam to hide the join.
+
 **Ducking music under voiceover** — use two overlays: the VO at `volume=1.0`
 and the music at `volume=0.2`. Both export through the same FFmpeg `amix`, so
 an explicit ducking automation isn't needed for simple cases.

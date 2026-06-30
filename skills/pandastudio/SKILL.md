@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.45.0 -->
+<!-- version: 3.46.0 -->
 
 # PandaStudio
 
@@ -448,6 +448,19 @@ hero/marketing asset. Ask once up front:
    backbone here if they explicitly choose speed — and say so. (This question does
    NOT apply to Mode A — graphics layered over existing footage — where templates
    stay the default and you should not ask.)
+
+**5. Voiceover & music for a from-scratch promo.** Narration and a music bed are
+first-class capabilities (`media.generate-narration` — 3 TTS models;
+`media.generate-music` / bundled `asset.list-music`). For a Mode-B piece (promo,
+explainer, intro/outro, teaser), if the brief doesn't already specify, **ASK up
+front** whether to add them:
+   > "Want a voiceover and/or a music bed? Both shape the timing, so I'll lock them in before building the scenes."
+
+   They materially change the build — **if there's narration, generate the VO
+   FIRST and time each scene to its line length** (TTS runs longer than you'd
+   guess; visuals-first forces a re-time pass). See "Audio: decide voiceover &
+   music FIRST" in [`reference/promo-and-mg-videos.md`](reference/promo-and-mg-videos.md).
+   Don't silently ship a silent promo when audio was available.
 
 If these are clear (or already specified), proceed without asking. Combine multiple asks into a single message when possible.
 </HARD-GATE>
