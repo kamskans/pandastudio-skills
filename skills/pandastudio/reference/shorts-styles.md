@@ -298,6 +298,45 @@ produced rather than trimmed. Two families:
   side panels, label-swaps, title cards) or `motion.render-html` for custom
   compositions. Overlay=true for top-zone graphics per L6.
 
+### Full-frame title card (the question / chapter card)
+
+Reference device (Ali Abdaal, observed on-platform): the speaker fully
+yields the frame to typography for a beat — an editorial serif question or
+chapter title on a paper background, ONE word in the accent color ("What is
+today's **adventure** going to be?"). Distinct from the hook card at t=0:
+this fires MID-VIDEO.
+
+- **WHEN:** a rhetorical question, a chapter pivot, or the hook restated —
+  only where the words ARE the visual payoff of that beat. Never as
+  decoration over ordinary narration.
+- **VO continues underneath.** The card text is (near-)verbatim what's
+  being spoken during it — audio continuity is what makes it feel like a
+  beat, not a cut to a slide. Never pause speech for a card.
+- **Duration 1.5–3s, max 1–2 per short.** Full-frame means the face is
+  gone; keep total speaker-less time under ~20% of the video.
+- **Style:** editorial serif, single accent word (counts as your ONE
+  emphasis mechanism per L4 — match the caption highlight color), paper /
+  brand-neutral background. One card style per video.
+- **Zoning:** the card's typography must stay clear of the caption band
+  (captions are global and keep rendering over the card — L6). Compose the
+  type in the upper ~60% with the reserved band left quiet.
+- **Entrance:** house sweep + camera-click (it's an animated-graphic
+  entrance); the card itself renders with `--soundUrl=none`.
+
+```bash
+# 9:16 full-frame question card, then place at the beat (VO keeps talking).
+# --background=solid: the template is a transparent overlay by default; a
+# full-frame card wants the opaque paper background so the speaker yields
+# the frame completely. Slots are sentence + emphasisWord (accentColor =
+# your video's single accent).
+JOB=$(pandastudio motion.generate --templateId=caption-editorial-emphasis \
+  --aspectRatio=9:16 --background=solid \
+  --slots='{"sentence":"What is todays adventure going to be?","emphasisWord":"adventure","accentColor":"#FFC400"}' | jq -r .jobId)
+pandastudio job.wait --id=$JOB
+pandastudio project.add-motion-graphic --id=$ID --fromJob=$JOB \
+  --atMs=<beatMs> --durationMs=2400 --soundUrl=none --anchorSourceMs=<wordSourceMs>
+```
+
 **Animated process graphics — the HyperFrames move (do NOT skip this).**
 When the transcript DESCRIBES a process, mechanism, or before/after — "you
 speak and it types", "it removes the fillers", "select it and say rewrite" —
