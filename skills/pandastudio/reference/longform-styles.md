@@ -1,107 +1,128 @@
 <!-- Part of the pandastudio skill. Editorial grammar for long-form editing. -->
 
-# Long-form styles: the retention grammar (PROVISIONAL)
+# Long-form styles: the retention grammar
 
-**What this is.** The retention layer for `youtube-long` edits — what to do
-ON TOP of SKILL.md's default edit pipeline (transcribe → fillers → STT fixes
-→ bad takes → silences) and the destination-profile defaults, so a 5–20 min
+**What this is.** The retention layer for `youtube-long` edits — what to do ON
+TOP of SKILL.md's default edit pipeline (transcribe → fillers → STT fixes →
+bad takes → silences) and the destination-profile defaults, so a 5–20 min
 video *holds*, not just plays clean.
 
-**Honesty header:** the shorts grammar (`shorts-styles.md`) is quantified
-from a 13-video frame-by-frame creator study. THIS file is not yet — the
-devices below transfer from that study and from the shorts validation runs;
-the long-form-specific NUMBERS are sane defaults pending a dedicated
-long-form study. Where a number is provisional it's marked `(prov.)`.
-Don't present provisional numbers to the user as researched fact.
+**Evidence.** Quantified from a 9-video measured study (July 2026): 3 videos
+each from Ali Abdaal (educator), MKBHD (product review), Fireship
+(dev explainer) — ffmpeg scene detection (963 hard cuts), 502
+vision-classified frames, hook/chapter/ending anatomy per video. Numbers
+below are measured, not vibes. `shorts-styles.md` is the sibling file for
+9:16; this file assumes 16:9.
 
 ---
 
-## 1. The laws, re-parameterized for long-form
+## 1. The laws (all three creators, no exceptions found)
 
-- **LF1 — Cold open, then the promise.** First frame is content, not logo.
-  The video's promise (what the viewer gets by the end) must land inside
-  **10s** (profile's hook deadline). Cut channel-intro throat-clearing the
-  same way shorts cut preamble. Intro cards only if the user asks — and
-  AFTER the hook, never before.
-- **LF2 — Pattern interrupt cadence.** Something visible changes every
-  **20–40s** `(prov.)`: a zoom, a b-roll insert, a graphic, a designed
-  segment, a chapter card. The shorts law (3–8s) at long-form pace reads
-  as exhausting; the FAILURE mode here is the 90s+ static stretch — scan
-  the render sheet for any and fill it.
-- **LF3 — Loops at two levels.** The video-level promise opens in the hook
-  and closes in the final chapter. Each CHAPTER opens its own small loop
-  ("here's what most people get wrong about X") and closes it before the
-  next chapter card. Chapter boundaries are where viewers decide to leave —
-  close a loop just before, open one just after.
-- **LF4 — Captions are seasoning, not law.** Unlike shorts (always-on
-  required), long-form default is profile-driven: full captions for
-  tutorial content, keyword/emphasis captions or none for cinematic
-  content. When captions are on, ALL of L6's zoning rules apply unchanged
-  (reserved caption band, footage-dependent position, never over a face or
-  graphic text).
-- **LF5 — Authenticity survives (unchanged).** keepFillers default ON for
-  talking-head; trims between beats. Same as shorts L5.
-- **LF6 — Zoning (unchanged).** Import L6 from shorts-styles.md verbatim —
-  same canvas, same collision physics, same render-sheet verification.
-- **LF7 — End for the algorithm, not the applause.** Long-form does NOT cut
-  on the payoff frame like shorts: the last 10–20s is the bridge to the
-  next video (verbal handoff + space for an end screen). Cut the "thanks
-  for watching, don't forget to like" boilerplate; keep the content bridge.
+- **LF1 — Thesis inside 10s, cold open always.** All 9 videos speak the
+  thesis/promise within 10s. No logo-first opens; a branded sting (~3s) is
+  acceptable only AFTER a spoken tease (MKBHD). Intro ends and chapter 1
+  starts by 24–72s (≤6% of runtime). Hook cut rate runs 0.6–1.9× body rate —
+  faster is common but not law; the spoken promise is the law.
+- **LF2 — The two-level rhythm.** Micro: median shot 3–6.5s, 7–13 visual
+  changes/min (creator-dependent, see recipes). Macro: the LAYOUT alternates
+  every 20–40s (talking head ↔ b-roll/graphic/insert). A stretch can pass
+  micro (jump cuts) and still fail macro — check both on the render sheet.
+- **LF3 — Static is a spent resource.** Nothing exceeds 60s without a
+  visual change, and every measured 30–60s hold was DELIBERATE: the verdict
+  monologue, the closing argument, a live terminal carrying its own motion.
+  Budget at most one long hold per video and place it at 72%+ (the
+  reasoning/payoff moment). An accidental 45s static stretch mid-video is
+  the #1 amateur tell.
+- **LF4 — No burned-in speech captions. Keyword pops instead.** 0/502
+  frames across all three creators had subtitle-style captions (platform
+  captions handle accessibility). On-screen text = 1–4 word KEYWORD pops
+  timed to the spoken word (serif pops for educator, angled color stickers
+  for dev content, credit tags/spec cards for review), plus full-frame
+  kinetic quote cards for the tweetable line (2–4 per video).
+- **LF5 — Authenticity survives (unchanged from shorts L5).** keepFillers
+  default ON for talking-head; trims between beats.
+- **LF6 — Zoning (unchanged from shorts L6).** Same collision physics.
+  With captions off by default the reserved band constraint mostly moves to
+  keyword pops + lower thirds: same rule, never over a face or other text.
+- **LF7 — Speech runs to the final seconds.** No endscreen slates, no
+  subscribe animations, no outro montages anywhere in the corpus. Formula:
+  verdict/recap → verbal bridge (next video / question to comments) → fixed
+  sign-off → hard stop, speech ending within ~6s of the last frame. Cut the
+  "thanks for watching, don't forget to like" boilerplate; keep the bridge.
+- **LF8 — Segmentation is IN-EDIT, chapter markers optional.** All 9 videos
+  segment visually; only Ali also populates YouTube chapters. Boundary
+  treatments (pick per recipe): full-frame numbered title card (2–4s), a
+  scorecard/checklist pivot graphic, or a persistent incrementing corner
+  tag. If you publish YouTube chapters, remember `llm.generate-timestamps`
+  returns SOURCE-time — remap through the trim map first.
 
-## 2. Devices that transfer directly (same commands, long-form placement)
+## 2. Recipes (pick by content, mirror of the shorts recipes)
 
-- **House signature (sweep + camera-click)** — same rule as shorts: opener
-  at t=0 + every b-roll / animated-graphic entrance, BUT respect density:
-  at long-form pace cap it at roughly one per 30s `(prov.)` and reserve it
-  for chapter-level moments, or it stops reading as punctuation.
-- **Full-frame title card** (see shorts-styles.md §9) — MORE at home in
-  long-form than shorts: it's the natural **chapter card**. One per chapter
-  boundary, editorial serif, one accent word, VO continues underneath,
-  1.5–3s. Same `caption-editorial-emphasis --background=solid` command.
-- **Designed segments (band/split layouts)** — for process explanations,
-  comparisons, stat walkthroughs. In 16:9 use cameraSide left/right (the
-  Vox/MKBHD split), not top/bottom bands.
-- **Animated process graphics** — when the transcript describes a process,
-  depict it (typing, transforms, command→result). Same hyperframes shell,
-  16:9 dimensions (1920×1080).
-- **B-roll policy** — identical: video b-roll user-provided only, generated
-  images/graphics autonomous, never pause the edit, report upgrade slots.
-- **Lower thirds** — long-form specific (shorts ban them): introduce the
-  speaker/brand at first appearance, re-introduce topics at chapter starts.
-- **Verification** — same render-sheet discipline, but sample AT chapter
-  boundaries + mid-chapter rather than uniformly: that's where the state
-  changes live. Same gates apply (STATIC_RENDER, contract lint).
+### educator-pip (Ali Abdaal) — frameworks, habits, how-to
+- **Workhorse layout (28–54% of frames): full-frame graphic with small PiP
+  talking head** (rounded corner card, ~1/6 frame width). Face stays on
+  screen ~85–90% of runtime while the graphic carries the content. In
+  PandaStudio: `project.add-motion-graphic --layer=background` + a CARD
+  camera clip-transform over the same span (or `add-designed-segment`).
+- 8–9 changes/min, median shot ~5s; if nothing cuts, animate a diagram
+  element in.
+- Keyword pops: 1–4 word serif overlays at the spoken keyword. Kinetic
+  quote cards (cream bg, serif, word-by-word, one accent word — the
+  `caption-editorial-emphasis` card) 2–4× per video.
+- Chapters: few long chapters (6–10) → full-frame numbered title cards
+  2–4s; many micro-chapters (20+) → persistent corner counter tag instead.
+  Populate YouTube chapter markers.
+- Diagrams over raw screenshots: rebuild UIs as clean mock cards.
+- Ending: verbal bridge, then the video's longest hold (30–60s single-take)
+  is allowed HERE.
 
-## 3. Long-form-only structure
+### product-review (MKBHD) — reviews, comparisons, "should you buy"
+- **Alternation engine: talking head ↔ product b-roll on a 20–40s period**
+  (~50/50 split of frames). 7–8 changes/min, median shot 5.5–6.5s.
+- Spec-card ritual: ONE white rounded spec card (≤4 bullets) over slow hero
+  b-roll ~20s in; never repeated.
+- The pivot is a scorecard/checklist graphic at the "here's the catch"
+  moment — not a chapter card. Full-frame data charts for comparisons.
+- Credit-tag every borrowed clip (small diagonal source tag).
+- Verdict = the longest hold (32–55s), placed 72–92%. Ending liturgy:
+  recap → question to comments → sign-off, speech to within 6s of end.
 
-- **Chapters.** Derive chapter boundaries from the transcript's topic
-  shifts. Each chapter: card (device above) + optional lower-third +
-  YouTube chapter timestamp. CAVEAT: `llm.generate-timestamps` currently
-  returns SOURCE-time, not edited-time — remap through the trim map before
-  publishing chapters, or compute timestamps yourself from the edited
-  transcript.
-- **Zoom rhythm, not zoom density.** Profile says 3–6/min; distribute them
-  ON transcript beats (claims, numbers, punchlines) with `anchorSourceMs`,
-  never on a fixed grid. A zoom that lands mid-sentence on nothing reads
-  as a mistake.
-- **Music.** Only when asked (profile rule). If asked: duck under speech
-  (vol ≤ 0.15), swap or lift at chapter boundaries so the bed tracks the
-  structure.
+### dev-explainer (Fireship) — code, tools, technical deep-dives
+- **No talking head (0% of frames). Voiceover over: additive flat diagrams
+  on black (elements pop in per narrated clause), live-typed terminals with
+  real output, document scans with highlighter + hand-drawn arrows, and
+  meme/stock punctuation (~35% of frames, 1–3s each) after each
+  explanatory beat.**
+- Fastest rhythm: ~13 changes/min, median shot ~3s, hook ~1.4× faster.
+- Text = angled colored sticker keywords (1–3 words, rotated 3–10°); the
+  flag/option under discussion gets a floating label beside the terminal.
+- Structure: hidden numbered listicle (~1 boundary/min), each boundary a
+  2–4s black card with numbered badge + logo. No YouTube chapters needed.
+- Terminals are the legitimate long shots (20–47s) — keystroke motion
+  carries them; don't cut away mid-command.
+- Ending: hard stop, fixed sign-off, final frame is a gag beat. Zero
+  endscreen.
 
-## 4. Speed discipline
+## 3. Devices that transfer from shorts (same commands)
 
-Budget scales with length: pre-flight + beat map ~3 min, then roughly
-**+1 min of agent time per 2 min of video** `(prov.)` for cuts + devices,
-plus render/export. A 10-min video should be fully edited in ~10 min of
-agent work. Same one-pass beat-map rule as shorts: read the transcript
-ONCE, plan every chapter/cut/zoom/graphic, then execute via
-`project.apply-edit-plan`. The cheat sheet (`shorts-cheatsheet.md`)
-applies verbatim — same verbs, same conventions, same gotchas.
+House sweep + camera-click on graphic/b-roll entrances (long-form cap:
+reserve for chapter-level moments, ~1/30s max); full-frame title cards
+(`caption-editorial-emphasis --background=solid` + dark inkColor) as
+chapter cards; designed segments (16:9: cameraSide left/right); animated
+process graphics (hyperframes, 1920×1080); b-roll policy verbatim (user
+video only, generated stills/graphics autonomous, never block, report
+upgrade slots); lower thirds at first mentions (long-form only — shorts ban
+them); zooms 3–6/min ON transcript beats with `anchorSourceMs`, never on a
+grid; sponsor reads keep the house grammar (mid-roll ~50% mark is the norm,
+and it may be the video's longest unbroken shot).
 
-## 5. What still needs the study (do not improvise)
+## 4. Verification + speed
 
-Quantified hook structures per genre, real pattern-interrupt cadence per
-audience, chapter length distributions, retention-curve-informed payoff
-placement, b-roll density norms. When the long-form creator study lands,
-this file gets the same treatment shorts-styles.md got — until then the
-`(prov.)` numbers are defaults, not evidence.
+Render-sheet at chapter boundaries + mid-chapter (that's where state lives),
+plus a dedicated LF2/LF3 scan: flag any 60s+ window with no visual change
+and any 30–60s hold that isn't the designated payoff moment. Same gates
+apply (STATIC_RENDER, contract lint). The cheat sheet
+(`shorts-cheatsheet.md`) applies verbatim — same verbs, conventions,
+gotchas. Budget: pre-flight + beat map ~3 min, then ~1 min of agent time
+per 2 min of video, plus renders/export; a 10-min video ≈ 10 min of agent
+work via one `apply-edit-plan` batch.

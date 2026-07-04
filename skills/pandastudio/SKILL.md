@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.65.0 -->
+<!-- version: 3.66.0 -->
 
 # PandaStudio
 
@@ -272,7 +272,7 @@ Use when the user says things like "use this background for all my videos" or "a
 Folders, `project.rename`, project-look defaults, transcription-language switching (Parakeet/Whisper), and transcribing a standalone file → text/SRT/VTT. Full detail: [`reference/projects-and-transcription.md`](reference/projects-and-transcription.md).
 ## Shorts: turning an exported video into vertical clips
 
-Discover shots (`export.find-shots`), fork the source project per shot (`project.fork-from-shot`), the 9:16 vertical playbook, drift detection, and batch N shorts. Full detail: [`reference/shorts.md`](reference/shorts.md). To make a short actually RETAIN — "make it engaging/viral", "edit like Hormozi / Ali Abdaal / a podcast clip" — load [`reference/shorts-styles.md`](reference/shorts-styles.md): four evidence-based recipes with the seven retention laws, quantified caption/zoom/overlay parameters, and a render-frame verification pass. Load [`reference/shorts-cheatsheet.md`](reference/shorts-cheatsheet.md) alongside it — exact command shapes plus a hyperframes starter shell, so you never grep schemas or other reference files mid-edit. For `youtube-long` edits that should RETAIN (not just play clean), load [`reference/longform-styles.md`](reference/longform-styles.md) — the same devices re-parameterized for long-form pace: chapter cards, pattern-interrupt cadence, two-level loops, lower-thirds, chapter-boundary verification. (Its numbers are marked provisional pending a long-form creator study.)
+Discover shots (`export.find-shots`), fork the source project per shot (`project.fork-from-shot`), the 9:16 vertical playbook, drift detection, and batch N shorts. Full detail: [`reference/shorts.md`](reference/shorts.md). To make a short actually RETAIN — "make it engaging/viral", "edit like Hormozi / Ali Abdaal / a podcast clip" — load [`reference/shorts-styles.md`](reference/shorts-styles.md): four evidence-based recipes with the seven retention laws, quantified caption/zoom/overlay parameters, and a render-frame verification pass. Load [`reference/shorts-cheatsheet.md`](reference/shorts-cheatsheet.md) alongside it — exact command shapes plus a hyperframes starter shell, so you never grep schemas or other reference files mid-edit. For `youtube-long` edits that should RETAIN (not just play clean), load [`reference/longform-styles.md`](reference/longform-styles.md) — quantified from a 9-video measured study (Ali Abdaal / MKBHD / Fireship, July 2026): three recipes (educator-pip, product-review, dev-explainer), the two-level rhythm, keyword pops instead of burned captions, in-edit segmentation, and ending liturgy.
 ## Publishing (YouTube + Instagram)
 
 **Hard rules:** YouTube `privacyStatus` defaults to `unlisted` — never public without explicit user say; Instagram needs a Business/Creator account; never publish in the wrong workspace (confirm `isInActiveWorkspace`). Flows: connect → publish an export. Full detail: [`reference/publishing.md`](reference/publishing.md).
@@ -1097,8 +1097,8 @@ Resolve the destination first (see [HARD-GATE](#editorial-decisions--what-to-ask
 | Speed regions (B-roll) | 1.5–2× | **2–3×** or cut entirely | 1.25–1.5× | none |
 | LUT preset | by content type @ 0.5–0.8 | **`modernVibrant` @ 1.0** | `naturalEnhanced` @ 0.3 | none |
 | Background music | **only if the user asks** (then vol 0.15) | **only if the user asks** (then vol 0.30) | none | none |
-| Captions enabled | yes | **yes (required)** | yes | optional |
-| Caption template | `bold` (tutorial) · `minimal` (pro) | **`neon`** + positionY 0.65 | `minimal` | `minimal` (if any) |
+| Captions enabled | **no burn-in** — keyword pops instead (measured: 0/9 studied long-form videos burn speech captions; see longform-styles.md LF4) | **yes (required)** | yes | optional |
+| Caption template | — (keyword-pop overlays, not caption templates; if the user INSISTS on captions: `minimal`) | **`neon`** + positionY 0.65 | `minimal` | `minimal` (if any) |
 | Export quality | `high` | `high` | `high` | `standard` (faster) |
 
 **LUT by content type** (only for `youtube-long` — other profiles use their fixed preset above):
