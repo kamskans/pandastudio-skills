@@ -29,8 +29,18 @@ Conventions that save round-trips:
 - `motion.render-html` / `motion.generate` submissions queue automatically
   (app >= 1.60): fire ALL your renders back-to-back, keep editing (captions,
   music, trims) while they render, then `job.wait` each jobId when you need
-  the outputs. On older builds a back-to-back submission fails fast with
-  RENDER_BUSY — if you see that, fall back to submit -> job.wait -> submit.
+  the outputs. Don't trust the version string alone (dev builds can lag):
+  probe by behavior — submit two back-to-back; RENDER_BUSY on the second
+  means an old build, fall back to submit -> job.wait -> submit.
+- Requested render durations quantize DOWN to frame boundaries (11400 ->
+  11300 at the default frame rate) — read the actual durationMs from the
+  job result before placing, don't assume your requested value.
+- TWO-WRITER WARNING: if the user has the project open in an editor, the
+  editor's autosave can clobber your CLI writes (revisions reset, style
+  values revert, regions vanish). If a change you made reads back
+  differently moments later, that's the editor — re-read the project,
+  re-apply ONCE, and if it persists REPORT it to the user ("please close
+  the editor or pause editing") instead of fighting a write war.
 - Zoom depth→scale: 1=1.25x, 2=1.5x (house default), 3=2.0x… Prefer depth 2.
 - Transcript pacing: fetch the transcript ONCE, build your full beat map in
   one pass (cuts + zoom beats + graphic slots + payoff), THEN execute. Do not
@@ -218,7 +228,7 @@ ps_ motion.render-html
 Optional: `--html=<string>` `--htmlPath=<string>` `--aspectRatio=<string>` `--width=<number>` `--height=<number>` `--durationMs=<number>` `--frameRate=<number>` `--outputName=<string>` `--audioPath=<string>` `--audioVolume=<number>` `--assets=<array>` `--transparent=<boolean>`
 
 ### `motion.verify-frames`
-Extract PNG frames at specified timestamps from a rendered video for visual verification. Each frame in the response carries a full-res `path` AND a downscaled `previewPath` (1280-wide, ~600KB base64). For vision-capable models: `read` the `previewPath` of each frame to inspect the composition — fast and the model can actually see it. For non-vision models: skip the `read` and surface `outDir` to the user. Pass either entryId (export-library entry) or videoPath (arbitrary MP4). Timestamps are in seconds.
+Extract PNG frames at specified timestamps from a rendered video for visual verification. Each frame carries a full-res `path`; most responses also include a downscaled `previewPath` (1280-wide) — when previewPath is absent, `read` the full-res `path` instead. For vision-capable models: `read` the `previewPath` of each frame to inspect the composition — fast and the model can actually see it. For non-vision models: skip the `read` and surface `outDir` to the user. Pass either entryId (export-library entry) or videoPath (arbitrary MP4). Timestamps are in seconds.
 
 ```
 ps_ motion.verify-frames --timestamps=<array>
@@ -304,6 +314,17 @@ Block (up to timeoutMs, default 5 minutes) until the job reaches a terminal stat
 ps_ job.wait --id=<string>
 ```
 Optional: `--timeoutMs=<number>`
+
+## Verification gotchas
+
+- A band/overlay VIDEO showing empty or a stuck frame in `render-frame` /
+  render-sheet cells does NOT mean the export will be wrong — preview
+  overlay seeks can be flaky. Before re-rendering the graphic, check the
+  webm itself with `motion.verify-frames --videoPath=...`; if the webm is
+  correct, trust it and move on — the export compositor decodes it fresh.
+- Sweeps/graphics at t=0 place fine (app >= 1.60; older builds silently
+  dropped t=0 regions on projects with a head trim — if a region you
+  added "never appears", that's the build, place at 50ms instead).
 
 ## The 6-minute budget
 
