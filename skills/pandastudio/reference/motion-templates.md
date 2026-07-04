@@ -220,7 +220,7 @@ Presets: `podcast-solo` (participants[0] full-frame), `podcast-pair` (participan
       --slots='{"sentence":"Every great video starts with a single frame.","emphasisWord":"single frame"}' \
       --aspectRatio=16:9 --json | jq -r '.jobId')
   pandastudio job.wait --id=$JOB
-  pandastudio project.add-motion-graphic --fromJob=$JOB --startMs=3000 --durationMs=4000
+  pandastudio project.add-motion-graphic --fromJob=$JOB --atMs=3000 --durationMs=4000
   ```
 
 > List slots (`items`, `nodes`) take an array of objects, e.g.
