@@ -108,7 +108,11 @@ ps_ project.render-frame --atMs=<number>
 Optional: `--id=<string>` `--path=<string>` `--outPath=<string>`
 
 ### `transcript.get`
-Return the merged edited-time transcript: every word, with id, text, startMs, endMs in EDITED-TIMELINE coordinates (sum of preceding clip durations applied). Use the word IDs as input to transcript.delete-words.
+Return the merged transcript. Each word carries BOTH time bases: `startMs`/`endMs`
+are SOURCE time (use for `anchorSourceMs`), and `editedStartMs`/`editedEndMs` are
+EDITED-timeline time (null = word sits inside a trim). Read the base you need —
+never burn `timeline.source-to-edited` calls per word. Word IDs feed
+transcript.delete-words.
 
 ```
 ps_ transcript.get 
@@ -325,6 +329,25 @@ Optional: `--timeoutMs=<number>`
 - Sweeps/graphics at t=0 place fine (app >= 1.60; older builds silently
   dropped t=0 regions on projects with a head trim — if a region you
   added "never appears", that's the build, place at 50ms instead).
+
+### `project.set-clip-lut`
+Apply a color-grade LUT to a clip. Args are `--lutPreset=<id>` and
+`--lutIntensity=<0-1>` (NOT "preset @ intensity" — that's prose in the
+profile table). Discover ids with `asset.list-luts`.
+
+```
+ps_ project.set-clip-lut --id=$ID --clipId=<clipId> --lutPreset=modernVibrant --lutIntensity=0.7
+```
+
+## More conventions (learned from real runs)
+
+- Overlay geometry in `project.update-region` (x/y/width/height) is PERCENT
+  of canvas 0-100; values <= 1 are treated as 0-1 fractions and scaled
+  (app >= 1.60). On older builds pass percent explicitly.
+- A motion graphic whose region span is LONGER than its rendered duration
+  freeze-frames on its final frame for the remainder — by design. Author
+  the animation to settle into a hold-worthy end state.
+- `llm.generate-*` outputs: sanity-read before shipping into metadata.
 
 ## The 6-minute budget
 
