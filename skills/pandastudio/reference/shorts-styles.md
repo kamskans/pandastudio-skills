@@ -64,6 +64,16 @@ short feel amateur, regardless of styling.
   (finished list, restated title, the answer on screen). Cut immediately
   after the final payoff word — no outro sentence, no fade.
 
+### House opener (all shorts)
+
+Every short opens with the **light-sweep transition + camera-click SFX** at
+t=0 — a signature snap that makes the first frame feel deliberate:
+
+```bash
+pandastudio project.add-transition --id=$ID --transitionId=light-sweep --atMs=0 --durationMs=700
+pandastudio project.add-audio --id=$ID --audioPath=bundled:sound/camera-click --startMs=0 --volume=0.9
+```
+
 ## 3. Shared pre-flight (every recipe starts here)
 
 ```bash
@@ -104,11 +114,19 @@ engine is a **mutating top-zone overlay** — the camera almost never cuts.
 | Audio | music bed from first beat (`asset.list-music` → `project.add-audio`, low volume); `keepFillers=on` |
 | Payoff cadence | one item/verdict every 3–8s |
 
+The PROVEN top-band mechanism (validated on a real short): **designed
+segments** — `paper-panel` / `vox-side-panel` at 9:16 become a top band with
+the camera reflowed to the bottom band. One per feature beat:
+
 ```bash
-# Per beat i with [startMs..endMs] from the beat map:
-pandastudio motion.generate --templateId=<overlay template> \
-  --slots='{"title":"<item name>","subtitle":"for <use case>"}' \
-  --aspectRatio=9:16 --overlay=true --json      # → add at beat startMs, duration = beat length
+# Per feature beat [startMs..endMs] from the beat map (render serially —
+# parallel render-html/generate submissions can race):
+JOB=$(pandastudio motion.generate --templateId=paper-panel \
+  --slots='{"side":"top","title1":"SPEAK,","title2":"IT TYPES","subtitle":"cursor anywhere — just talk"}' \
+  --aspectRatio=9:16 --json | jq -r '.data.jobId')
+pandastudio job.wait --id=$JOB
+pandastudio project.add-designed-segment --id=$ID --fromJob=$JOB \
+  --atMs=<beat startMs> --durationMs=<beat length> --cameraSide=bottom --cameraRatio=55
 # Act-change punch-in (once, at the payoff act):
 pandastudio project.add-zoom --id=$ID --atMs=<payoff act startMs> --durationMs=<rest> --depth=2 --soundUrl=none
 # Captions:
