@@ -128,6 +128,19 @@ cards don't click at the viewer.
 
 ## 3. Shared pre-flight (every recipe starts here)
 
+**Speed rule: read `reference/shorts-cheatsheet.md` FIRST.** It has the
+exact shape of every command a short needs, the conventions (atMs vs
+startMs, soundUrl=none, serial motion renders, apply-edit-plan for bulk
+ops), and a copy-paste hyperframes starter shell. With it loaded you should
+never grep source code, dump command schemas, or hunt through other
+reference files mid-edit — that spelunking is where slow edits lose 3-4
+minutes. Budget: a ≤60s short is fully edited in ~6 minutes plus export.
+
+Transcript discipline: fetch the transcript ONCE and build the complete
+beat map in a single pass — cuts, zoom beats, graphic slots, caption plan,
+payoff frame — then execute the whole plan. Re-reading words per edit is
+the other big time sink.
+
 ```bash
 ID=<project id>                      # from fork-from-shot or project.locate
 pandastudio project.set-aspect-ratio --id=$ID --ratio=9:16   # if not already
