@@ -42,7 +42,11 @@ pandastudio project.fork-from-shot --exportId="$EXPORT" --shotId="$SHOT" --json
 - **Fills the vertical frame** — applies a centered cover-crop so a landscape (16:9) source fills the 9:16 canvas instead of being letterboxed into a band. (Probed from the source video's real dimensions; skipped for podcast composites and already-vertical sources.) **Face centering is automatic:** when the short opens in the editor, vertical talking-head clips are face-detected and a focal point is set so the cover-crop (and any top/bottom designed-segment band) keeps the face in frame rather than slicing the geometric middle. Override with the "Center on face" control or `project.set-focal-point` (see Settings below).
 - **Names** the new project `"{Source Name} — Short: {shot title}"` and gives it a fresh UUID + revision 0.
 
-The result is a **clean 9:16 canvas with the timing already done**. Now layer on Shorts-native graphics, captions, and a hook:
+The result is a **clean 9:16 canvas with the timing already done**. Now make it
+retain: **load [`shorts-styles.md`](shorts-styles.md)** — the evidence-based recipe
+playbook (kinetic-educator / bold-caption / podcast-clip / polished-explainer)
+with the seven retention laws, per-recipe caption/zoom/overlay parameters, and
+the verification pass. The snippet below is minimal generic polish only:
 
 ```bash
 NEW_PROJECT=$(pandastudio project.fork-from-shot --exportId="$EXPORT" --shotId="$SHOT" --json | jq -r '.data.id')
@@ -112,15 +116,18 @@ Each fork is a separate 9:16 project the agent (or user) can then polish indepen
 ### Editing a Short — the vertical playbook (v1.43+)
 
 The fork hands you a **clean 9:16 canvas with the cut already timed**. A bare
-clip is not a Short — what separates a scroll-past from a watch-to-end is the
-*layered motion*: captions every second, emphasis on the words that matter, and
-the frame changing shape often enough that the eye never settles. A Short lives
-or dies on **completion rate** (the ~70% watch-through is where the algorithm
-starts pushing it), so every choice below exists to stop the thumb. Treat
-"make a short" as explicit licence to apply this whole playbook — unlike a
-long-form edit, here the busy, transition-heavy style IS the brief (so the
-FX-are-explicit-only rule (see "Effects (FX) & transitions") and the
-section-break-only transition default do NOT throttle you inside a short).
+clip is not a Short — a Short lives or dies on **completion rate** (the ~70%
+watch-through is where the algorithm starts pushing it).
+
+> **Authoritative grammar: [`shorts-styles.md`](shorts-styles.md).** Pick a
+> recipe there FIRST (kinetic-educator / bold-caption / podcast-clip /
+> polished-explainer) and follow its parameter table; the layers below are the
+> generic mechanics those recipes drive. One correction from the July-2026
+> frame-by-frame study of top creators, superseding older guidance in this
+> section: modern top shorts are NOT busy or transition-heavy. Every cut is
+> semantic (new idea = new cut, every 3.5–8s), emphasis uses ONE mechanism,
+> and between-beat transitions are essentially absent. Visual state must
+> change every 3–8s — but via overlay/zoom/speaker changes, not FX spam.
 
 **The five layers, in the order you add them:**
 
