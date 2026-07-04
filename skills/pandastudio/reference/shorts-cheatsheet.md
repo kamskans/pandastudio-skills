@@ -341,6 +341,20 @@ profile table). Discover ids with `asset.list-luts`.
 ps_ project.set-clip-lut --id=$ID --clipId=<clipId> --lutPreset=modernVibrant --lutIntensity=0.7
 ```
 
+### `project.add-background-effect`
+AI person segmentation on the camera video between startMs and endMs —
+`--mode=blur` blurs everything behind the speaker (video-call style),
+`--mode=remove` cuts the background so the project wallpaper shows through.
+Behaves exactly like a zoom region (drag/trim/anchor; `--anchorSourceMs`
+for transcript-derived placement). Great on 9:16 talking-head shorts:
+`remove` + a branded `set-wallpaper` gives the "green-screen studio" look
+in one call. Camera footage only. Defaults: 5000ms duration, blur
+strength 18 (px sigma at 1080p, `--strength=1-120`).
+
+```
+ps_ project.add-background-effect --id=$ID --atMs=50 --durationMs=8000 --mode=blur --strength=22
+```
+
 ## More conventions (learned from real runs)
 
 - Overlay geometry in `project.update-region` (x/y/width/height) is PERCENT
