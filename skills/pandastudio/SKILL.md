@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.59.0 -->
+<!-- version: 3.60.0 -->
 
 # PandaStudio
 
@@ -1453,6 +1453,15 @@ creator overrides + motion-philosophy are the answer. If something
 genuinely needs user input (missing brand reference for a named style
 that has none obvious, missing subject name for the lower third),
 collect ALL such questions in a single message — never one-at-a-time.
+
+## In-app agent sessions — observe and stop
+
+The desktop app embeds its own chat agent. Two verbs (app >= 1.60) let an
+external agent see and control those sessions: `agent.session-list` (id,
+title, timestamps; returns `running:false` when the embedded agent server
+is down — it never starts it) and `agent.session-stop --sessionId=<id>`
+(or `--all=true`) to abort execution while keeping the transcript. Use
+when the user reports the in-app agent doing something unattended.
 
 ## What this skill is NOT for
 

@@ -617,17 +617,29 @@ caching, the renderer can pre-decode).
 Before claiming done, run the verifiable checks below — not vibes-based "looks
 good in my head."
 
-### The human is the verifier
+### The engine verifies mechanics; the human verifies taste
 
-PandaStudio's user opens every render in the editor and reviews it
-themselves. The agent does **not** auto-screenshot, auto-verify, or
-otherwise gate its own work on visual inspection — that's spending an
-expensive turn (and a couple of MB of vision-model tokens) on a check
-the human does in two seconds for free.
+Two automatic gates (app >= 1.60) own the MECHANICAL failure modes, so
+you never ship them and never spend tokens checking for them:
+
+- **Pre-render lint** — contract violations bounce in milliseconds
+  (unpaused timeline, repeat:-1, Math.random/Date.now, missing
+  __timelines registration, ms-vs-s duration confusion, shadow/blur
+  radii > 500px). Fix exactly what the error names.
+- **Post-render static gate** — a clip frozen for >=90% of its duration
+  fails with STATIC_RENDER instead of returning. A frozen render can no
+  longer masquerade as success; if you see STATIC_RENDER, the animation
+  never ran (gsap load, registration id, or selectors matching nothing).
+
+What the gates CANNOT judge is design: depiction (is the feature shown
+or merely headlined?), variety (are adjacent scenes distinct?), brand
+fidelity, and pacing. That's the self-critique below plus the human's
+eye. The agent does **not** auto-screenshot or burn vision tokens
+re-checking what the gates already guarantee.
 
 Author the composition with care, walk the **textual** brand checklist
-before rendering, then render and hand off. The user catches anything
-visual you'd miss anyway.
+before rendering, then render and hand off. The user catches the taste
+gaps you'd miss anyway.
 
 The brand checklist (run mentally before `motion.render-html`):
 

@@ -40,9 +40,18 @@ Conventions that save round-trips:
 
 Copy this shell verbatim and edit the content + timeline only. The contract
 lines (composition attrs, gsap src, paused timeline, bracket-form
-registration) must survive as-is. Pure CSS/text/SVG animation only — no
-images (image decode is not awaited; frames can render empty). No
-Date.now()/Math.random() — renders must be deterministic.
+registration) must survive as-is. Images (<img> and CSS backgrounds) are
+awaited before capture on app >= 1.60; on older builds prefer pure
+CSS/text/SVG (image decode was not awaited; frames could render empty).
+No Date.now()/Math.random() — renders must be deterministic.
+
+The renderer GATES your output (app >= 1.60): a pre-render lint rejects
+contract violations (unpaused timeline, repeat:-1, Math.random, missing
+registration, shadow/blur radii > 500px), and a post-render check fails
+any clip that is frozen for >=90% of its duration with STATIC_RENDER.
+If you get STATIC_RENDER: your animation never ran — check the gsap
+load, the registration id, and that tween selectors match real elements.
+Fix and re-render; never place a clip that failed the gate.
 
 ```html
 <div id="comp" data-composition-id="comp" data-width="1080" data-height="1920"

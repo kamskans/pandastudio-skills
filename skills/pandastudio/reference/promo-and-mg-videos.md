@@ -153,9 +153,11 @@ Layout-correctness is not motion quality, and motion is not design variety.
 A render can pass every technical check and still be a monotonous slideshow.
 So verify all three:
 
-1. **Motion** — extract 3+ frames *within each scene* and confirm they visibly
-   differ (entrances, camera, reveals). Identical in-scene frames = static (or
-   GSAP didn't load).
+1. **Motion** — AUTOMATIC on app >= 1.60: the renderer fails any clip frozen
+   for >=90% of its duration (STATIC_RENDER), so a frozen scene can't reach
+   you as success. Per-scene holds inside a longer video can still hide — for
+   multi-scene single renders, extract 3+ frames *within each scene* and
+   confirm they visibly differ.
 2. **Depiction** — for each feature scene, is the feature SHOWN, or only
    headlined? Headlined → re-author to depict it.
 3. **Variety** — line the scenes up. Do adjacent scenes share a layout / dominant
