@@ -47,6 +47,8 @@ All accept `id` or `path`, plus optional `expectedRevision` for conflict-safe wr
 | `project.add-zoom` | `atMs`, `durationMs`, `depth` (1-6, default **2** = 1.5× soft modern), `focusX/Y` (0-1), `soundUrl` (default `bundled:sound/swoosh-fast`) | Highlight a UI moment with a zoom region. Ships with a default swoosh SFX; pass `soundUrl=none` to silence. |
 | `project.add-clip-transform-region` | `startMs`, `endMs`, `preset` (`cam-bottom-half` / `cam-top-half` / `cam-right-portrait` / `cam-left-portrait` / `cam-bottom-right-quarter` / `cam-bottom-left-quarter` / 16:9 splits `cam-{left,right}-{50,55}` / 9:16 Shorts splits `cam-{top,bottom}-{50,55}`), `transitionMs` (default 320) | Time-bounded layout transform on the main video clip — shrink camera to make room for a motion graphic during an explainer beat. **Camera-only / user-uploaded recordings only — never on screen recordings.** See video-authoring §5b. |
 | `project.add-trim` | `startMs`, `endMs` | Cut a section the exporter skips. |
+| `project.apply-edit-plan` | `plan` (JSON array string), `expectedRevision?` | BATCH: apply many timeline ops in ONE call, atomically (all-or-nothing). Ops: `add-trim`, `add-zoom`, `add-speed`. ALWAYS prefer this over sequential add-* calls when executing a beat map. |
+| `project.render-sheet` | `fromMs?`, `toMs?`, `count?` (default 12, max 24), `cols?` (default 4), `outPath?` | ONE call → tiled contact-sheet PNG of N verified preview frames across a range (row-major; cell k = `frames[k]`). THE pacing/motion verification tool — replaces N render-frame calls. |
 | `project.add-speed` | `startMs`, `endMs`, `speed` (0.25/0.5/0.75/1.25/1.5/1.75/2) | Speed up or slow down a span. |
 | `project.add-annotation` | `startMs`, `endMs`, `type` (text/figure), `text`, `x/y/width/height` (%) | Drop text or figure annotation on canvas. |
 | `project.set-aspect-ratio` | `ratio` (16:9/9:16/1:1/4:3/3:4) | Switch project aspect ratio. |
@@ -125,6 +127,7 @@ The editorial primitive that makes PandaStudio PandaStudio. Every operation that
 | Command | Args | Purpose |
 |---|---|---|
 | `audio.clean` | `id` \| `path`, `clipId` (optional) | **Async.** Run DeepFilter denoising on each clip; writes a sibling `.cleaned.wav` and points `clip.cleanedAudioPath` at it. |
+| `audio.probe` | `id` \| `path`, `clipId?`, `noiseDb?` (-30), `minSilenceSec?` (0.5) | EARS without export: per-clip hasAudio, mean/max dB, silence spans (clip-source time), + the project's music-bed overlays. Synchronous. |
 
 ## caption.* (v1.9.1)
 

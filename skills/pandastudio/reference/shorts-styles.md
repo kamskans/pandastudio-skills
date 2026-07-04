@@ -79,7 +79,9 @@ recipe consumes:
    usually 1–3 sentences).
 2. Note each beat's `startMs`/`endMs` (first/last word).
 3. Mark the HOOK beat (must satisfy L1/L3) and the PAYOFF beat (L7).
-4. Trim dead air between beats: `project.add-trim` on inter-beat gaps >400ms.
+4. Trim dead air between beats — build ONE `project.apply-edit-plan` call
+   containing every inter-beat trim (gaps >400ms) AND every zoom from the
+   recipe, instead of sequential add-* calls. One call, atomic, one save.
    (`transcript.remove-fillers` only if `keepFillers=off` — see L5.)
 
 Everything time-based below fires at word timestamps from this map — zooms on
@@ -129,10 +131,10 @@ the 2021 clone-look (no ALL-CAPS walls, no emoji, no meme inserts, no b-roll).
 |---|---|
 | Hook | promise/stakes sentence at 0.0s, captions from frame 1, NO title card |
 | Captions | mixed-case white, drop shadow, no box, no emoji; `wordsPerLine` 2–3; center-frame (`positionY` 50); template `modern` or `bold` + `caption.set-style` overrides |
-| Emphasis | bold WEIGHT on the operative word (needs per-word spans — see §9 fallback) |
+| Emphasis | bold WEIGHT on the operative word (needs per-word spans — see §10 fallback) |
 | Cuts | semantic only: new beat = cut. Median shot 3.5–5.6s |
 | Zooms | alternate tight↔wide punch-ins on beat boundaries (`depth=2`, alternate `focusY` slightly); on any beat >8s add a slow drift: `project.add-zoom --depth=1 --durationMs=<beat length>` so no frame is static |
-| Chapter pill (listicle variant) | incrementing "N. CATEGORY" pill per item — payoff every ~4.2s (see §9: stateful-overlay fallback) |
+| Chapter pill (listicle variant) | incrementing "N. CATEGORY" pill per item — payoff every ~4.2s (see §10: stateful-overlay fallback) |
 | Audio | faint bed for listicles; live/raw formats keep room audio; `keepFillers=on`, keep [laughter] |
 
 ## 6. Recipe: podcast-clip (DOAC style)
@@ -148,7 +150,7 @@ not cropped-guesswork.
 | Switching | camera follows the speaking participant (`project.set-clip-layout` / podcast layout transforms per section — see visual-edits.md §podcast) |
 | Reaction cutaways | 1–1.5s of the NON-speaker at reaction moments, speaker's audio continues |
 | Long holds | >12s single-speaker → break with alternating punch-ins every 5–6s (`project.add-zoom`, alternate framing) |
-| Captions | `wordsPerLine` 1–3, bold + stroke, `positionY` 62; per-speaker color when available (§9) |
+| Captions | `wordsPerLine` 1–3, bold + stroke, `positionY` 62; per-speaker color when available (§10) |
 | Branding | persistent top corner chip (show logo / guest-name strap) via overlay graphic |
 | End card | 1.5–2s restating the title (SKIP on emotional/serious clips — match register, L5 spirit) |
 | Audio | dry — NO music bed; keep laughter |
@@ -179,9 +181,13 @@ Render checkpoints and CHECK them against the laws — do not trust the timeline
 view:
 
 ```bash
-for T in 0 1500 2500 <hook end> <mid> <payoff start> <last frame - 500>; do
-  pandastudio project.render-frame --id=$ID --atMs=$T --out=/tmp/verify-$T.png
-done
+# ONE call: a 12-frame contact sheet across the whole short (cell k = frames[k],
+# row-major). Read the sheet image; check the laws against it.
+pandastudio project.render-sheet --id=$ID --count=12 --cols=4 --json
+# Then spot-render ONLY the moments that need a closer look:
+pandastudio project.render-frame --id=$ID --atMs=<suspect ms> --json
+# And verify audio without exporting (music bed present? dead air? levels sane?):
+pandastudio audio.probe --id=$ID --json
 ```
 
 Checklist (view every frame):
@@ -193,7 +199,18 @@ Checklist (view every frame):
 - [ ] One emphasis mechanism only; one accent color only (L4)
 - Fix and re-render until all pass. Then `export.start --quality=high`.
 
-## 9. Capability notes (degrade gracefully, don't fake)
+## 9. Speed discipline (users are waiting)
+
+A standard 60–90s short should take roughly **12–18 tool calls**: pre-flight
+(3) → ONE `apply-edit-plan` with all trims+zooms → caption setup (3) → overlay
+`motion.generate` jobs fired WITHOUT awaiting each (collect jobIds, attach
+later) → ONE `render-sheet` verification → targeted fixes → export. If you are
+past ~30 calls, you are debugging, not editing — simplify the plan instead of
+iterating. Never render overlays serially when they don't depend on each
+other, and never verify with sequential single frames when one sheet answers
+the question.
+
+## 10. Capability notes (degrade gracefully, don't fake)
 
 Some reference-grade devices need features that are still landing. Use the
 substitute, never a broken approximation:
