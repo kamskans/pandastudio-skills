@@ -26,8 +26,11 @@ Conventions that save round-trips:
   `--soundUrl=none` on text/emphasis overlays.
 - Bulk timeline ops (trims/zooms/speeds) go through ONE
   `project.apply-edit-plan` call, not 20 sequential add-* calls.
-- `motion.render-html` / `motion.generate` submissions must run SERIALLY —
-  submit one, `job.wait` it, then submit the next. Parallel submissions race.
+- `motion.render-html` / `motion.generate` submissions queue automatically
+  (app >= 1.60): fire ALL your renders back-to-back, keep editing (captions,
+  music, trims) while they render, then `job.wait` each jobId when you need
+  the outputs. On older builds a back-to-back submission fails fast with
+  RENDER_BUSY — if you see that, fall back to submit -> job.wait -> submit.
 - Zoom depth→scale: 1=1.25x, 2=1.5x (house default), 3=2.0x… Prefer depth 2.
 - Transcript pacing: fetch the transcript ONCE, build your full beat map in
   one pass (cuts + zoom beats + graphic slots + payoff), THEN execute. Do not

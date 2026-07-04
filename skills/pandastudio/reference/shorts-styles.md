@@ -130,7 +130,7 @@ cards don't click at the viewer.
 
 **Speed rule: read `reference/shorts-cheatsheet.md` FIRST.** It has the
 exact shape of every command a short needs, the conventions (atMs vs
-startMs, soundUrl=none, serial motion renders, apply-edit-plan for bulk
+startMs, soundUrl=none, the render queue, apply-edit-plan for bulk
 ops), and a copy-paste hyperframes starter shell. With it loaded you should
 never grep source code, dump command schemas, or hunt through other
 reference files mid-edit — that spelunking is where slow edits lose 3-4
@@ -184,8 +184,9 @@ segments** — `paper-panel` / `vox-side-panel` at 9:16 become a top band with
 the camera reflowed to the bottom band. One per feature beat:
 
 ```bash
-# Per feature beat [startMs..endMs] from the beat map (render serially —
-# parallel render-html/generate submissions can race):
+# Per feature beat [startMs..endMs] from the beat map. Renders queue
+# automatically (app >= 1.60) — submit every beat's render back-to-back,
+# keep editing while they run, job.wait the ids when placing:
 JOB=$(pandastudio motion.generate --templateId=paper-panel \
   --slots='{"side":"top","title1":"SPEAK,","title2":"IT TYPES","subtitle":"cursor anywhere — just talk"}' \
   --aspectRatio=9:16 --json | jq -r '.data.jobId')
@@ -314,7 +315,8 @@ Common patterns, each ~60 lines of HTML:
 Rules: pure CSS/text/SVG animation (bundled images have a decode race — see
 gaps); anchor the graphic to the transcript words it illustrates; match the
 video's single accent palette; register the timeline in bracket form
-(`window.__timelines["id"] = tl`); render serially; verify with
+(`window.__timelines["id"] = tl`); submit all renders up front (they
+queue); verify with
 `motion.verify-frames` or a render-sheet after placing. These can also BE the
 top band: pass the render job to `project.add-designed-segment` so the band
 itself animates instead of holding a static panel.
