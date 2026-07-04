@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.63.0 -->
+<!-- version: 3.64.0 -->
 
 # PandaStudio
 
@@ -414,17 +414,32 @@ Before issuing `project.new`, `project.add-*`, `motion.generate`, or `motion.ren
 
 **1. Destination profile.** This single answer drives aspect ratio, pacing, zoom cadence, caption template, and whether to add lower-thirds. (Background music and intro/outro cards are NOT profile defaults — add them ONLY when the user explicitly asks; see the default edit pipeline.) Try to infer first, then fall back to asking:
 
-Inference rules (in order — first match wins):
+Inference rules (in order — first match wins). Everything below the user's
+own words comes from ONE `project.read --includeTranscript=false` you're
+running in pre-flight anyway — this costs zero extra calls:
    - User mentioned "Shorts" / "TikTok" / "Reels" / "Instagram story" / "vertical" / "phone"? → **`shorts`** profile (9:16, punchy)
    - User mentioned "LinkedIn" / "client pitch" / "professional" / "corporate"? → **`linkedin`** profile (16:9 or 1:1, restrained)
    - User mentioned "Loom" / "internal" / "async update" / "for the team" / "quick video"? → **`loom`** profile (minimal editing)
    - User mentioned "YouTube" / "long-form" / "tutorial" / "vlog" / "channel"? → **`youtube-long`** profile (16:9, full pipeline)
+   - Project was created by `project.fork-from-shot`? → **`shorts`** (it exists to BE a short)
+   - Project aspect ratio is already 9:16 or 1:1 (project setting, not just source orientation — the user chose that canvas)? → **`shorts`**
+   - Workspace project defaults name a destination (`workspace.get-project-defaults`)? → use it
+   - **Duration bands** (total source duration):
+       · ≤ 90s → **`shorts`** — regardless of orientation; nobody publishes a 45s "long-form video", and a landscape short gets auto-reframed to 9:16
+       · > 8 min → **`youtube-long`** (or `loom` if it's a screen recording with cursor telemetry and no user framing — internal walkthroughs look exactly like this)
+       · 90s–8 min → genuinely ambiguous: could be a long-form video OR source to cut a short from. Use content type as tiebreaker (screen recording → youtube-long/loom; phone-framed talking head → shorts), else ASK.
    - Source clip is portrait (height > width), no other signal? → **`shorts`**
    - Source clip is landscape, no other signal? → **`youtube-long`** (safe default — most common)
    - **Ambiguous or no clips yet?** → ASK ONE QUESTION:
      > "Where is this going — YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/async (Loom-style)?"
 
-When the user says "just go" / "use defaults" / "I don't care" → `youtube-long`.
+When the user says "just go" / "use defaults" / "I don't care" → `youtube-long`
+**unless the duration band says shorts** (a 60s clip with "just go" is a short).
+
+Special case — LONG recording + short-form ask ("make a short from this",
+"clip this for TikTok"): that's not one profile, it's the fork-from-shot
+pipeline (reference/shorts.md) — discover shots in the long source, fork a
+9:16 project per shot, then apply the `shorts` profile to the fork.
 
 The profile is the source of truth for every default below. See the [Video editing playbook](#video-editing-playbook--end-to-end-recipe-per-destination) section for the full profile table.
 
