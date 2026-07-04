@@ -58,15 +58,23 @@ short feel amateur, regardless of styling.
   default ON for talking-head recipes)*. Top creators keep "um"s, laughs, and
   room feel; trims land BETWEEN beats, never inside sentences. If the user
   asks for "clean/polished speech", flip it: `transcript.remove-fillers`.
-- **L6 — Zoning.** Never cover a face. Graphics live in the top ~40% of the
-  frame. Caption position is FOOTAGE-DEPENDENT, not a constant: the recipe
-  values (50–66%) assume the face in the upper third. On center-framed or
-  tight selfie footage, drop captions to 75–85% (below the chin). Captions
+- **L6 — Zoning.** Never cover a face, and never let captions and graphic
+  text occupy the same zone at the same time. CRITICAL CONSTRAINT: caption
+  position is ONE GLOBAL value for the whole timeline (`caption.set-style
+  --positionY`) — you cannot move or hide captions for a time range. So the
+  caption band is RESERVED AIRSPACE: pick it FIRST, then design every text
+  graphic, hook card, and band composition to stay out of it for the entire
+  video. A center-zone text card with captions at 60% WILL collide — put
+  the card's text in the top ~40% or size/position it clear of the caption
+  band. Caption position is also FOOTAGE-DEPENDENT: the recipe values
+  (50–66%) assume the face in the upper third; on center-framed or tight
+  selfie footage, drop captions to 75–85% (below the chin). Captions
   position against the FULL canvas — during designed-segment bands a
-  mid-frame percent lands on the squeezed camera, so re-check placement
-  whenever a layout transform is active. VERIFY against the render sheet:
-  if any caption touches the face, move it — this is the first thing a
-  human reviewer notices.
+  mid-frame percent lands on the squeezed camera, so factor bands in when
+  choosing the one global value. VERIFY on the render sheet at every
+  moment a text graphic is live: if a caption touches a face OR overlaps
+  graphic text, re-zone — these are the first things a human reviewer
+  notices.
 - **L7 — End on the payoff frame.** Last 1.5–2s = the completed state
   (finished list, restated title, the answer on screen). Cut immediately
   after the final payoff word — no outro sentence, no fade.
