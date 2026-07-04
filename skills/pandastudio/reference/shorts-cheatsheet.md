@@ -321,11 +321,13 @@ Optional: `--timeoutMs=<number>`
 
 ## Verification gotchas
 
-- A band/overlay VIDEO showing empty or a stuck frame in `render-frame` /
-  render-sheet cells does NOT mean the export will be wrong — preview
-  overlay seeks can be flaky. Before re-rendering the graphic, check the
-  webm itself with `motion.verify-frames --videoPath=...`; if the webm is
-  correct, trust it and move on — the export compositor decodes it fresh.
+- Overlay VIDEOS in `render-frame` / render-sheet cells are trustworthy on
+  app >= 1.60: the capture now waits for every active overlay video's seek
+  before compositing, so what you see IS the composite. On older builds the
+  preview overlay seek could race the capture and show an overlay empty or
+  stuck — there (and only there), check the webm itself with
+  `motion.verify-frames --videoPath=...` and trust the export, which
+  decodes it fresh.
 - Sweeps/graphics at t=0 place fine (app >= 1.60; older builds silently
   dropped t=0 regions on projects with a head trim — if a region you
   added "never appears", that's the build, place at 50ms instead).
