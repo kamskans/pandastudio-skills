@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.67.0 -->
+<!-- version: 3.68.0 -->
 
 # PandaStudio
 
@@ -299,9 +299,15 @@ specific operation, this is the intended end-to-end pipeline, in order:
    edits). For each `duplicate-take` / `false-start`, the **default is to keep
    the most recent (last, cleaner) take and delete the earlier attempt** —
    feed the candidate's `wordIds` (which point at the discarded attempt) into
-   `transcript.delete-words`. If a candidate is genuinely ambiguous (the
-   repeat might be intentional emphasis, or you can't tell which take is
-   better), **ask the user which take to keep** rather than guessing.
+   `transcript.delete-words`. **EXCEPT `severity: "low"` candidates — those
+   are REVIEW-class: KEEP them by default.** A low-severity `false-start`
+   means the restart diverges from the fragment, which is often deliberate
+   parallel structure ("one for transcription, one for outreach"), not a flub
+   — deleting it destroys the sentence. Only delete a low candidate when the
+   surrounding context clearly shows an abandoned take. If a candidate is
+   genuinely ambiguous (the repeat might be intentional emphasis, or you
+   can't tell which take is better), **ask the user which take to keep**
+   rather than guessing.
 5. **Remove silences** (`transcript.remove-silences`, 500ms default — same as
    the UI Remove Silences button) — after
    content cleanup so it tightens the final timing. The verb returns
@@ -349,6 +355,8 @@ steps are skipped far too often — **none of them is optional in a full polish*
   repeated phrases.** `find-issues` is read-only; you MUST then actually delete
   the discarded `wordIds` (keep the most recent take). Running `find-issues` and
   *not* deleting is the same as doing nothing — the bad take stays in the video.
+  (`severity: "low"` false-starts are the exception — REVIEW-class, keep by
+  default; see the transcript verbs table.)
 - **`transcript.remove-silences`** — the single most-skipped step; silence
   removal is what makes a talking-head edit feel tight.
 
@@ -508,7 +516,7 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 |---|---|
 | `transcript.transcribe` | Run only on clips where `clipStates[i].transcribed === false`. Skip the rest. |
 | `transcript.remove-fillers` | Default: auto-remove vocalised pauses (um/uh/uhm/umm/hmm/hm) + immediately-repeated words. Trim regions; fully reversible. Pass `aggressive=true` to ALSO catch lexical-word fillers (like, you know, i mean, sort of, kind of) — these can wrongly cut legitimate uses ("I like this template" loses "like"), so opt in only when the user wants a thorough cleanup. |
-| `transcript.find-issues` | Run after remove-fillers. Surfaces re-takes (`duplicate-take`), abandoned restarts (`false-start`), and stutters (`adjacent-repeat`) as candidates — each with the `wordIds` of the discarded attempt. **Read-only — it never edits.** **Default: keep the most recent (last) take and delete the earlier attempt** by feeding the candidate's `wordIds` into `transcript.delete-words`. Review against context first — if a repeat looks intentional (emphasis) or you can't tell which take is cleaner, ask the user which to keep rather than blind-applying. |
+| `transcript.find-issues` | Run after remove-fillers. Surfaces re-takes (`duplicate-take`), abandoned restarts (`false-start`), and stutters (`adjacent-repeat`) as candidates — each with the `wordIds` of the discarded attempt. **Read-only — it never edits.** **Default: keep the most recent (last) take and delete the earlier attempt** by feeding the candidate's `wordIds` into `transcript.delete-words` — **but `severity: "low"` candidates are REVIEW-class: keep them by default** (a low `false-start` = the restart diverges from the fragment, often intentional parallel structure like "one for transcription, one for outreach"). The detector already skips comma-terminated parallel list items and lone stopword "repeats" across pause tokens. Review against context first — if a repeat looks intentional (emphasis) or you can't tell which take is cleaner, ask the user which to keep rather than blind-applying. |
 | `transcript.remove-silences` | Run after the content cleanup. Runs the SAME two passes as the UI Remove Silences button and unions them: (1) transcript word-gaps (leading, between-word, trailing) and (2) ffmpeg audio-level `silencedetect` on each clip's media — pass 2 catches real dead air the transcript misses when speech-to-text invents phantom words over quiet stretches, which is why this now removes the same sections a manual click would (it previously did pass 1 only and left audio-only silence behind). Default threshold 500ms; don't hand-pick a higher value "to be safe" — that leaves dead air the user expects gone. |
 | `audio.clean` | Denoise only clips where `clipStates[i].audioCleaned === false`. Writes a sibling `.cleaned.wav`; original audio untouched. |
 | `caption.set-template` (when user said "add captions" without naming a style) | Default to `bold`. Tell user other templates exist (`classic, modern, minimal, spotlight, boxed, neon, colored, editorial`). `editorial` is magazine-style emphasis — the currently-spoken word renders big + accent while the rest of the line shrinks, so emphasis sweeps the line. |
@@ -1013,12 +1021,18 @@ pandastudio transcript.remove-silences --id=$ID --json
 pandastudio transcript.find-replace --id=$ID --find="RightPanda" --replace="WritePanda" --json
 # → returns { replacedCount, wordsPatched }
 #  Matcher caveats:
-#  - Matching is case-insensitive and normalizes BOTH the find phrase and each
-#    transcript word to LETTERS + apostrophes only (digits and punctuation are
-#    ignored on both sides). So `--find="than60"` and `--find="than"` both match
-#    the word "than60"; `--find="graph, crew"` matches "graph crew". You can not
-#    target a pure-number/punctuation token (e.g. "2026" alone) precisely — it
-#    normalizes to empty; include a neighbouring letter-word in the phrase.
+#  - Matching is case-insensitive; punctuation is ignored on both sides
+#    (`--find="graph, crew"` matches "graph crew").
+#  - DIGITS are significant when the find phrase contains them:
+#    `--find="try30"` matches only the merged STT token "try30", never a plain
+#    "try". A letters-only find still ignores transcript-side digits
+#    (`--find="than"` also matches "than60").
+#  - A multi-word find ALSO matches a single merged STT token: `--find="Wispr
+#    Flow"` hits the one token "Wispr Flow" (STT often emits multi-word brand
+#    names as one token), and `--find="of $499"` hits the merged "of$499".
+#  - A find that exactly equals a token's raw text always matches, so
+#    space/digit/punctuation-bearing tokens — even pure numbers like "30%" —
+#    are all targetable verbatim.
 #  - A multi-word `--find` collapses to the FIRST word's slot: that word's text
 #    becomes `--replace`, the other matched words are blanked. The replacement is
 #    the literal `--replace` string, so include any punctuation you want kept
