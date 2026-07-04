@@ -232,6 +232,28 @@ produced rather than trimmed. Two families:
   side panels, label-swaps, title cards) or `motion.render-html` for custom
   compositions. Overlay=true for top-zone graphics per L6.
 
+**Animated process graphics — the HyperFrames move (do NOT skip this).**
+When the transcript DESCRIBES a process, mechanism, or before/after — "you
+speak and it types", "it removes the fillers", "select it and say rewrite" —
+the strongest possible insert is a CUSTOM ANIMATED graphic that SHOWS that
+exact process, authored with `motion.render-html` (HTML + GSAP against the
+HyperFrames contract; load `reference/motion-philosophy.md` before authoring).
+Templates are for labels and titles; PROCESSES deserve purpose-built motion.
+Common patterns, each ~60 lines of HTML:
+- **Dictation/typing**: mock input field + blinking cursor + words typing in
+  (staggered GSAP reveal) — for any "speak/type/write" narration.
+- **Clean-up/transform**: messy sentence → filler words strike through and
+  fade → clean sentence settles — for "removes/fixes/formats" narration.
+- **Command → result**: a chip with the spoken command ("panda, rewrite it")
+  → text morphs to the improved version.
+Rules: pure CSS/text/SVG animation (bundled images have a decode race — see
+gaps); anchor the graphic to the transcript words it illustrates; match the
+video's single accent palette; register the timeline in bracket form
+(`window.__timelines["id"] = tl`); render serially; verify with
+`motion.verify-frames` or a render-sheet after placing. These can also BE the
+top band: pass the render job to `project.add-designed-segment` so the band
+itself animates instead of holding a static panel.
+
 Per-recipe policy (match the reference grammar, don't spray):
 
 | Recipe | Generated-visual policy |
