@@ -319,6 +319,23 @@ ps_ job.wait --id=<string>
 ```
 Optional: `--timeoutMs=<number>`
 
+## Recipe: timed background swap (remove + image underlay)
+
+Replace the speaker's real background with an image for ONLY a span:
+
+```bash
+# 1. person segmentation removes the real background for the span
+ps_ project.add-background-effect --id=$ID --mode=remove --atMs=6000 --durationMs=5000 --anchorSourceMs=<srcMs>
+# 2. an image underlay (layer=background) cover-fills the canvas BEHIND
+#    the camera over the same span; image files are auto-detected
+ps_ project.add-motion-graphic --id=$ID --file=/path/office.jpg \
+  --layer=background --atMs=6000 --durationMs=5000 --soundUrl=none --anchorSourceMs=<srcMs>
+```
+
+Same anchors keep the pair glued through later trims. mode=blur needs no
+underlay (it blurs the real background). Without an underlay, remove shows
+the project wallpaper. Works identically in preview and export.
+
 ## Verification gotchas
 
 - Overlay VIDEOS in `render-frame` / render-sheet cells are trustworthy on
