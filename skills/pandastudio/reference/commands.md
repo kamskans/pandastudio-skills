@@ -132,7 +132,7 @@ The editorial primitive that makes PandaStudio PandaStudio. Every operation that
 |---|---|---|
 | `caption.toggle` | `id` \| `path`, `enabled` (bool) | Show/hide captions for the whole project. |
 | `caption.set-template` | `id` \| `path`, `templateId` | One of: `classic, modern, minimal, bold, spotlight, boxed, neon, colored`. |
-| `caption.set-style` | `id` \| `path`, color/font/stroke/positionY/wordsPerLine overrides | Per-template style overrides. |
+| `caption.set-style` | `id` \| `path`, color/font/stroke/positionY/wordsPerLine overrides | Per-template style overrides. `positionY` is PERCENT of frame height from the top (0-100, default 85) — not a 0-1 fraction (fractions are auto-converted, but write percent). |
 
 ## export.* (v1.9.1 — the centerpiece)
 
