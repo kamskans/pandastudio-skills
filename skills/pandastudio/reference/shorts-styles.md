@@ -59,7 +59,14 @@ short feel amateur, regardless of styling.
   room feel; trims land BETWEEN beats, never inside sentences. If the user
   asks for "clean/polished speech", flip it: `transcript.remove-fillers`.
 - **L6 — Zoning.** Never cover a face. Graphics live in the top ~40% of the
-  frame; captions in the 48–66% vertical band; faces below/behind.
+  frame. Caption position is FOOTAGE-DEPENDENT, not a constant: the recipe
+  values (50–66%) assume the face in the upper third. On center-framed or
+  tight selfie footage, drop captions to 75–85% (below the chin). Captions
+  position against the FULL canvas — during designed-segment bands a
+  mid-frame percent lands on the squeezed camera, so re-check placement
+  whenever a layout transform is active. VERIFY against the render sheet:
+  if any caption touches the face, move it — this is the first thing a
+  human reviewer notices.
 - **L7 — End on the payoff frame.** Last 1.5–2s = the completed state
   (finished list, restated title, the answer on screen). Cut immediately
   after the final payoff word — no outro sentence, no fade.
