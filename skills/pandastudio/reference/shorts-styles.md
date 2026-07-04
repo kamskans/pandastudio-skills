@@ -328,10 +328,12 @@ this fires MID-VIDEO.
 # --background=solid: the template is a transparent overlay by default; a
 # full-frame card wants the opaque paper background so the speaker yields
 # the frame completely. Slots are sentence + emphasisWord (accentColor =
-# your video's single accent).
+# your video's single accent). ALWAYS pass a dark inkColor with
+# background=solid — the default cream ink assumes video underneath and
+# is unreadable on the light card.
 JOB=$(pandastudio motion.generate --templateId=caption-editorial-emphasis \
   --aspectRatio=9:16 --background=solid \
-  --slots='{"sentence":"What is todays adventure going to be?","emphasisWord":"adventure","accentColor":"#FFC400"}' | jq -r .jobId)
+  --slots='{"sentence":"What is todays adventure going to be?","emphasisWord":"adventure","accentColor":"#FFC400","inkColor":"#23211c"}' | jq -r .jobId)
 pandastudio job.wait --id=$JOB
 pandastudio project.add-motion-graphic --id=$ID --fromJob=$JOB \
   --atMs=<beatMs> --durationMs=2400 --soundUrl=none --anchorSourceMs=<wordSourceMs>
