@@ -131,10 +131,10 @@ the 2021 clone-look (no ALL-CAPS walls, no emoji, no meme inserts, no b-roll).
 |---|---|
 | Hook | promise/stakes sentence at 0.0s, captions from frame 1, NO title card |
 | Captions | mixed-case white, drop shadow, no box, no emoji; `wordsPerLine` 2–3; center-frame (`positionY` 50); template `modern` or `bold` + `caption.set-style` overrides |
-| Emphasis | bold WEIGHT on the operative word (needs per-word spans — see §10 fallback) |
+| Emphasis | bold WEIGHT on the operative word (needs per-word spans — see §11 fallback) |
 | Cuts | semantic only: new beat = cut. Median shot 3.5–5.6s |
 | Zooms | alternate tight↔wide punch-ins on beat boundaries (`depth=2`, alternate `focusY` slightly); on any beat >8s add a slow drift: `project.add-zoom --depth=1 --durationMs=<beat length>` so no frame is static |
-| Chapter pill (listicle variant) | incrementing "N. CATEGORY" pill per item — payoff every ~4.2s (see §10: stateful-overlay fallback) |
+| Chapter pill (listicle variant) | incrementing "N. CATEGORY" pill per item — payoff every ~4.2s (see §11: stateful-overlay fallback) |
 | Audio | faint bed for listicles; live/raw formats keep room audio; `keepFillers=on`, keep [laughter] |
 
 ## 6. Recipe: podcast-clip (DOAC style)
@@ -150,7 +150,7 @@ not cropped-guesswork.
 | Switching | camera follows the speaking participant (`project.set-clip-layout` / podcast layout transforms per section — see visual-edits.md §podcast) |
 | Reaction cutaways | 1–1.5s of the NON-speaker at reaction moments, speaker's audio continues |
 | Long holds | >12s single-speaker → break with alternating punch-ins every 5–6s (`project.add-zoom`, alternate framing) |
-| Captions | `wordsPerLine` 1–3, bold + stroke, `positionY` 62; per-speaker color when available (§10) |
+| Captions | `wordsPerLine` 1–3, bold + stroke, `positionY` 62; per-speaker color when available (§11) |
 | Branding | persistent top corner chip (show logo / guest-name strap) via overlay graphic |
 | End card | 1.5–2s restating the title (SKIP on emotional/serious clips — match register, L5 spirit) |
 | Audio | dry — NO music bed; keep laughter |
@@ -199,7 +199,38 @@ Checklist (view every frame):
 - [ ] One emphasis mechanism only; one accent color only (L4)
 - Fix and re-render until all pass. Then `export.start --quality=high`.
 
-## 9. Speed discipline (users are waiting)
+## 9. Generated visuals: B-roll + motion graphics (use them deliberately)
+
+When Replicate is connected (media.generate verbs available), the agent can
+CREATE its inserts on the fly — this is a core part of what makes an edit feel
+produced rather than trimmed. Two families:
+
+- **Generated B-roll stills** — `media.generate-image` (one per abstract
+  concept the speaker mentions but the camera can't show). House rule from
+  the main skill applies: NEVER drop a flat photo — Ken-Burns + vignette it,
+  or place it as a styled PiP inset panel. Fire all generations in parallel
+  (async jobs), keep editing, attach when done.
+- **Motion graphics** — `motion.generate` (bundled templates: stat callouts,
+  side panels, label-swaps, title cards) or `motion.render-html` for custom
+  compositions. Overlay=true for top-zone graphics per L6.
+
+Per-recipe policy (match the reference grammar, don't spray):
+
+| Recipe | Generated-visual policy |
+|---|---|
+| kinetic-educator | The mutating overlay IS the visual engine (templates). Add 1–3 B-roll/PiP inserts ONLY on abstract beats (a tool, a book, a place the camera can't show); 2–4s each, styled panel not full-frame |
+| bold-caption | NONE by default — modern Hormozi is zero-b-roll by design. Only if the user asks |
+| podcast-clip | Rare: one 2–4s topical cutaway when a concrete thing is named ("86 billion neurons" → brain render); definition-card overlay for jargon |
+| polished-explainer | The main event: visuals carry 75%+ of runtime — stat pills, annotated stills, generated scene imagery; talking head is the bookend |
+
+Rules that keep it tasteful: every insert must be ANCHORED to the transcript
+word that motivates it (fire at that word's startMs); one insert per beat max
+outside polished-explainer; inserts count as the beat's L2 state change (don't
+stack a zoom on top); match the video's single accent color in any generated
+graphic. If media.generate fails (no Replicate key), degrade to template
+motion graphics only — never block the edit on image generation.
+
+## 10. Speed discipline (users are waiting)
 
 A standard 60–90s short should take roughly **12–18 tool calls**: pre-flight
 (3) → ONE `apply-edit-plan` with all trims+zooms → caption setup (3) → overlay
@@ -210,7 +241,7 @@ iterating. Never render overlays serially when they don't depend on each
 other, and never verify with sequential single frames when one sheet answers
 the question.
 
-## 10. Capability notes (degrade gracefully, don't fake)
+## 11. Capability notes (degrade gracefully, don't fake)
 
 Some reference-grade devices need features that are still landing. Use the
 substitute, never a broken approximation:
