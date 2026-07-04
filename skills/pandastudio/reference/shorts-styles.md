@@ -70,9 +70,17 @@ Every short opens with the **light-sweep transition + camera-click SFX** at
 t=0 — a signature snap that makes the first frame feel deliberate:
 
 ```bash
-pandastudio project.add-transition --id=$ID --transitionId=light-sweep --atMs=0 --durationMs=700
-pandastudio project.add-audio --id=$ID --audioPath=bundled:sound/camera-click --startMs=0 --volume=0.9
+# ONE overlay carrying both the sweep and its sound (the sound plays once
+# when the overlay appears). Do NOT use project.add-transition here —
+# transitions bridge a CUT between two clips and no-op at t=0 — and do NOT
+# add the click as a separate audio track.
+pandastudio project.add-motion-graphic --id=$ID --file=bundled:transition/light-sweep \
+  --atMs=0 --durationMs=973 --soundUrl=bundled:sound/camera-click
 ```
+
+Related default to watch: `project.add-motion-graphic` attaches a mouse-click
+SFX by default — pass `--soundUrl=none` on text/emphasis overlays so three
+cards don't click at the viewer.
 
 ## 3. Shared pre-flight (every recipe starts here)
 
