@@ -79,23 +79,52 @@ short feel amateur, regardless of styling.
   (finished list, restated title, the answer on screen). Cut immediately
   after the final payoff word — no outro sentence, no fade.
 
-### House opener (all shorts)
+### House signature: light-sweep + camera-click (all shorts)
 
-Every short opens with the **light-sweep transition + camera-click SFX** at
-t=0 — a signature snap that makes the first frame feel deliberate:
+The **light-sweep transition + camera-click SFX** is the house punctuation
+mark. It fires in two places:
+
+1. **The opener** — every short starts with it at t=0, a signature snap
+   that makes the first frame feel deliberate.
+2. **Every b-roll / animated motion-graphic ENTRANCE** — creators mark the
+   moment a new visual layer enters the frame with a sweep + SFX so the
+   cut reads as intentional, not jarring. Place it at the overlay's start
+   time, aligned to the entrance.
 
 ```bash
 # ONE overlay carrying both the sweep and its sound (the sound plays once
 # when the overlay appears). Do NOT use project.add-transition here —
-# transitions bridge a CUT between two clips and no-op at t=0 — and do NOT
-# add the click as a separate audio track.
+# transitions bridge a CUT between two clips and no-op mid-timeline over
+# a single clip — and do NOT add the click as a separate audio track.
 pandastudio project.add-motion-graphic --id=$ID --file=bundled:transition/light-sweep \
-  --atMs=0 --durationMs=973 --soundUrl=bundled:sound/camera-click
+  --atMs=<entranceMs> --durationMs=973 --soundUrl=bundled:sound/camera-click
 ```
+
+Guardrails: the sweep marks ENTRANCES of new visual layers (b-roll,
+animated graphics, designed-segment starts) — NOT caption emphasis cards,
+and NOT exits. Cap density at roughly one per 8s; past that the sound
+stops being punctuation and becomes noise. If two entrances land closer
+together, sweep the more important one.
 
 Related default to watch: `project.add-motion-graphic` attaches a mouse-click
 SFX by default — pass `--soundUrl=none` on text/emphasis overlays so three
 cards don't click at the viewer.
+
+### B-roll policy (sourcing + the no-blocking rule)
+
+- **Video b-roll is USER-PROVIDED only.** Never generate video, never pull
+  from the web. If the user attached clips or pointed at a folder, that IS
+  the authorization — use them autonomously, matched to transcript beats.
+- **Images and motion graphics may be generated autonomously**
+  (`media.generate-image`, hyperframes) for concept b-roll.
+- **Never pause the edit to ask for footage.** Identify the beats that
+  want b-roll (product mentions, process descriptions, "imagine…" moments),
+  and fill EVERY slot with the best automated stand-in — animated motion
+  graphic, generated image, designed segment — so the delivered short is
+  always complete. Then, in the wrap-up, list the upgrade slots: "beats at
+  Xs/Ys would be stronger with real footage of A/B — provide clips and
+  I'll swap them in." Upgrading is a follow-up, never a blocker.
+- Every b-roll entrance gets the house sweep + click (see above).
 
 ## 3. Shared pre-flight (every recipe starts here)
 
