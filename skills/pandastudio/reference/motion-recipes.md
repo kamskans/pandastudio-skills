@@ -47,8 +47,9 @@ Use this as a menu: pick 2-4 atomic recipes per scene, compose them on the singl
 - **ai-tracking-box** — detection overlay: L-bracket corners + fluctuating confidence label following a target; box recomputed per frame from target position.
 
 ### SVG & icons
-- **svg-path-draw** — outline draws itself via `stroke-dasharray`/`stroke-dashoffset`; measure `getTotalLength()` at setup, tween offset to 0. Rings: rotate stroke `-90deg`.
+- **svg-path-draw** — outline draws itself via `stroke-dasharray`/`stroke-dashoffset`; measure `getTotalLength()` at setup, tween offset to 0. Rings: rotate stroke `-90deg`. (Shortcut: `pathLength="1"` on the path normalizes dash values to 0..1 — no `getTotalLength()` needed.)
 - **svg-icon-enrichment** — bring icons alive (rotating hands, pulsing dots, dash-flow). Use SVG `setAttribute('transform','rotate(deg cx cy)')` for explicit center, not CSS `transform-origin`.
+- **whiteboard-hand-drawn** — the FULL whiteboard-explainer design system (paper canvas, draw-on strokes, left-to-right handwriting text reveal, marker palette, scene grammar, `svgOrigin` gotcha) lives in [`whiteboard-style.md`](./whiteboard-style.md). Load it whenever the brief is a whiteboard / sketch / doodle explainer — don't rebuild the system from the atomic recipes here.
 
 ### Idle & ambient
 - **sine-wave-loop** — breathing/idle motion: GSAP `sine.inOut` yoyo with finite repeats, or `onUpdate` reading `tl.time()` when multiplying onto a live value.

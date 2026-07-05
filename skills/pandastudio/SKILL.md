@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.70.0 -->
+<!-- version: 3.71.0 -->
 
 # PandaStudio
 
@@ -89,7 +89,13 @@ description: Edit videos in PandaStudio — a desktop video editor for YouTube, 
 >   first — it is the design bar for this case:** every scene a DISTINCT
 >   composition that SHOWS its point (don't headline features — depict them), one
 >   system never one layout, rotate layout archetypes. Then author each scene from
->   the canonical shell in `reference/motion-philosophy.md`. Templates are still fine as *building blocks*
+>   the canonical shell in `reference/motion-philosophy.md`. One NAMED alternative
+>   design system exists for Mode B: the **whiteboard / hand-drawn explainer**
+>   ([`reference/whiteboard-style.md`](reference/whiteboard-style.md)) — paper
+>   canvas, SVG draw-on strokes, handwriting text reveal. Reach for it when the
+>   brief says "whiteboard / hand-drawn / sketch / doodle / handwritten", or when
+>   an abstract CONCEPT needs to be drawn (science, process, metaphor) and the
+>   tone wants friendly-approachable rather than premium-brand. Templates are still fine as *building blocks*
 >   inside an otherwise-custom piece (e.g. a transition between custom scenes) —
 >   just not the backbone. Reach for templates as the backbone of from-scratch
 >   work ONLY for a deliberately quick draft or when the user explicitly asks for
@@ -889,6 +895,7 @@ every scene."
 | A simple linear process / N steps | `flowchart` | Purpose |
 | **How something WORKS / connects / flows** — architecture, pipeline, request lifecycle, hierarchy, branching, a loop (richer than a flat step list) | **Author a custom animated diagram** — see "Authored graphics" below | Authored — the explainer workhorse |
 | A trend / chart / data viz (bars, a line, a metric building over time) | **Author a custom chart** — see "Authored graphics" | Authored |
+| **A CONCEPT that needs to be DRAWN** — from-scratch explainer of something invisible/abstract (science, process, metaphor), or the user says "whiteboard / hand-drawn / sketch / doodle" | **Whiteboard hand-drawn style** — load [`reference/whiteboard-style.md`](reference/whiteboard-style.md): paper canvas, SVG draw-on strokes, handwriting reveal | Authored — named Mode-B design system |
 | Talking-head OPENER — name the topic in the first 10–30s (default on every camera edit) | `caption-editorial-emphasis` | **Default for `kind === "camera"`** |
 | ONE thesis sentence / pull-quote / "money line" (hook or climax) | `caption-editorial-emphasis` | **Purpose — at most 2–3 per video** |
 | Logos / tools / partners · a screenshot (a VISUAL, not text) | **Author a custom graphic** — see "Authored graphics" below | Authored (not a UI template) |
@@ -1524,6 +1531,7 @@ when the user reports the in-app agent doing something unattended.
 - [`reference/video-authoring.md`](reference/video-authoring.md) — **3-mode delivery playbook.** Mode A (9:16 camera-only), Mode B (9:16 screen-rec + PiP face — PandaStudio's unique mode), Mode C (16:9 YouTube side-overlay). Face choreography, caption safe zones, audio-sync protocol, frame verification. Load this for any shorts/YouTube authoring task.
 - [`reference/promo-and-mg-videos.md`](reference/promo-and-mg-videos.md) — **the design bar for a from-scratch promo / all-motion-graphics video** (the graphics ARE the video). Show-don't-tell map, scene-variety archetypes, the templated-slideshow anti-pattern, and the motion/depiction/variety quality gate. Load this FIRST for any promo / teaser / explainer-from-scratch.
 - [`reference/motion-recipes.md`](reference/motion-recipes.md) — menu of ~30 named, seek-safe motion patterns + scene transitions + the **determinism guardrails** (incl. the `data-duration`/`data-start` are-in-SECONDS rule, the GSAP-must-load rule, and the motion-quality gate). Read when authoring custom motion for a specific beat.
+- [`reference/whiteboard-style.md`](reference/whiteboard-style.md) — the **whiteboard / hand-drawn explainer** design system (paper + grid canvas, SVG draw-on strokes via pathLength/dashoffset, left-to-right handwriting reveal, marker palette + fonts, scene grammar, the `svgOrigin` gotcha). Load for "whiteboard animation / hand-drawn / sketch / doodle" briefs and from-scratch concept explainers (science, process, metaphor).
 - [`reference/motion-templates.md`](reference/motion-templates.md) — background modes, designed segments, and the full bundled-template catalog (incl. podcast layouts). Read when picking/rendering a template via `motion.generate`.
 - [`reference/custom-html.md`](reference/custom-html.md) — the render verbs (`motion.screenshot`/`render-html`/`concat`), transparent overlays + frosted glass, add-by-jobId. Read alongside motion-philosophy when authoring custom HTML.
 - [`reference/visual-edits.md`](reference/visual-edits.md) — zooms (incl. follow-cursor + `--anchorSourceMs`), trims, speed, crop/reframe, face centering, webcam + per-section podcast layouts, speaker-driven editing. Read for any visual edit.
