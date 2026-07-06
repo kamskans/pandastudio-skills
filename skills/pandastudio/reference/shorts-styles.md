@@ -17,6 +17,24 @@ Shorts, TikTok, or Reels.
 
 ## 1. Pick the recipe (decision tree)
 
+**The master dial is face-time — how much of the frame is the speaker's face.**
+It is the single decision every other short-form default follows from, so
+resolve it FIRST; the recipe is just which of two regimes the content lands in:
+
+- **Face-carried (80–100% face)** — the speaker IS the value: advice, teaching,
+  reactions, a two-person conversation. Big face, tight framing; captions plus a
+  mutating overlay carry the retention. This is `bold-caption`,
+  `kinetic-educator`, and `podcast-clip`. **Default here when unsure** — most
+  talking-head footage is face-carried, and a big-face edit with hard-working
+  words retains without any b-roll library.
+- **Visual-carried (<50% face)** — the value is OUTSIDE the speaker: a process,
+  product, place, or scripted explainer. Face shrinks to bookends and short
+  cut-ins; b-roll, stat pills, and generated visuals carry 75%+ of the runtime.
+  This is `polished-explainer`, and it needs a real visual library — never pick
+  it for a plain selfie recording just because it looks "more produced".
+
+Then pick the exact recipe within the regime:
+
 ```
 Is it a multi-person conversation (podcast/interview)?
   → podcast-clip
