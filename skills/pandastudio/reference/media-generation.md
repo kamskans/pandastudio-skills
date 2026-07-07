@@ -2,37 +2,57 @@
 
 # Narration (TTS) + B-roll image generation
 
-## Narration / voiceover (Replicate TTS)
+## Narration / voiceover
 
-Generate a voiceover for promos and explainers using the user's own Replicate
-key — no microphone needed. Three models; ElevenLabs v3 is the default and most
-expressive.
+Generate a voiceover for promos and explainers — no microphone needed. Two
+engines, and **local is the default so it works out of the box**:
+
+- **Local Kokoro (default).** Kokoro-82M runs fully **on-device** (English, US +
+  UK accents) via the bundled `kokoro-helper` sidecar. No API key, no cloud, no
+  per-use cost. The ~330 MB model auto-downloads on first use (like the Whisper
+  model does); pre-warm it with `system.download-kokoro-model` or check
+  `system.is-kokoro-model-downloaded`.
+- **Cloud Replicate (opt-in).** Set `--model` to a Replicate model when you want
+  more voices/languages or the most expressive delivery. Needs the user's
+  Replicate key (Settings → Integrations).
 
 ### The verb
 
 ```bash
+# Local (default) — omit --model, or pass --model=kokoro-local. Voices:
+# af_heart (default) / af_bella / am_michael / bf_emma / bm_george / ...
+# (a*=American, b*=British; f=female, m=male). --speed 0.5-2.
 RES=$(pandastudio media.generate-narration \
-  --text="Meet PandaStudio. [excited] Edit your videos just by talking to Claude." \
-  --model=elevenlabs-v3 \
+  --text="Meet PandaStudio. Edit your videos just by talking to Claude." \
+  --voice=af_heart \
   --json)
 AUDIO=$(echo "$RES" | jq -r '.data.audioPath')
 DUR=$(echo "$RES" | jq -r '.data.durationMs')
 
 # Place it on the timeline (startMs positions it; pass the returned durationMs)
 pandastudio project.add-audio --id="$PID" --path="$AUDIO" --startMs=0 --durationMs=$DUR
+
+# Cloud — pass a Replicate model explicitly:
+pandastudio media.generate-narration \
+  --text="Meet PandaStudio. [excited] Edit by talking to Claude." \
+  --model=elevenlabs-v3 --json
 ```
 
-- **Models:** `elevenlabs-v3` (default — embed inline delivery tags in the text
-  like `[excited]`, `[whispers]`, `[sighs]`), `gemini-flash-tts` (30 voices,
-  strong multilingual; `--style` sets the tone), `minimax-turbo` (fast;
-  `--style` maps to an emotion, `--speed` 0.5-2).
-- **Voices:** omit `--voice` for the model default. Examples — gemini:
-  `Kore` / `Puck` / `Charon`; minimax: `Friendly_Person` / `Wise_Woman`.
+- **Engine selection:** omit `--model` to use the workspace default (local
+  Kokoro). `--model=kokoro-local` forces on-device; a Replicate id
+  (`elevenlabs-v3` | `gemini-flash-tts` | `minimax-turbo`) forces cloud. Set the
+  workspace default with `system.set-narration-engine` (`local-kokoro` |
+  `replicate`); read it with `system.get-narration-engine`.
+- **Cloud models:** `elevenlabs-v3` (embed inline tags like `[excited]`,
+  `[whispers]`), `gemini-flash-tts` (30 voices, multilingual; `--style` sets the
+  tone), `minimax-turbo` (fast; `--style` maps to an emotion, `--speed` 0.5-2).
+  Local Kokoro is English-only and ignores `--language`/inline tags.
 - **Canonical promo loop:** write the script → `media.generate-narration` →
   `project.add-audio` at `startMs` with the returned `durationMs` → time your
   motion graphics / B-roll to the voice.
-- **Requires a Replicate API key** (Settings → Integrations — same key as image
-  gen). If absent, the verb returns a clear error; surface it, don't loop.
+- **Licensing note:** the local path is fully permissive — Kokoro weights are
+  Apache-2.0 and the sidecar links misaki-rs built without its espeak fallback,
+  so no GPL `espeak-ng` is compiled in.
 
 ## B-roll generation (Replicate gpt-image-2)
 
