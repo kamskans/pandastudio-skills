@@ -366,10 +366,15 @@ Behaves exactly like a zoom region (drag/trim/anchor; `--anchorSourceMs`
 for transcript-derived placement). Great on 9:16 talking-head shorts:
 `remove` + a branded `set-wallpaper` gives the "green-screen studio" look
 in one call. Camera footage only. Defaults: 5000ms duration, blur
-strength 18 (px sigma at 1080p, `--strength=1-120`).
+strength 18 (px sigma at 1080p, `--strength=1-120`). Add `--outline` (with
+`--outlineWidth`/`--outlineColor`/`--outlineShadow`) for a colored keyline +
+drop shadow around the person — the VOX magazine-cutout look.
 
 ```
 ps_ project.add-background-effect --id=$ID --atMs=50 --durationMs=8000 --mode=blur --strength=22
+# VOX paper-cutout: remove bg + white outline over a cream backdrop:
+ps_ project.set-wallpaper --id=$ID --wallpaper='#F3EEE0'
+ps_ project.add-background-effect --id=$ID --atMs=0 --durationMs=8000 --mode=remove --outline --outlineWidth=36 --outlineColor='#ffffff'
 ```
 
 ## More conventions (learned from real runs)

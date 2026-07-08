@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.73.0 -->
+<!-- version: 3.78.0 -->
 
 # PandaStudio
 
@@ -279,6 +279,19 @@ Folders, `project.rename`, project-look defaults, transcription-language switchi
 ## Shorts: turning an exported video into vertical clips
 
 Discover shots (`export.find-shots`), fork the source project per shot (`project.fork-from-shot`), the 9:16 vertical playbook, drift detection, and batch N shorts. Full detail: [`reference/shorts.md`](reference/shorts.md). To make a short actually RETAIN — "make it engaging/viral", "edit like Hormozi / Ali Abdaal / a podcast clip" — load [`reference/shorts-styles.md`](reference/shorts-styles.md): four evidence-based recipes with the seven retention laws, quantified caption/zoom/overlay parameters, and a render-frame verification pass. Load [`reference/shorts-cheatsheet.md`](reference/shorts-cheatsheet.md) alongside it — exact command shapes plus a hyperframes starter shell, so you never grep schemas or other reference files mid-edit. For `youtube-long` edits that should RETAIN (not just play clean), load [`reference/longform-styles.md`](reference/longform-styles.md) — quantified from a 9-video measured study (Ali Abdaal / MKBHD / Fireship, July 2026): three recipes (educator-pip, product-review, dev-explainer), the two-level rhythm, keyword pops instead of burned captions, in-edit segmentation, and ending liturgy.
+
+### Shorts layout: full-frame vs camera-corner-over-blur
+
+For a **camera-only** clip in a 9:16 project, `project.set-shorts-layout` is the one-click layout picker:
+
+```bash
+# Camera shrinks to a draggable bottom-right tile over a blurred copy of itself
+pandastudio project.set-shorts-layout --id=$PID --layout=camera-corner
+# Camera fills the frame (clears the transform + backdrop)
+pandastudio project.set-shorts-layout --id=$PID --layout=full
+```
+
+`camera-corner` sets the main-clip transform AND a `blur-self` backdrop together; reposition the tile afterward with `project.set-screen-transform` (`x`/`y` are canvas-fraction center offsets, `scale` the tile size). The two pieces are also independently settable: `project.set-backdrop --mode=blur-self|wallpaper` controls only the fill behind a scaled-down video (invisible while the video fills the frame). For a **screen-recording (screen+camera)** clip, don't use these — use `project.set-webcam-layout --preset=picture-in-picture`, which already gives screen-fills-with-camera-corner. The blurred self-fill renders identically in preview and export.
 ## Publishing (YouTube + Instagram)
 
 **Hard rules:** YouTube `privacyStatus` defaults to `unlisted` — never public without explicit user say; Instagram needs a Business/Creator account; never publish in the wrong workspace (confirm `isInActiveWorkspace`). Flows: connect → publish an export. Full detail: [`reference/publishing.md`](reference/publishing.md).
@@ -730,23 +743,43 @@ you: which verb, in what order, and the non-obvious gotchas.
   --maskOpacity --blurAmount]` patches only the fields you pass (move/resize,
   retime, restyle, or flip spotlight<->blur); `remove-spotlight --regionId=<id>`
   deletes it. Get ids from `project.read` under `editor.spotlightRegions[].id`.
-- **Background blur / removal (v3.69.0):** `add-background-effect
-  --mode=blur|remove [--atMs=<ms>] [--durationMs=<ms> | --endMs=<ms>]
-  [--strength=<px>] [--anchorSourceMs=<srcMs>]` — AI PERSON SEGMENTATION on
-  the camera video for the region's span, exactly like a zoom region on the
-  timeline (draggable, trimmable, source-anchored, rebases on trims/speeds).
+- **Background blur / removal + person outline (v3.69.0; outline v3.75.0):**
+  `add-background-effect --mode=blur|remove [--atMs=<ms>]
+  [--durationMs=<ms> | --endMs=<ms>] [--strength=<px>]
+  [--outline --outlineWidth=<px> --outlineColor=<hex> --outlineShadow=<bool>]
+  [--anchorSourceMs=<srcMs>]` — AI PERSON SEGMENTATION on the camera video for
+  the region's span, exactly like a zoom region on the timeline (draggable,
+  trimmable, source-anchored, rebases on trims/speeds).
   `mode=blur` keeps the speaker sharp and gaussian-blurs everything behind
   them (video-call style; `--strength` is px sigma at 1080p, default 18).
   `mode=remove` cuts the background away entirely so the project
   wallpaper/background shows through behind the person — pair it with
-  `set-wallpaper` for a branded backdrop. Duration defaults to 5000ms.
-  CAMERA / TALKING-HEAD footage only — pointless on screen recordings.
+  `set-wallpaper` for a branded backdrop, OR with a **background-layer media
+  overlay** to put an IMAGE/VIDEO behind the speaker (the Shorts look): add the
+  media with `add-motion-graphic --file=<img/video> --layer=background` (or flip
+  an existing overlay with `update-region --regionType=overlay --layer=background`;
+  in the UI, right-click the overlay → "Send behind video"). The removed-
+  background speaker composites OVER that overlay in preview and export.
+  **Matte boundary tuning:** `--matteContract=<px>` manually tightens the person
+  edge — >0 pulls it INWARD (kills a background fringe / cleans a loose cut),
+  <0 pushes it out (−60..60); `--matteFeather=<px>` softens the edge (0..60).
+  Both apply to blur AND remove (they adjust the person matte the outline is
+  built from too).
+  **`--outline`** adds a colored keyline + drop shadow that hugs the person —
+  the "VOX magazine cutout" look. Enable it on `mode=remove` over a cream
+  `set-wallpaper` for the reference look. `--outlineWidth` px@1080p (default
+  36), `--outlineColor` hex (default `#ffffff`), `--outlineShadow` bool
+  (default true). Composes with `blur` too. Duration defaults to
+  5000ms. CAMERA / TALKING-HEAD footage only — pointless on screen recordings.
   Runs on a bundled on-device model (no network); preview and export render
-  it identically. Regions live under `editor.backgroundEffectRegions[]`;
-  retime/restyle with `update-region --regionType=background-effect
-  [--startMs --endMs --mode --strength]`, delete with `remove-region
-  --regionType=background-effect`. Also batchable inside `apply-edit-plan`
-  as `{op:'add-background-effect',atMs,durationMs,mode,strength?}`.
+  it identically. Regions live under `editor.backgroundEffectRegions[]`
+  (`.outline = {enabled,width,color,shadow}`); retime/restyle with
+  `update-region --regionType=background-effect [--startMs --endMs --mode
+  --strength --outline --outlineWidth --outlineColor --outlineShadow
+  --matteContract --matteFeather]`, delete with `remove-region
+  --regionType=background-effect`. Also batchable inside `apply-edit-plan` as
+  `{op:'add-background-effect',atMs,durationMs,mode,strength?,outline?,
+  outlineWidth?,outlineColor?,outlineShadow?,matteContract?,matteFeather?}`.
 - **See a frame to place it (v1.85.0):** `render-frame --atMs=<ms> [--outPath=<png>]`
   composites the preview frame at that edited-time to a PNG and returns
   `{ path, width, height, timeMs, maskRect }`. A vision model should `read` the
