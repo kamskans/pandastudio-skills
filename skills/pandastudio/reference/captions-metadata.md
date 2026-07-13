@@ -12,6 +12,9 @@ pandastudio caption.set-style --id=$ID --color="#fff" --highlightColor="#34B27B"
 # Change the caption font (system font or a loaded custom font; unloaded fonts
 # fall back to a system default):
 pandastudio caption.set-style --id=$ID --fontFamily="Georgia"
+# Force ALL CAPS on any template (common for shorts). uppercase=false turns caps
+# OFF, including for a template that ships uppercase (editorial):
+pandastudio caption.set-style --id=$ID --uppercase=true
 ```
 
 Templates: `classic | modern | minimal | bold | spotlight | boxed | neon | colored | editorial`. Captions read words from the project's merged transcript — so you must transcribe first.

@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.79.0 -->
+<!-- version: 3.83.0 -->
 
 # PandaStudio
 
@@ -292,6 +292,59 @@ pandastudio project.set-shorts-layout --id=$PID --layout=full
 ```
 
 `camera-corner` sets the main-clip transform AND a `blur-self` backdrop together; reposition the tile afterward with `project.set-screen-transform` (`x`/`y` are canvas-fraction center offsets, `scale` the tile size). The two pieces are also independently settable: `project.set-backdrop --mode=blur-self|wallpaper` controls only the fill behind a scaled-down video (invisible while the video fills the frame). For a **screen-recording (screen+camera)** clip, don't use these — use `project.set-webcam-layout --preset=picture-in-picture`, which already gives screen-fills-with-camera-corner. The blurred self-fill renders identically in preview and export.
+
+### Active-speaker auto-reframe: landscape multi-person → vertical (v1.70+)
+
+When you crop a **landscape source with more than one person** (a talk show,
+interview, podcast panel, any director-cut footage) into 9:16, a single static
+cover-crop lands on the gap between people in wide shots and off-face in
+close-ups of whoever isn't centered. `project.auto-reframe` is a **tracked
+virtual camera** that fixes this — the same approach Opus Clip / Vizard use:
+
+1. **Shot detection** (ffmpeg scene cuts) segments the source.
+2. **Dense face tracking** — MediaPipe FaceLandmarker (bundled, offline)
+   samples ~7fps, with adaptive tiling so small/far faces in wide shots are
+   still found. Detections are associated into per-person tracks.
+3. **Audio active-speaker** — on multi-person shots it frames **whoever is
+   talking** (mouth-open × speech-energy), not the biggest face.
+4. **Smoothed camera** — the crop *pans* to follow the subject within a shot
+   (with a dead-band hold + a safe-zone clamp so the face never leaves frame)
+   and *cuts* at shot boundaries.
+
+```bash
+# Reframe every landscape clip — tracks + follows the active speaker.
+pandastudio project.auto-reframe --id=$PID --json
+# → { reframed: [{clipId, shots, shotsWithFace}], skipped: [...] }
+
+# One clip only, or tune shot sensitivity / punch-in:
+pandastudio project.auto-reframe --id=$PID --clipId=clip-1 --threshold=0.3 --minShotMs=500 --zoom=1.3 --json
+
+# Revert to the plain static cover-crop:
+pandastudio project.auto-reframe --id=$PID --clear=true --json
+```
+
+- **This is the right verb (NOT `project.set-focal-point`)** whenever a
+  landscape source with multiple/alternating speakers is cut to 9:16.
+  `set-focal-point` sets ONE static point for the whole clip — correct only for
+  a single, stationary talking-head. For director-cut / multi-person footage,
+  reach for `auto-reframe`.
+- **Async + needs a renderer** (bundled offline detection). It opens a hidden
+  editor for the pass; the DENSE tracking + audio makes it slower than a plain
+  edit — allow a couple of minutes for a few-minute source. Skips clips already
+  matching the canvas aspect (nothing to reframe) → reported under `skipped`.
+- **`--zoom`**: omit for the default ADAPTIVE punch-in (each speaker's face
+  sized to a consistent fraction of frame). Pass a fixed value (e.g. `1.3`) to
+  force a uniform punch-in on every shot.
+- **Set the 9:16 aspect FIRST** (`project.set-aspect-ratio --aspect=9:16`), then
+  auto-reframe — the track is computed for the canvas aspect and is ignored if
+  the aspect later changes (recompute after an aspect switch).
+- **Preview and export render the crop identically, per frame** — the preview
+  camera pans live. Verify from the EXPORTED mp4 across a close-up, a pan, AND a
+  wide two-shot (render-frame is fine too, but the export is the source of truth
+  near shot cuts).
+- Also exposed in the editor as the **"Track speakers"** button (Video → Layout).
+- v1 limitation: one subject per shot — a *held* two-shot where two people
+  banter frames the dominant talker (no mid-shot switching yet).
 ## Publishing (YouTube + Instagram)
 
 **Hard rules:** YouTube `privacyStatus` defaults to `unlisted` — never public without explicit user say; Instagram needs a Business/Creator account; never publish in the wrong workspace (confirm `isInActiveWorkspace`). Flows: connect → publish an export. Full detail: [`reference/publishing.md`](reference/publishing.md).
@@ -772,12 +825,15 @@ you: which verb, in what order, and the non-obvious gotchas.
   <0 pushes it out (−60..60); `--matteFeather=<px>` softens the edge (0..60).
   Both apply to blur AND remove (they adjust the person matte the outline is
   built from too).
-  **`--outline`** adds a colored keyline + drop shadow that hugs the person —
-  the "VOX magazine cutout" look. Enable it on `mode=remove` over a cream
-  `set-wallpaper` for the reference look. `--outlineWidth` px@1080p (default
-  36), `--outlineColor` hex (default `#ffffff`), `--outlineShadow` bool
-  (default true). Composes with `blur` too. Duration defaults to
-  5000ms. CAMERA / TALKING-HEAD footage only — pointless on screen recordings.
+  **`--outline`** is a colored keyline + drop shadow that hugs the person —
+  the "VOX magazine cutout" look. **It is ON BY DEFAULT for `mode=remove`**
+  (v3.80.0): a bare cutout reads as unintentional, the keyline makes it look
+  designed, so removal ships the VOX look out of the box (pair with a cream
+  `set-wallpaper` for the reference look). Pass `--outline=false` to remove the
+  background with NO keyline. For `mode=blur` it's off unless you pass
+  `--outline`. `--outlineWidth` px@1080p (default 36), `--outlineColor` hex
+  (default `#ffffff`), `--outlineShadow` bool (default true). Duration defaults
+  to 5000ms. CAMERA / TALKING-HEAD footage only — pointless on screen recordings.
   Runs on a bundled on-device model (no network); preview and export render
   it identically. Regions live under `editor.backgroundEffectRegions[]`
   (`.outline = {enabled,width,color,shadow}`); retime/restyle with
@@ -1178,7 +1234,7 @@ Resolve the destination first (see [HARD-GATE](#editorial-decisions--what-to-ask
 | LUT preset | by content type @ 0.5–0.8 | **`modernVibrant` @ 1.0** | `naturalEnhanced` @ 0.3 | none |
 | Background music | **only if the user asks** (then vol 0.15) | **only if the user asks** (then vol 0.30) | none | none |
 | Captions enabled | **no burn-in** — keyword pops instead (measured: 0/9 studied long-form videos burn speech captions; see longform-styles.md LF4) | **yes (required)** | yes | optional |
-| Caption template | — (keyword-pop overlays, not caption templates; if the user INSISTS on captions: `minimal`) | **`neon`** + positionY 0.65 | `minimal` | `minimal` (if any) |
+| Caption template | — (keyword-pop overlays, not caption templates; if the user INSISTS on captions: `minimal`) | **`neon`** + positionY 0.85 | `minimal` | `minimal` (if any) |
 | Export quality | `high` | `high` | `high` | `standard` (faster) |
 
 **LUT by content type** (only for `youtube-long` — other profiles use their fixed preset above):
@@ -1201,8 +1257,8 @@ not instead of them. Unlisted styles → fall back to base profile.
 | Style | Base profile | Pacing | LUT | Music | Caption template | Motion-graphic cadence + notes |
 |---|---|---|---|---|---|---|
 | **Ali Abdaal** (productivity / book reviews / tutorial long-form) | `youtube-long` | 1 visual change every **3–5s**; aggressive filler + silence removal | `modernVibrant` @ 0.5 | warm ambient / lofi @ 0.15–0.20 | `bold`, positionY 0.85 (below lower-third zone) | Intro title card (3s held) · host lower-third at 0:04–0:09 · 3–4 right-rail concept callouts at emphasis claims · 1 stat-reveal full-frame takeover if the video cites a number · outro card 4–6s hold with "Like & Subscribe" + shimmer on handle |
-| **MKBHD** (tech reviews / product-focused long-form) | `youtube-long` | 1 change every **4–6s** — contemplative, product breathes on screen | `modernVibrant` @ 0.6 OR `cinematicTealOrange` @ 0.5 | upbeat tech-review bed @ 0.20 | `minimal` @ positionY 0.82 | Clean intro wordmark (2s) · minimal lower-thirds (1 total, on first product mention) · stat-reveals over product shots use chrome-gradient numbers on dark · outro: product recap card + subscribe |
-| **MrBeast** (stunts / challenges / max-retention) | `youtube-long` | 1 change every **2–3s** — very fast, shorts-like cadence | `warmSunset` @ 0.8 (saturated, warm) | dramatic orchestral bed @ 0.30 | `neon`, **huge** (fontSize ~4.5rem, near the 5.0rem max), color-coded by topic, positionY 0.8 | Big chrome-gradient kinetic-type every ~5s · frequent full-frame stat takeovers with counter tweens · countdown overlays if the video has stakes · outro: "what's next" teaser card, **hold full 6s** |
+| **MKBHD** (tech reviews / product-focused long-form) | `youtube-long` | 1 change every **4–6s** — contemplative, product breathes on screen | `modernVibrant` @ 0.6 OR `cinematicTealOrange` @ 0.5 | upbeat tech-review bed @ 0.20 | `minimal` @ positionY 0.85 | Clean intro wordmark (2s) · minimal lower-thirds (1 total, on first product mention) · stat-reveals over product shots use chrome-gradient numbers on dark · outro: product recap card + subscribe |
+| **MrBeast** (stunts / challenges / max-retention) | `youtube-long` | 1 change every **2–3s** — very fast, shorts-like cadence | `warmSunset` @ 0.8 (saturated, warm) | dramatic orchestral bed @ 0.30 | `neon`, **huge** (fontSize ~4.5rem, near the 5.0rem max), color-coded by topic, positionY 0.85 | Big chrome-gradient kinetic-type every ~5s · frequent full-frame stat takeovers with counter tweens · countdown overlays if the video has stakes · outro: "what's next" teaser card, **hold full 6s** |
 | **Veritasium / Kurzgesagt-live** (science / education long-form) | `youtube-long` | 1 change every **5–7s** — contemplative, give diagrams time to read | `naturalEnhanced` @ 0.4 | ambient / orchestral @ 0.12 | `minimal` @ positionY 0.85 | Explanatory diagrams as motion graphics (labeled SVGs with `power2.inOut` reveals, `stagger: 0.15` on labels) · chapter dividers with chrome-gradient section titles · one or two hero stat-reveals with counter tweens · outro: citations card + subscribe |
 | **Vox / Johnny Harris** (explainer / essay long-form) | `youtube-long` | 1 change every **4–6s** — narrative-driven | `cinematicTealOrange` @ 0.7 | cinematic bed @ 0.18 | `minimal` @ positionY 0.85 | Chapter cards at every act break (bold chrome-gradient section titles) · map / timeline / chart motion graphics · pull-quote callouts in right rail · outro: credits card + next video teaser |
 
@@ -1430,6 +1486,9 @@ if [ "$PROFILE" != "loom" ]; then
     youtube-long) echo "bold";;
   esac)
   pandastudio caption.set-template --id=$ID --templateId=$TEMPLATE
+  # ALL CAPS look (common for shorts): force uppercase on any template.
+  # pandastudio caption.set-style --id=$ID --uppercase=true
+  # (uppercase=false turns OFF a template that ships caps, e.g. editorial)
 fi
 
 # 4.5. VERIFY FRAMES — MANDATORY. Never export without looking.

@@ -192,7 +192,7 @@ engine is a **mutating top-zone overlay** — the camera almost never cuts.
 |---|---|
 | Hook | payoff-first verdict, pain question, or claim-stack; ≤2.5s. Optional 2s word-pop title (music-only, speech starts after) |
 | Overlay format | one of: label-swap (per-item name+logo) · progressive-sections · chip-stack. Mutation every 3–8s |
-| Captions | template `bold`/`colored`; `wordsPerLine` 3–4; chest height (`positionY` 62 — percent of frame height from top) |
+| Captions | template `bold`/`colored`; `wordsPerLine` 3–4; lower third (`positionY` 85 — percent of frame height from top) |
 | Camera | NO cuts within beats; jump-cut between beats; ONE punch-in at the ~75% act change (`depth=2` = 1.5×) |
 | Audio | music bed from first beat (`asset.list-music` → `project.add-audio`, low volume); `keepFillers=on` |
 | Payoff cadence | one item/verdict every 3–8s |
@@ -216,7 +216,7 @@ pandastudio project.add-zoom --id=$ID --atMs=<payoff act startMs> --durationMs=<
 # Captions:
 pandastudio caption.toggle --id=$ID --enabled=true
 pandastudio caption.set-template --id=$ID --templateId=bold
-pandastudio caption.set-style --id=$ID --wordsPerLine=3 --positionY=62   # percent from top (0-100)
+pandastudio caption.set-style --id=$ID --wordsPerLine=3 --positionY=85   # percent from top (0-100)
 ```
 
 The **rapid-list** variant (10 items / 34s — the easiest stunning short to
@@ -232,7 +232,7 @@ the 2021 clone-look (no ALL-CAPS walls, no emoji, no meme inserts, no b-roll).
 | Parameter | Value |
 |---|---|
 | Hook | promise/stakes sentence at 0.0s, captions from frame 1, NO title card |
-| Captions | mixed-case white, drop shadow, no box, no emoji; `wordsPerLine` 2–3; center-frame (`positionY` 50); template `modern` or `bold` + `caption.set-style` overrides |
+| Captions | mixed-case white, drop shadow, no box, no emoji; `wordsPerLine` 2–3; lower third (`positionY` 85); template `modern` or `bold` + `caption.set-style` overrides |
 | Emphasis | bold WEIGHT on the operative word (needs per-word spans — see §11 fallback) |
 | Cuts | semantic only: new beat = cut. Median shot 3.5–5.6s |
 | Zooms | alternate tight↔wide punch-ins on beat boundaries (`depth=2`, alternate `focusY` slightly); on any beat >8s add a slow drift: `project.add-zoom --depth=1 --durationMs=<beat length>` so no frame is static |
@@ -252,7 +252,7 @@ not cropped-guesswork.
 | Switching | camera follows the speaking participant (`project.set-clip-layout` / podcast layout transforms per section — see visual-edits.md §podcast) |
 | Reaction cutaways | 1–1.5s of the NON-speaker at reaction moments, speaker's audio continues |
 | Long holds | >12s single-speaker → break with alternating punch-ins every 5–6s (`project.add-zoom`, alternate framing) |
-| Captions | `wordsPerLine` 1–3, bold + stroke, `positionY` 62; per-speaker color when available (§11) |
+| Captions | `wordsPerLine` 1–3, bold + stroke, `positionY` 85; per-speaker color when available (§11) |
 | Branding | persistent top corner chip (show logo / guest-name strap) via overlay graphic |
 | End card | 1.5–2s restating the title (SKIP on emotional/serious clips — match register, L5 spirit) |
 | Audio | dry — NO music bed; keep laughter |
@@ -274,7 +274,7 @@ continuous zoom-journeys are deferred — see gaps G7.)
 | Hook | curiosity claim spoken at 0.0s over the face; first visual J-cuts in by 2s; first NUMBER on screen by 4–5s |
 | Visuals | B-roll/graphics segments 1.75–2.2s per cut; every segment names ONE new thing |
 | Stat callouts | promote key numbers to center-screen pills persisting 2–3s (`motion.generate` stat template, one accent color for the WHOLE video) |
-| Captions | small ALL-CAPS, single line, bottom-center (`positionY` 80), on 100% of frames incl. b-roll; NO per-word emphasis |
+| Captions | small ALL-CAPS, single line, bottom-center (`positionY` 85), on 100% of frames incl. b-roll; NO per-word emphasis |
 | End | spoken cliffhanger CTA + subscribe pill ("to find out how, subscribe") |
 
 ## 8. Verification pass (run before declaring done)
