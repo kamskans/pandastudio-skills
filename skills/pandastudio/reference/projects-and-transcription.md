@@ -162,18 +162,40 @@ lines (a new cue on a gap of ~700ms+, or every ~7-10 words / ~42 chars per line)
 
 ### Captions as SRT for a YouTube upload (the common ask)
 
-YouTube uses an uploaded `.srt` to power auto-translation into other languages, so this is
-worth getting right:
+YouTube uses an uploaded `.srt` to power auto-translation into other languages, so the
+timing and the spelling both matter. There are two valid routes — pick by whether the
+project's transcript has human corrections in it.
+
+**Route A (default): reuse the project transcript.** Free, and it keeps any transcript
+fixes the user made (brand/product names via `transcript.find-replace`). Requires using the
+edited time base:
 
 ```bash
 pandastudio transcript.get --id=$ID --json > /tmp/t.json
-# Then YOU format the cues from words[] using editedStartMs/editedEndMs
-# (skipping null = trimmed), and write the .srt file.
+# Format cues from words[] using editedStartMs/editedEndMs (skip null = trimmed).
 ```
 
-The cue timestamps must be `HH:MM:SS,mmm` measured from the **start of the exported video**
-(i.e. straight from `editedStartMs`, which is already zero-based on the edited timeline —
-no offset math needed).
+**Route B: transcribe the exported MP4 fresh.** Wrap the export in a throwaway project and
+transcribe it (same flow as any standalone file). The new transcript's `startMs`/`endMs` are
+already relative to the exported video, so the timing is correct by construction — no
+edited/source reasoning at all:
+
+```bash
+EID=$(pandastudio project.new --name="srt-tmp" --withMedia="/abs/path/export.mp4" --json | jq -r '.data.id')
+JOB=$(pandastudio transcript.transcribe --id=$EID --json | jq -r '.data.jobId')
+pandastudio job.wait --id=$JOB --json
+pandastudio transcript.get --id=$EID --json    # startMs/endMs are already export-relative
+```
+
+**Which to use:** prefer Route A when the source project is available — it costs no second
+pass and, crucially, preserves corrected spellings. Re-transcribing (Route B) re-runs STT
+and will reintroduce the original misspellings, which YouTube then translates into every
+language. Use Route B when the source project isn't at hand, the export came from elsewhere,
+or you want timing that cannot be gotten wrong.
+
+Either way the cue timestamps are `HH:MM:SS,mmm` measured from the start of the exported
+video (both `editedStartMs` and a fresh transcript's `startMs` are already zero-based on it,
+so there is no offset math).
 
 **Producing the output the user asked for — you format it, no verb:**
 
