@@ -136,7 +136,44 @@ pandastudio transcript.get --id=$ID --json
 
 `transcript.get` returns `{ language, wordCount, segmentCount, words[], segments[] }`. Each
 `segment` has `{ id, text, startMs, endMs, words[] }`; each `word` has `{ text, startMs,
-endMs }`. **All times are milliseconds.**
+endMs, editedStartMs, editedEndMs }`. **All times are milliseconds.**
+
+### ⚠ Which time base to use — this decides whether the subtitles are in sync
+
+Every word carries TWO time bases:
+
+- `startMs` / `endMs` — **SOURCE** time (the raw recording, before any edits).
+- `editedStartMs` / `editedEndMs` — **EDITED-timeline** time, with trims + speed regions
+  applied. `null` means the word sits inside a trim (it was cut and is NOT in the export).
+
+**Rule: subtitles must match the file the user will actually upload.**
+
+- The project has **no edits** (a loose file you just wrapped in a project to transcribe):
+  either base works — they're identical. Use `startMs`/`endMs`.
+- The project **has any edits** (filler removal, remove-silences, deleted words, speed
+  regions — i.e. the normal PandaStudio flow): you MUST use `editedStartMs`/`editedEndMs`
+  and **skip every word whose `editedStartMs` is `null`**. Those words were trimmed out of
+  the export; including them, or using source times, produces an SRT that drifts further
+  out of sync with every cut.
+
+Do NOT build cues from `segments[].text` on an edited project — a segment can straddle a
+trim. Build cues from `words[]`, filtered to non-null `editedStartMs`, then group them into
+lines (a new cue on a gap of ~700ms+, or every ~7-10 words / ~42 chars per line).
+
+### Captions as SRT for a YouTube upload (the common ask)
+
+YouTube uses an uploaded `.srt` to power auto-translation into other languages, so this is
+worth getting right:
+
+```bash
+pandastudio transcript.get --id=$ID --json > /tmp/t.json
+# Then YOU format the cues from words[] using editedStartMs/editedEndMs
+# (skipping null = trimmed), and write the .srt file.
+```
+
+The cue timestamps must be `HH:MM:SS,mmm` measured from the **start of the exported video**
+(i.e. straight from `editedStartMs`, which is already zero-based on the edited timeline —
+no offset math needed).
 
 **Producing the output the user asked for — you format it, no verb:**
 
