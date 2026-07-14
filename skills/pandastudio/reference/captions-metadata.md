@@ -34,7 +34,23 @@ pandastudio llm.generate-timestamps --id=$ID --maxChapters=8 --json
 # → { timestamps: [ { timeMs, label }, ... ] }
 ```
 
-These are READ-ONLY — they return text for you to display or stash on the export-library entry; they don't mutate the project. Perfect for auto-populating the YouTube upload box after `export.start` finishes.
+These are READ-ONLY — they return text; they don't write anything. To actually
+SAVE title / description / timestamps onto the export (the fields in the export's
+Content tab), use `export.set-details`:
+
+```bash
+# Write generated (or user-supplied) metadata back onto the export entry.
+pandastudio export.set-details --id=$EXPORT_ID \
+  --title="How I Got My First $79 Sale" \
+  --description="In this video…"
+# timestamps take an array of { timeMs, label }:
+pandastudio export.set-details --id=$EXPORT_ID --timestamps='[{"timeMs":0,"label":"Intro"}]'
+```
+
+`$EXPORT_ID` is the export-library entry id (`export.list` / `export.get`). When the
+user is on the export page, the in-app agent already has it as `exportPage.entryId`
+in its editor context — so "update the title to X" is a single `export.set-details`
+call. Pass only the fields you want to change.
 
 ## YouTube thumbnails (v1.18+)
 
