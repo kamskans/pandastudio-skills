@@ -87,6 +87,18 @@ pandastudio project.set-webcam-layout --id=$ID --cx=0.85 --cy=0.85 --scale=0.35
 pandastudio project.set-webcam-layout --id=$ID \
   --cropX=0 --cropY=0.1 --cropWidth=1 --cropHeight=0.8  # remove letterbox bars
 
+# Camera APPEARANCE — shape / border ring / shadow (PROJECT-LEVEL). Complements
+# set-webcam-layout (which does position/size/crop). Fields merge; reset clears.
+pandastudio project.set-webcam-style --id=$ID --shape=circle          # round camera bubble
+pandastudio project.set-webcam-style --id=$ID --shape=rounded --cornerRadius=24
+pandastudio project.set-webcam-style --id=$ID --borderWidth=4 --borderColor="#ffffff"
+pandastudio project.set-webcam-style --id=$ID --shadow=0.6            # 0=none, omit=preset default
+pandastudio project.set-webcam-style --id=$ID --reset=true            # back to preset defaults
+# shape: auto (preset radius, default) | rectangle | rounded | circle.
+# Px values are at a 1080p reference and scale with the export resolution.
+# Applies to the camera tile in pip / side-by-side / vertical-stack; podcast
+# participant grids keep their co-equal tile design.
+
 # PER-SECTION podcast layout: a different layout for each clip (section). Use
 # this to cut to whoever is talking. Split first, then set each section.
 pandastudio project.set-clip-layout --id=$ID --clipId=clip-2 --preset=podcast-host-full
