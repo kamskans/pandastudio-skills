@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.87.0 -->
+<!-- version: 3.88.0 -->
 
 # PandaStudio
 
@@ -1489,6 +1489,14 @@ if [ "$PROFILE" != "loom" ]; then
   # ALL CAPS look (common for shorts): force uppercase on any template.
   # pandastudio caption.set-style --id=$ID --uppercase=true
   # (uppercase=false turns OFF a template that ships caps, e.g. editorial)
+
+  # HIDE captions for part of the video. Captions are ON everywhere once
+  # enabled, so these carve out exceptions — use when subtitles would cover
+  # something on screen (a UI demo, on-screen text, a lower third).
+  # Times are EDITED-timeline ms. Overlapping regions are fine.
+  # pandastudio project.add-caption-region --id=$ID --atMs=12000 --durationMs=5000
+  # Remove one (ids come from project.read → editor.captionRegions[].id):
+  # pandastudio project.remove-caption-region --id=$ID --regionId=caption-hide-1
 fi
 
 # 4.5. VERIFY FRAMES — MANDATORY. Never export without looking.
