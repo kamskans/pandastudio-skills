@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.88.0 -->
+<!-- version: 3.89.0 -->
 
 # PandaStudio
 
@@ -559,6 +559,22 @@ voices/languages; see reference/media-generation.md;
 explainer, intro/outro, teaser), if the brief doesn't already specify, **ASK up
 front** whether to add them:
    > "Want a voiceover and/or a music bed? Both shape the timing, so I'll lock them in before building the scenes."
+
+   **ALWAYS pass `--transcribe=true` when placing a VOICEOVER with
+   `project.add-audio`.** Audio overlays are never transcribed otherwise —
+   `transcript.transcribe` only walks main-track clips — so a narration-driven
+   video ends up with NO transcript, which means no captions and no way for you
+   to read back what was said. The flag transcribes the narration and merges its
+   words into the project transcript at the overlay's position. It returns a
+   `transcribeJobId`; `job.wait` on it before calling `caption.toggle` or any
+   transcript verb. Do NOT pass it for music or ambience.
+   ```bash
+   NARR=$(pandastudio media.generate-narration --text="..." --json | jq -r '.data.path')
+   OUT=$(pandastudio project.add-audio --id=$ID --audioPath="$NARR" --startMs=0 \
+     --transcribe=true --json)
+   pandastudio job.wait --id=$(echo "$OUT" | jq -r '.data.transcribeJobId') --json
+   pandastudio caption.toggle --id=$ID --enabled=true   # now has words to render
+   ```
 
    They materially change the build — **if there's narration, generate the VO
    FIRST and time each scene to its line length** (TTS runs longer than you'd
