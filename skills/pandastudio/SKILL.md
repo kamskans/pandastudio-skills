@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.89.0 -->
+<!-- version: 3.92.0 -->
 
 # PandaStudio
 
@@ -387,7 +387,7 @@ specific operation, this is the intended end-to-end pipeline, in order:
    genuinely ambiguous (the repeat might be intentional emphasis, or you
    can't tell which take is better), **ask the user which take to keep**
    rather than guessing.
-5. **Remove silences** (`transcript.remove-silences`, 500ms default — same as
+5. **Remove silences** (`transcript.remove-silences`, 600ms default — same as
    the UI Remove Silences button) — after
    content cleanup so it tightens the final timing. The verb returns
    `removedCount` + the new `revision` (synchronous — you'll know immediately
@@ -614,7 +614,7 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 | `transcript.transcribe` | Run only on clips where `clipStates[i].transcribed === false`. Skip the rest. |
 | `transcript.remove-fillers` | Default: auto-remove vocalised pauses (um/uh/uhm/umm/hmm/hm) + immediately-repeated words. Trim regions; fully reversible. Pass `aggressive=true` to ALSO catch lexical-word fillers (like, you know, i mean, sort of, kind of) — these can wrongly cut legitimate uses ("I like this template" loses "like"), so opt in only when the user wants a thorough cleanup. |
 | `transcript.find-issues` | Run after remove-fillers. Surfaces re-takes (`duplicate-take`), abandoned restarts (`false-start`), and stutters (`adjacent-repeat`) as candidates — each with the `wordIds` of the discarded attempt. **Read-only — it never edits.** **Default: keep the most recent (last) take and delete the earlier attempt** by feeding the candidate's `wordIds` into `transcript.delete-words` — **but `severity: "low"` candidates are REVIEW-class: keep them by default** (a low `false-start` = the restart diverges from the fragment, often intentional parallel structure like "one for transcription, one for outreach"). The detector already skips comma-terminated parallel list items and lone stopword "repeats" across pause tokens. Review against context first — if a repeat looks intentional (emphasis) or you can't tell which take is cleaner, ask the user which to keep rather than blind-applying. |
-| `transcript.remove-silences` | Run after the content cleanup. Runs the SAME two passes as the UI Remove Silences button and unions them: (1) transcript word-gaps (leading, between-word, trailing) and (2) ffmpeg audio-level `silencedetect` on each clip's media — pass 2 catches real dead air the transcript misses when speech-to-text invents phantom words over quiet stretches, which is why this now removes the same sections a manual click would (it previously did pass 1 only and left audio-only silence behind). Default threshold 500ms; don't hand-pick a higher value "to be safe" — that leaves dead air the user expects gone. |
+| `transcript.remove-silences` | Run after the content cleanup. Runs the SAME two passes as the UI Remove Silences button and unions them: (1) transcript word-gaps (leading, between-word, trailing) and (2) ffmpeg audio-level `silencedetect` on each clip's media — pass 2 catches real dead air the transcript misses when speech-to-text invents phantom words over quiet stretches, which is why this now removes the same sections a manual click would (it previously did pass 1 only and left audio-only silence behind). Default threshold 600ms; don't hand-pick a higher value "to be safe" — that leaves dead air the user expects gone. |
 | `audio.clean` | Denoise only clips where `clipStates[i].audioCleaned === false`. Writes a sibling `.cleaned.wav`; original audio untouched. |
 | `caption.set-template` (when user said "add captions" without naming a style) | Default to `bold`. Tell user other templates exist (`classic, modern, minimal, spotlight, boxed, neon, colored, editorial`). `editorial` is magazine-style emphasis — the currently-spoken word renders big + accent while the rest of the line shrinks, so emphasis sweeps the line. |
 | `llm.generate-title` / `llm.generate-description` / `llm.generate-timestamps` | Generate after the edit pass. Show the user; let them say "regenerate" or "use this exact title" or edit inline. |
@@ -627,7 +627,7 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 > • Transcribed both clips (136 words).
 > • Removed 14 fillers + 3 repeats. Trim regions are reversible — say 'undo fillers' if you want any back.
 > • Cut 2 bad takes (kept the cleaner second attempt each time).
-> • Removed 67 silences (>500ms), tightening ~48s of dead air.
+> • Removed 67 silences (>600ms), tightening ~48s of dead air.
 > • Cleaned audio with DeepFilter on both clips.
 > • Added a zoom at 12.4s where you said 'click here'.
 > • Captions enabled with the bold template (8 other styles available).
@@ -1149,8 +1149,8 @@ pandastudio transcript.get --id=$ID --json | jq '.data.words[0:20]'
 pandastudio transcript.remove-fillers --id=$ID --json
 # → returns { removedCount, fillersRemoved, repeatsRemoved, trimsAdded }
 
-# 3b. Remove silences (default ≥500ms = the UI button; covers leading/trailing/between-word)
-#     Omit --thresholdMs to use the 500ms default; only pass it to override.
+# 3b. Remove silences (default ≥600ms = the UI button; covers leading/trailing/between-word)
+#     Omit --thresholdMs to use the 600ms default; only pass it to override.
 pandastudio transcript.remove-silences --id=$ID --json
 # → returns { removedCount, totalTrimmedMs }
 
@@ -1198,7 +1198,7 @@ Every deletion translates internally into a **trim region** the export pipeline 
 
 ### Audio cleanup, background audio, music, and color grading
 
-`audio.clean` (DeepFilter), background-audio regions, bundled + Lyria-generated music, and LUT color presets. Full detail: [`reference/audio-color-music.md`](reference/audio-color-music.md).
+`audio.clean` (DeepFilter), background-audio regions, bundled + Lyria-generated music, **per-clip volume** (`project.set-clip-volume` — balance loudness across clips, 0–2 gain, no shell/WAV workaround needed), and LUT color presets. Full detail: [`reference/audio-color-music.md`](reference/audio-color-music.md).
 ## Visual edits — zooms, trims, speed, crop, layouts
 
 Zoom (incl. follow-cursor + `--anchorSourceMs`), cut/speed, crop/reframe, face centering, webcam + per-section podcast layouts, speaker-driven editing, export defaults. Full detail: [`reference/visual-edits.md`](reference/visual-edits.md).
@@ -1514,6 +1514,16 @@ if [ "$PROFILE" != "loom" ]; then
   # Remove one (ids come from project.read → editor.captionRegions[].id):
   # pandastudio project.remove-caption-region --id=$ID --regionId=caption-hide-1
 fi
+
+# MUTE part of the video's audio. Silences the MAIN voice/screen track over a
+# stretch — background music and SFX overlays keep playing (same as the editor).
+# Times are EDITED-timeline ms; durationMs controls how much is silenced.
+# Use for a cough, a name, or dead air you want silent WITHOUT deleting footage
+# (deleting would also cut the video; mute keeps the picture, drops the sound).
+# Overlapping regions are fine. To fully cut both picture and sound, use a trim.
+# pandastudio project.add-mute-region --id=$ID --atMs=12000 --durationMs=3000
+# Remove one (ids come from project.read → editor.muteRegions[].id):
+# pandastudio project.remove-mute-region --id=$ID --regionId=mute-1
 
 # 4.5. VERIFY FRAMES — MANDATORY. Never export without looking.
 # Run motion.verify-frames on every rendered motion-graphic MP4 AND on

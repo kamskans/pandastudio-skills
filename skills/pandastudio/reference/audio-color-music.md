@@ -12,6 +12,37 @@ pandastudio job.wait --id=$JOB --timeoutMs=600000 --json
 # → each processed clip gets a sibling .cleaned.wav file; export auto-uses it
 ```
 
+### Per-clip volume (balance loudness across clips)
+
+Each main-track clip carries a linear audio **gain**: `1` = original level (the
+default), `0` = silent, `2` = +6 dB. Use it to balance recordings that were
+captured at different levels — e.g. a quiet second take next to a loud first
+one — without touching the audio files. Applied in preview AND both export
+paths, so what you hear is what exports.
+
+```bash
+# Boost clip 2 and clip 3 (0-based indices → clipIndex 1 and 2) to +6 dB.
+pandastudio project.set-clip-volume --id=$ID --clipIndex=1 --volume=1.5 --json
+pandastudio project.set-clip-volume --id=$ID --clipIndex=2 --volume=1.5 --json
+
+# Or address a clip by id (from project.read → clipStates[].clipId):
+pandastudio project.set-clip-volume --id=$ID --clipId=clip-2 --volume=0.6 --json
+
+# Silence a clip's audio entirely (keeps the video):
+pandastudio project.set-clip-volume --id=$ID --clipIndex=0 --volume=0 --json
+
+# Reset a clip back to its original level:
+pandastudio project.set-clip-volume --id=$ID --clipIndex=1 --volume=1 --json
+```
+
+- `volume` is clamped to `[0, 2]`. `volume=1` clears the override.
+- Identify the clip by `clipIndex` (0-based, matching `project.read`'s
+  `clipStates` order) OR `clipId`. `project.read` surfaces the current gain as
+  `clipStates[i].volume` — but only when it's off the default `1`.
+- This is continuous per-clip gain, distinct from muting an overlay. There is
+  no shell/ffmpeg workaround needed — never write a re-leveled WAV to disk for
+  this; the verb does it non-destructively.
+
 ### Adding background audio to any project
 
 Audio overlays are **first-class timeline regions** — they can be dragged,
