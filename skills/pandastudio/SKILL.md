@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.92.0 -->
+<!-- version: 3.92.1 -->
 
 # PandaStudio
 
@@ -741,6 +741,13 @@ you: which verb, in what order, and the non-obvious gotchas.
 
 - **`project.new --withMedia='["/a.mp4","/b.mp4"]'`** — create pre-loaded; clip
   durations are FFmpeg-probed automatically.
+- **`project.duplicate --id`** (or `--path`) — EXACT copy of a project: every edit
+  (trims, zooms, speed, crops, overlays, captions, spotlights, transcript, aspect
+  ratio) is preserved. The copy gets a fresh id and a `<name> (copy)` name and a
+  new `.pandastudio` file; the source is untouched (non-destructive) and media
+  files are shared, not copied. Returns `{ id, path, name }`. Use when the user
+  asks to duplicate / copy / clone a project — e.g. to try a variant edit without
+  disturbing the original.
 - **`project.current`** → the open editor project (`{id,path,name,revision,clipCount}`
   or `null`). Use it when the user says "this one" / "what's open" — don't ask
   for an id. `null` ≠ "no projects exist"; fall back to `project.list`.
