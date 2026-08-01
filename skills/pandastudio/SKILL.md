@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.92.1 -->
+<!-- version: 3.95.0 -->
 
 # PandaStudio
 
@@ -348,6 +348,31 @@ pandastudio project.auto-reframe --id=$PID --clear=true --json
 ## Publishing (YouTube + Instagram)
 
 **Hard rules:** YouTube `privacyStatus` defaults to `unlisted` — never public without explicit user say; Instagram needs a Business/Creator account; never publish in the wrong workspace (confirm `isInActiveWorkspace`). Flows: connect → publish an export. Full detail: [`reference/publishing.md`](reference/publishing.md).
+## Memory — remember preferences across chats
+
+You have a durable, per-workspace memory that persists across every chat. Its
+current contents are already injected into your context each session under
+**"Durable memory (this workspace)"** — so honor anything there without being
+re-told. Grow it with three verbs:
+
+```bash
+pandastudio memory.save --note="Channel is WritePanda; energetic tone, fast cuts"
+pandastudio memory.save --note="Default caption template: editorial; brand accent #2563EB"
+pandastudio memory.list --json      # { entries: [{id,text}], count } — get ids
+pandastudio memory.forget --query="a1b2c3"     # by id, or a text fragment
+```
+
+**When to save:** the user states a STANDING preference or fact worth carrying
+forward — brand, default caption/zoom styles, channel name + tone, a recurring
+instruction ("always 9:16 for this client", "never add background music").
+**When NOT to save:** one-off requests about the current edit ("trim the first
+10s", "make this clip louder") — those aren't memory.
+
+Save proactively when you notice a durable preference, but keep entries concise
+(one fact per note) and use `memory.forget` when something the user tells you
+supersedes an old note. Memory is per-workspace, so an agency's clients never
+share it.
+
 ## Editorial decisions — what to ask, what to assume, what NEVER to ask
 
 Video editing is a creative task with hundreds of small decisions. Asking the user about all of them kills the magic — they came to you because they wanted to type "edit this" and see something happen. Asking about none of them produces wrong-shape output. The rule:
@@ -1133,6 +1158,36 @@ When no template fits, author HTML against the HyperFrames contract. Render verb
 ## Narration (voiceover) + B-roll generation
 
 Replicate TTS narration and gpt-image B-roll (always Ken-Burns + vignette a still, never drop a flat photo). Requires the user's Replicate key. Full detail: [`reference/media-generation.md`](reference/media-generation.md).
+
+## Avatar (talking-head) videos — HeyGen
+
+Generate a talking-head clip from the user's **own HeyGen avatar** + a script, then drop it on the timeline and edit/caption/export like any other clip. Bring-your-own key + credits: requires the user's HeyGen API key (Settings → Integrations). The HeyGen API is a **paid capability, not on every plan**, and renders are billed against the user's own HeyGen credits — say so if a call 401s/402s.
+
+**HeyGen is a NATIVE PandaStudio integration — use these verbs, never fetch external URLs or ask the user to paste avatar/voice IDs.** The moment the user asks for a HeyGen / avatar / talking-head video, your FIRST action is `media.list-avatars` (and `media.list-avatar-voices`) to discover their options — don't ask them for IDs, look them up. If either returns **"No HeyGen API key set"**, STOP and tell the user to connect HeyGen in **Settings → Integrations** before continuing; do not ask anything else first.
+
+**Discover, then generate. `generate-avatar-video` is ASYNC** (HeyGen renders server-side over minutes) — it returns `{ jobId }`; poll `job.wait` with a generous timeout, then add the returned MP4 with `project.add-clip`.
+
+```bash
+# 1. Find the avatar (the user's clone) and a voice.
+AVATAR=$(pandastudio media.list-avatars --json | jq -r '.data.avatars[0].avatarId')
+VOICE=$(pandastudio media.list-avatar-voices --json | jq -r '.data.voices[0].voiceId')
+
+# 2. Kick off the render (16:9 YouTube by default; 9:16 for Shorts).
+JOB=$(pandastudio media.generate-avatar-video \
+  --avatarId="$AVATAR" --voiceId="$VOICE" \
+  --script="Hey everyone, in today's video…" \
+  --aspectRatio=16:9 --resolution=720p \
+  --json | jq -r '.data.jobId')
+
+# 3. Wait for the server-side render (minutes) — poll with a long timeout.
+VIDEO=$(pandastudio job.wait --id="$JOB" --timeoutMs=900000 --json | jq -r '.data.job.result.videoPath')
+
+# 4. Add it to the timeline like any recording; edit/caption/export as normal.
+pandastudio project.add-clip --id="$PROJECT" --path="$VIDEO"
+```
+
+Args: `avatarId`, `voiceId`, `script` (required); `avatarKind` (`avatar` default | `talking_photo`), `aspectRatio` (`16:9` default | `9:16` | `1:1`), `resolution` (`720p` default | `1080p`), `speed` (0.5–1.5), `backgroundColor` (hex), `outputName`. If `job.wait` returns `timedOut: true`, the render is still going — poll again; never treat it as a failure.
+
 ## Transcript-based editing — PandaStudio's signature feature
 
 The reason humans pick PandaStudio over Premiere is that you edit by **deleting words from the transcript**, not by scrubbing the timeline. The CLI exposes the same model.
