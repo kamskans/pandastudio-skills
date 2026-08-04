@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.96.0 -->
+<!-- version: 3.97.0 -->
 
 # PandaStudio
 
@@ -82,7 +82,14 @@ description: Edit videos in PandaStudio — a desktop video editor for YouTube, 
 > - **Mode B — a video built FROM SCRATCH where the motion graphics ARE the video**
 >   (promo, explainer, intro/outro, product teaser, CTA piece — anything with NO
 >   source clip on the main track): **default to fully custom, hand-authored
->   scenes via `motion_render_html`, NOT bundled templates.** In from-scratch work
+>   scenes via `motion_render_html`, NOT bundled templates.**
+>   **EXCEPTION — faceless videos are Mode B but IMAGE-driven, not HTML text
+>   scenes.** If the ask is a "faceless" video (faceless YouTube / faceless
+>   short / narrated story or explainer with no face), do NOT author text
+>   motion-graphic scenes — that produces a title slideshow. Generate an IMAGE
+>   per beat + Ken-Burns + voiceover. See the dedicated **"Faceless videos"**
+>   section below.
+>   For the other Mode B pieces (promos/explainers): In from-scratch work
 >   templates read as generic and "templated" — exactly the wrong feel for a
 >   hero/marketing asset, which is usually the most visible, brand-defining thing
 >   the user makes. **Load [`reference/promo-and-mg-videos.md`](reference/promo-and-mg-videos.md)
@@ -1171,6 +1178,61 @@ When no template fits, author HTML against the HyperFrames contract. Render verb
 ## Narration (voiceover) + B-roll generation
 
 Replicate TTS narration and gpt-image B-roll (always Ken-Burns + vignette a still, never drop a flat photo). Requires the user's Replicate key. Full detail: [`reference/media-generation.md`](reference/media-generation.md).
+
+## Faceless videos — image-driven, voiceover-led
+
+A "faceless" video (a.k.a. faceless YouTube / faceless short) is **narration
+carrying the story over AI-generated IMAGES that DEPICT each beat**, with slow
+Ken-Burns motion. No face, no camera. This is the format behind history/mystery/
+educational channels. The user says "make a faceless video about X", "faceless
+YouTube", "faceless short", or picks the home-screen "Faceless short" preset.
+
+> **🛑 THE ONE RULE THAT MATTERS: a faceless video is IMAGES, not text cards.**
+> Each scene MUST be a real image that SHOWS the beat — for "the cyclops",
+> generate *a one-eyed giant in a torch-lit cave*, NOT a motion-graphic card
+> with the word "Cyclops" on it. The words belong in the **voiceover**, never
+> on screen. A deck of animated text titles ("Departure", "The Sirens", …) is
+> the classic failure — it's a title slideshow, not a faceless video, and it
+> looks cheap. Motion-graphic templates / `motion_render_html` text scenes are
+> the WRONG tool here. Reach for them only for an optional title card or a
+> lower-third stat, never as the scene visuals.
+
+**The pipeline — repeat per beat, then export:**
+
+1. **Break the topic into beats.** One clear VISUAL idea per beat (~8–20s of
+   narration each). A 3–5 min video is ~12–20 beats.
+2. **Write the narration line** for the beat (what the voice says).
+3. **Generate the narration** → `media.generate-narration` (local Kokoro by
+   default). Keep each call to ONE beat (~40–60 words); Kokoro caps a single
+   call around ~25s, so long scripts get truncated — narrate per beat, not the
+   whole script at once. Grab its `durationMs`.
+4. **Generate the IMAGE for the beat** → `media.generate-image` with a vivid,
+   LITERAL visual prompt of the scene (subject, setting, lighting, mood — no
+   on-screen words). For 16:9 generate `3:2`; for 9:16 generate `2:3` (cropped
+   in the wrap). **Keep one art style across every image** (state it in every
+   prompt, e.g. "cinematic oil-painting, warm dramatic light") so the 12+ images
+   read as ONE film, not random stock.
+5. **Ken-Burns the image to a clip sized to the narration** →
+   `motion_render_html` with the B-roll Ken-Burns shell (see
+   [`reference/examples.md`](reference/examples.md) §"B-roll Ken-Burns shell"),
+   `--durationMs` = that beat's narration length (+~0.5s of air). Slow push-in or
+   pan, subtle vignette. A still held flat reads as a dead slideshow — the image
+   must drift.
+6. **Add the clip to the main track in order** → `project.add-clip --media=…`
+   (append). The images-in-motion ARE the video.
+7. **Lay the narration under it** → `project.add-audio --audioPath=… --startMs=<beat start>`
+   (beat start = sum of prior beats' durations).
+8. **Polish (optional but expected):** a quiet music bed (`asset.list-music` →
+   `project.add-audio` at low volume, e.g. 0.15), burned captions
+   (`caption.toggle` / caption template) since faceless viewers often watch
+   muted, and maybe ONE title card at the top.
+9. **Export** → `export.start` (16:9 for YouTube, 9:16 for a faceless short).
+
+**Timing rule:** each scene's length = its narration length; Ken-Burns the image
+over exactly that span so voice and visual stay locked. Match aspect to
+destination. If the user has no Replicate key, image generation is unavailable —
+say so and offer bundled templates as a (lesser) fallback, or ask them to add
+the key (Settings → Integrations).
 
 ## Avatar (talking-head) videos — HeyGen
 
