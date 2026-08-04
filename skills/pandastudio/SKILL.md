@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.97.0 -->
+<!-- version: 3.98.0 -->
 
 # PandaStudio
 
@@ -1208,17 +1208,19 @@ YouTube", "faceless short", or picks the home-screen "Faceless short" preset.
    whole script at once. Grab its `durationMs`.
 4. **Generate the IMAGE for the beat** → `media.generate-image` with a vivid,
    LITERAL visual prompt of the scene (subject, setting, lighting, mood — no
-   on-screen words). For 16:9 generate `3:2`; for 9:16 generate `2:3` (cropped
-   in the wrap). **Keep one art style across every image** (state it in every
-   prompt, e.g. "cinematic oil-painting, warm dramatic light") so the 12+ images
-   read as ONE film, not random stock.
+   on-screen words). For 16:9 generate `3:2`; for 9:16 generate `2:3`. **Keep one
+   art style across every image** (state it in every prompt, e.g. "cinematic
+   oil-painting, warm dramatic light") so the 12+ images read as ONE film, not
+   random stock.
 5. **Ken-Burns the image to a clip sized to the narration** →
-   `motion_render_html` with the B-roll Ken-Burns shell (see
-   [`reference/examples.md`](reference/examples.md) §"B-roll Ken-Burns shell"),
-   `--durationMs` = that beat's narration length (+~0.5s of air). Slow push-in or
-   pan, subtle vignette. A still held flat reads as a dead slideshow — the image
-   must drift.
-6. **Add the clip to the main track in order** → `project.add-clip --media=…`
+   `media.image-to-video --imagePath=<img> --durationMs=<beat narration + ~400ms>
+   --aspectRatio=9:16 --zoom=in` (or `--zoom=out`). This is the NATIVE one-call
+   path — FFmpeg pans/zooms the still into an MP4 and returns `videoPath`. Alternate
+   `in`/`out` across beats so the cut breathes; a still held flat reads as a dead
+   slideshow. (Only reach for the heavier `motion_render_html` Ken-Burns shell when
+   you need a bespoke CSS treatment — grain, parallax layers, vignette animation —
+   that plain pan/zoom can't do.)
+6. **Add the clip to the main track in order** → `project.add-clip --media=<videoPath>`
    (append). The images-in-motion ARE the video.
 7. **Lay the narration under it** → `project.add-audio --audioPath=… --startMs=<beat start>`
    (beat start = sum of prior beats' durations).
@@ -1233,6 +1235,24 @@ over exactly that span so voice and visual stay locked. Match aspect to
 destination. If the user has no Replicate key, image generation is unavailable —
 say so and offer bundled templates as a (lesser) fallback, or ask them to add
 the key (Settings → Integrations).
+
+**Per-beat loop (9:16 short):**
+
+```bash
+# For one beat — repeat, tracking the running start offset for narration.
+IMG=$(pandastudio media.generate-image --prompt="a one-eyed giant in a torch-lit cave, cinematic oil-painting, warm dramatic light" --aspectRatio=2:3 --json | jq -r '.data.imagePath')
+NARR=$(pandastudio media.generate-narration --text="In the cave of the cyclops, Odysseus faced a giant who ate men whole." --voice=am_michael --json)
+DUR=$(echo "$NARR" | jq -r '.data.durationMs'); WAV=$(echo "$NARR" | jq -r '.data.audioPath')
+CLIP=$(pandastudio media.image-to-video --imagePath="$IMG" --durationMs=$((DUR + 400)) --aspectRatio=9:16 --zoom=in --json | jq -r '.data.videoPath')
+pandastudio project.add-clip --id="$PID" --media="$CLIP"
+pandastudio project.add-audio --id="$PID" --audioPath="$WAV" --startMs=$OFFSET --endMs=$((OFFSET + DUR)) --volume=1
+# OFFSET += clip duration (the add-clip return / project.read clip durations) for the next beat.
+```
+
+Place each beat's narration at that beat's CLIP start (cumulative sum of prior
+clip durations), NOT at the raw narration sum — the clips carry the +400ms tail,
+so read the clip durations back (`project.read`) or accumulate `DUR + 400` to keep
+audio and video locked.
 
 ## Avatar (talking-head) videos — HeyGen
 
