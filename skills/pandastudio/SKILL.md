@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.95.0 -->
+<!-- version: 3.96.0 -->
 
 # PandaStudio
 
@@ -1152,6 +1152,19 @@ pandastudio project.add-motion-graphic --id="$PROJECT" --fromJob="$JOB" --durati
 ## Custom motion graphics — HTML authoring
 
 When no template fits, author HTML against the HyperFrames contract. Render verbs (`motion.screenshot`/`render-html`/`concat`), transparent overlays + frosted glass, add-by-jobId. Read [`reference/motion-philosophy.md`](reference/motion-philosophy.md) + [`reference/motion-recipes.md`](reference/motion-recipes.md) before authoring; verbs in [`reference/custom-html.md`](reference/custom-html.md).
+
+> **🛑 Pass the HTML INLINE — never write a file first.** `motion.render-html`
+> (MCP: `motion_render_html`) accepts the whole composition as an **inline `html`
+> string parameter**: `motion_render_html({ html: "<!doctype html>…", durationMs, aspectRatio })`.
+> Author the entire HTML in your response and hand it straight to the `html`
+> arg. Do **NOT** try to `write`/save the HTML to a path and pass `htmlPath` —
+> the in-app PandaStudio agent has **no `write`, `edit`, or `bash` tool** (that's
+> deliberate), so a "write the file" plan fails with a tool error. `htmlPath` is
+> only for the CLI path, where a shell already wrote the file. Local assets
+> (images/fonts) ride along via the `assets` param (absolute paths, referenced
+> by basename in the HTML) — you never write them either. If you catch yourself
+> reaching for a `write` tool to make a motion graphic, stop: pass `html` inline,
+> or use a bundled template (`motion_generate`) instead.
 ## Effects (FX) & transitions
 
 **Golden rule: restraint.** Scene transitions (`project.add-transition`) and FX overlays (`project.add-fx`). Full detail: [`reference/fx-transitions.md`](reference/fx-transitions.md).
