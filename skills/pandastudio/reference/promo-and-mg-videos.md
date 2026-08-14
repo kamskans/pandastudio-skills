@@ -107,6 +107,28 @@ Pick a DIFFERENT archetype for adjacent scenes. Never run the same one twice in 
 A 6–8 scene promo should use 5+ distinct archetypes. Two type-headline scenes
 total is the ceiling; the rest must show something.
 
+## Slot contract — a promo is a sequence of named beats, not free-form
+
+The strongest launch/promo videos follow a fixed skeleton of BEATS, and the
+creative work is mapping the product's own surfaces onto each. Treat a promo as
+these slots, in order, and fill each from something REAL about the product:
+
+1. **Lockup** — brand mark + one-line what-it-is. Breathing, centered.
+2. **Entry screen** — the product's actual first surface (home/dashboard), so the
+   viewer recognizes it.
+3. **One number that matters** — a single stat that counts up (users, minutes
+   saved, videos shipped). One number, not a dashboard.
+4. **Nav / breadth** — the product's real nav or section list, to show scope.
+5. **One action taken** — a cursor performing the single most important action
+   (the "aha"), on a mock of the real UI.
+6. **Endcard** — logo + tagline + CTA. Mirrors the lockup so it bookends.
+
+Map each slot to the brand: pull real colors/fonts/logo with
+`workspace.capture-brand --url` first, then fill the number, nav labels, and the
+action from the product's own surfaces (not generic placeholders). The slot
+skeleton keeps a from-scratch promo coherent; the archetype matrix above keeps
+adjacent slots visually distinct.
+
 ---
 
 ## Worked example — a distinct "show-don't-tell" scene

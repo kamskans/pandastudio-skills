@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.98.0 -->
+<!-- version: 3.102.0 -->
 
 # PandaStudio
 
@@ -59,8 +59,8 @@ description: Edit videos in PandaStudio — a desktop video editor for YouTube, 
 >
 > 1. `motion_list` → see every template, its editable slots, and whether
 >    it's an overlay (sits over the video with alpha). It also returns
->    `registryBlocks` — ~110 standalone Hyperframes compositions (animated
->    captions, shader transitions, data-viz, social cards, code themes, VFX)
+>    `registryBlocks` — ~38 curated standalone compositions (effects,
+>    overlays, flowcharts, code snippet, beat-driven cuts)
 >    that have no slots; render a block's `htmlPath` with `motion_render_html`.
 >    See `reference/templates.md` §"Hyperframes registry blocks".
 > 2. `motion_generate { templateId, slots, background }` → render it with
@@ -279,6 +279,24 @@ pandastudio workspace.set-project-defaults --defaults=null --json
 ```
 
 Use when the user says things like "use this background for all my videos" or "always start new projects with these captions". Applies to projects/recordings created AFTER it's set — it doesn't retro-edit existing projects.
+
+### Brand kit — set it, or auto-capture it from a URL (v1.84+)
+
+The workspace brand kit (colors primary/accent/ink/background, display/body fonts, logo, voice) feeds brand-aware captions, motion graphics, lower-thirds, and thumbnails. Two ways to fill it:
+
+```bash
+# Manual: set any subset.
+pandastudio workspace.set-brand --brand='{"name":"Acme","colors":{"primary":"#2563EB","ink":"#111827","background":"#FFFFFF"},"typography":{"display":"Inter"}}' --json
+
+# Auto: pull the real brand straight off a website. Runs HyperFrames capture,
+# classifies the site's actual colors/fonts/logo, and MERGES them into the kit
+# (your hand-set fields survive). ASYNC — poll job.wait; first run downloads the
+# capture CLI so use a long timeout.
+JOB=$(pandastudio workspace.capture-brand --url=https://acme.com --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$JOB" --timeoutMs=300000 --json | jq '.data.job.result.brand'
+```
+
+Reach for `workspace.capture-brand` whenever the user says "use my brand", "make it match my site", or you're onboarding a new client and only have their URL — it beats asking them to type six hex codes. Needs network access. After it lands, the classified brand is a starting point; if the user corrects a color, apply it with `workspace.set-brand`.
 
 ## Organising projects, renaming, transcription languages
 
@@ -586,7 +604,9 @@ hero/marketing asset. Ask once up front:
 **5. Voiceover & music for a from-scratch promo.** Narration and a music bed are
 first-class capabilities (`media.generate-narration` — **local on-device Kokoro
 by default** for English, no key; cloud Replicate TTS via `--model` for more
-voices/languages; see reference/media-generation.md;
+voices/languages; `--model=elevenlabs-direct` uses the user's OWN ElevenLabs
+account (their CLONED voices — pass the voice name or voice_id; needs the
+ElevenLabs key in Settings → Integrations); see reference/media-generation.md;
 `media.generate-music` / bundled `asset.list-music`). For a Mode-B piece (promo,
 explainer, intro/outro, teaser), if the brief doesn't already specify, **ASK up
 front** whether to add them:
@@ -648,7 +668,7 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 | `transcript.find-issues` | Run after remove-fillers. Surfaces re-takes (`duplicate-take`), abandoned restarts (`false-start`), and stutters (`adjacent-repeat`) as candidates — each with the `wordIds` of the discarded attempt. **Read-only — it never edits.** **Default: keep the most recent (last) take and delete the earlier attempt** by feeding the candidate's `wordIds` into `transcript.delete-words` — **but `severity: "low"` candidates are REVIEW-class: keep them by default** (a low `false-start` = the restart diverges from the fragment, often intentional parallel structure like "one for transcription, one for outreach"). The detector already skips comma-terminated parallel list items and lone stopword "repeats" across pause tokens. Review against context first — if a repeat looks intentional (emphasis) or you can't tell which take is cleaner, ask the user which to keep rather than blind-applying. |
 | `transcript.remove-silences` | Run after the content cleanup. Runs the SAME two passes as the UI Remove Silences button and unions them: (1) transcript word-gaps (leading, between-word, trailing) and (2) ffmpeg audio-level `silencedetect` on each clip's media — pass 2 catches real dead air the transcript misses when speech-to-text invents phantom words over quiet stretches, which is why this now removes the same sections a manual click would (it previously did pass 1 only and left audio-only silence behind). Default threshold 600ms; don't hand-pick a higher value "to be safe" — that leaves dead air the user expects gone. |
 | `audio.clean` | Denoise only clips where `clipStates[i].audioCleaned === false`. Writes a sibling `.cleaned.wav`; original audio untouched. |
-| `caption.set-template` (when user said "add captions" without naming a style) | Default to `bold`. Tell user other templates exist (`classic, modern, minimal, spotlight, boxed, neon, colored, editorial`). `editorial` is magazine-style emphasis — the currently-spoken word renders big + accent while the rest of the line shrinks, so emphasis sweeps the line. |
+| `caption.set-template` (when user said "add captions" without naming a style) | Default to `bold`. Static styles: `classic, modern, minimal, spotlight, boxed, neon, colored, editorial` (`editorial` = magazine emphasis: the spoken word renders big + accent while the rest shrinks). **Animated, transcript-driven styles** (each word animates as it's spoken, identical in preview + export): `kineticSlam` (words slam in), `clipWipe` (wipe reveal per word), `gradientPop` (gradient text, elastic pop), `matrixDecode` (character scramble resolves), `glitchRgb` (RGB chromatic split), `blendDifference` (auto-inverts over any footage). Reach for an animated style for Shorts/TikTok energy; keep `bold`/`editorial` for long-form. |
 | `llm.generate-title` / `llm.generate-description` / `llm.generate-timestamps` | Generate after the edit pass. Show the user; let them say "regenerate" or "use this exact title" or edit inline. |
 | Specific zoom moments | Heuristically pick from the transcript ("you said 'click here' at 12.4s — adding a zoom"). Don't pre-ask. Iterate via preview. |
 | FX overlays (`project.add-fx`) | **NOT do-by-default.** Never add an effect on your own — not on a plain edit, not for "make it engaging". Only when the user explicitly asks for one ("add a film burn", "put grain on it"). When they ask, place it where they said and follow the restraint rules. |
@@ -919,7 +939,10 @@ you: which verb, in what order, and the non-obvious gotchas.
   source-time value (a transcript word's `startMs`), convert it first with
   `timeline.source-to-edited --sourceMs=N` and pass the result. Ids
   (`asset.list-transitions`): fade-black, fade-white, flash, light-sweep,
-  film-burn, glitch. `--durationMs` defaults to 1000.
+  film-burn, glitch, scribble. `--durationMs` defaults to 1000 (the
+  hand-drawn `scribble` is authored at 2200ms — pass `--durationMs=2200`
+  to keep its scribble-on/clear beats intact). Always prefer
+  `asset.list-transitions` over this static list — it is the source of truth.
   > **Time domains at a glance.** `atMs`/`startMs`/`endMs` are ALWAYS edited
   > (output) time. `anchorSourceMs` (source/raw-recording time) is an *extra*
   > drift-proofing arg on **add-zoom, add-motion-graphic, add-designed-segment,
@@ -1695,6 +1718,24 @@ fi
 # If any frame fails, iterate and re-verify. Do NOT skip this step
 # even when "it's just a quick edit" — this is what separates
 # ships-it-works-ish from ships-it-looks-good.
+#
+# 🛑 VERIFICATION IS A SEPARATE, BEST-EFFORT STEP — IT NEVER "FAILS" THE EDIT.
+# Every project.* mutation (add-clip, add-motion-graphic, add-audio, etc.)
+# COMMITS to the .pandastudio file the instant its tool returns ok. The
+# verification pass (render a frame, then READ the PNG as a multimodal image)
+# happens AFTER and is a QUALITY check, not part of the edit. So:
+#   • Order matters: make the mutating edit FIRST, confirm ok, THEN verify.
+#     The edit is already durable before you ever read a frame.
+#   • If the frame-read step fails — model times out on the image, "no output
+#     for N minutes", rate-limit, "tool read failed" — the EDIT STILL LANDED.
+#     Do NOT report the task as failed. Report: "Done — <edit> is on the
+#     timeline. I couldn't finish the visual check (model didn't respond);
+#     retry the check or switch models." Presenting a committed edit as a
+#     failure because a follow-up vision read hung is the wrong outcome.
+#   • Keep the read LIGHT so it doesn't hang the model: verify a SINGLE
+#     render-frame (one PNG) at the hero timestamp, NOT a big multi-frame
+#     render-sheet. One small image is a cheap vision call; a large contact
+#     sheet is the read that most often times the model out.
 pandastudio preview.show --id=$ID   # let the project render a full draft
 # Then verify each generated motion-graphic MP4 at its hero timestamps:
 # pandastudio motion.verify-frames --videoPath=/tmp/motion-intro.mp4 \

@@ -1,6 +1,6 @@
 # Motion-graphic templates
 
-PandaStudio ships with ~48 bundled templates: our designed set (below) plus ~15 curated Hyperframes registry blocks (data-viz, social cards, code, VFX, branding — see the registry section near the end). The canonical, version-accurate list (with the slot schema for each) is:
+PandaStudio ships with ~57 bundled slot-templates — our designed set plus a large curated batch promoted from the Hyperframes registry with EDITABLE slots (text, colors, image uploads, data series): titles (handwritten, chromatic-fringe, text-cursor, morph), lower thirds, social (Instagram/TikTok follow cards, comment cards), data-viz (bar+line chart, line graph, count-up stat, specs checklist, hand-drawn flowchart), photo (sketched frame), money counter, camcorder HUD, word-wall transition, gradient background, vertical media filler, and more. The canonical, version-accurate list (with the slot schema for each) is:
 
 ```bash
 pandastudio motion.list --json
@@ -77,7 +77,7 @@ Use `motion.render-html` to render arbitrary HTML/CSS/JS — same Chromium-based
 
 ## Hyperframes registry blocks (captions, transitions, data-viz, social cards, …)
 
-Beyond the slot templates above, `motion.list` also returns a **`registryBlocks`** array — ~110 standalone motion-graphic compositions bundled from the HeyGen Hyperframes registry (Apache-2.0). They cover categories the slot templates don't: a deep **animated-caption** family (karaoke, neon, RGB-glitch, matrix-decode, kinetic-slam, …), **shader transitions** (whip-pan, glitch, light-leak, iris, ripple), **data-viz** (data-chart, flowchart), **social cards** (x-post, reddit-post, spotify-card), **code themes** (typing, diff, 3D-extrude), and generic **VFX**.
+Beyond the slot templates above, `motion.list` also returns a **`registryBlocks`** array — ~38 CURATED standalone compositions bundled from the HeyGen Hyperframes registry (Apache-2.0). The library was heavily curated in v1.84: everything that was really a text/data template got promoted to a slot template (see above), caption demos were replaced by the transcript-driven animated caption styles (`caption.set-template`), shader-transition demos were removed (real transitions live in `asset.list-transitions`), and duplicates/eye-candy were dropped. What remains are genuine effects and building blocks: media-treatment overlays (grain, vignette, motion blur, shimmer, freeze-frame dressing, camcorder HUD), handwritten annotations (arrows, callout circles, box labels, squiggles), parallax zoom/unzoom, decision-tree flowcharts, the dark-modern code snippet, comment cards, and beat-freeze cut.
 
 These are NOT slot-parameterized — render the block's `htmlPath` directly with `motion.render-html`, and edit the HTML if you need different text/colors:
 
