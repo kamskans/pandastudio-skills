@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.102.0 -->
+<!-- version: 3.103.0 -->
 
 # PandaStudio
 
@@ -301,6 +301,49 @@ Reach for `workspace.capture-brand` whenever the user says "use my brand", "make
 ## Organising projects, renaming, transcription languages
 
 Folders, `project.rename`, project-look defaults, transcription-language switching (Parakeet/Whisper), and transcribing a standalone file → text/SRT/VTT. Full detail: [`reference/projects-and-transcription.md`](reference/projects-and-transcription.md).
+
+## Recording the screen yourself (agent-driven, v1.86+)
+
+You can START and STOP a high-quality screen recording directly — no UI, no
+user in the loop. This is the full-quality alternative to a browser's built-in
+capture: drive a web app (or anything on screen) yourself, record it into
+PandaStudio, then edit and export. macOS/Windows only.
+
+```bash
+# 1. (optional) see what you can target — displays + windows
+pandastudio recording.list-sources --json
+#   → { displays:[{id:"screen:1:0",name:"…",primary:true}], windows:[{id:"window:123:0",name:"Google Chrome — …"}] }
+
+# 2. start (defaults to the primary display; pass --source to pick a window/display)
+pandastudio recording.start --json                          # whole primary display
+pandastudio recording.start --source="window:123:0" --json  # just that Chrome window
+#   → { recordingId }
+
+# 3. …now do the thing you want to capture (click through the app, etc.)…
+
+# 4. stop — finalizes the MP4 AND creates an editable project by default
+pandastudio recording.stop --name="ACME tutorial" --json
+#   → { screenPath, durationMs, projectId, projectPath, projectCreated:true }
+```
+
+Then edit the returned project like any other: `transcript.transcribe` →
+`transcript.remove-fillers` → `project.add-zoom` on the key clicks →
+`media.generate-narration` for a voiceover (`project.add-audio`) → `export.start`.
+
+Notes:
+- **Permission:** screen capture needs the one-time OS Screen Recording grant.
+  It is already granted for anyone who has ever recorded in the app, so this
+  runs with zero interaction. On a brand-new install that never recorded, the
+  first `recording.start` returns a clear "grant Screen Recording and retry"
+  error instead of hanging — surface that to the user; you cannot grant it for
+  them.
+- **One at a time.** `recording.start` fails if a recording is already active —
+  call `recording.stop` first.
+- **No mic on this path.** Only screen (and optional `--systemAudio=true`).
+  Record clean, then add narration with `media.generate-narration`.
+- `recording.stop --createProject=false` just finalizes the MP4 and returns
+  `screenPath` if you want to compose `project.new --withMedia=…` yourself.
+
 ## Shorts: turning an exported video into vertical clips
 
 Discover shots (`export.find-shots`), fork the source project per shot (`project.fork-from-shot`), the 9:16 vertical playbook, drift detection, and batch N shorts. Full detail: [`reference/shorts.md`](reference/shorts.md). To make a short actually RETAIN — "make it engaging/viral", "edit like Hormozi / Ali Abdaal / a podcast clip" — load [`reference/shorts-styles.md`](reference/shorts-styles.md): four evidence-based recipes with the seven retention laws, quantified caption/zoom/overlay parameters, and a render-frame verification pass. Load [`reference/shorts-cheatsheet.md`](reference/shorts-cheatsheet.md) alongside it — exact command shapes plus a hyperframes starter shell, so you never grep schemas or other reference files mid-edit. For `youtube-long` edits that should RETAIN (not just play clean), load [`reference/longform-styles.md`](reference/longform-styles.md) — quantified from a 9-video measured study (Ali Abdaal / MKBHD / Fireship, July 2026): three recipes (educator-pip, product-review, dev-explainer), the two-level rhythm, keyword pops instead of burned captions, in-edit segmentation, and ending liturgy.
