@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.103.0 -->
+<!-- version: 3.104.0 -->
 
 # PandaStudio
 
@@ -921,9 +921,10 @@ you: which verb, in what order, and the non-obvious gotchas.
   --maskOpacity --blurAmount]` patches only the fields you pass (move/resize,
   retime, restyle, or flip spotlight<->blur); `remove-spotlight --regionId=<id>`
   deletes it. Get ids from `project.read` under `editor.spotlightRegions[].id`.
-- **Background blur / removal + person outline (v3.69.0; outline v3.75.0):**
-  `add-background-effect --mode=blur|remove [--atMs=<ms>]
+- **Background blur / removal / studio image + person outline (v3.69.0; outline v3.75.0; studio image v3.104.0):**
+  `add-background-effect --mode=blur|remove|image [--atMs=<ms>]
   [--durationMs=<ms> | --endMs=<ms>] [--strength=<px>]
+  [--backgroundImage=<studioId|path> --backgroundFit=cover|contain]
   [--outline --outlineWidth=<px> --outlineColor=<hex> --outlineShadow=<bool>]
   [--anchorSourceMs=<srcMs>]` — AI PERSON SEGMENTATION on the camera video for
   the region's span, exactly like a zoom region on the timeline (draggable,
@@ -938,6 +939,17 @@ you: which verb, in what order, and the non-obvious gotchas.
   an existing overlay with `update-region --regionType=overlay --layer=background`;
   in the UI, right-click the overlay → "Send behind video"). The removed-
   background speaker composites OVER that overlay in preview and export.
+  `mode=image` is the **virtual studio**: it removes the real background and
+  composites the speaker over a STUDIO PLATE — the one-call way to put someone
+  with a messy room into a clean studio. Set `--backgroundImage` to a bundled
+  studio id: `warm-creator` (soft warm key), `tech-rgb` (cool RGB rim),
+  `neutral-grey` (soft even), `podcast-warm` (warm tungsten), `daylight-airy`
+  (natural daylight), `gradient-gel` (magenta/teal), `cinematic-dark` (dramatic
+  side) — or an absolute/`file://`/`data:` image path for a custom background.
+  Defaults to `warm-creator`. `--backgroundFit=cover` (default, fill+crop) or
+  `contain` (fit whole plate). Pick a plate lit like the footage for the most
+  natural composite. No outline by default (it's a real background, not a
+  cutout). Same matte tuning as below applies.
   **Matte boundary tuning:** `--matteContract=<px>` manually tightens the person
   edge — >0 pulls it INWARD (kills a background fringe / cleans a loose cut),
   <0 pushes it out (−60..60); `--matteFeather=<px>` softens the edge (0..60).
@@ -956,11 +968,12 @@ you: which verb, in what order, and the non-obvious gotchas.
   it identically. Regions live under `editor.backgroundEffectRegions[]`
   (`.outline = {enabled,width,color,shadow}`); retime/restyle with
   `update-region --regionType=background-effect [--startMs --endMs --mode
-  --strength --outline --outlineWidth --outlineColor --outlineShadow
-  --matteContract --matteFeather]`, delete with `remove-region
-  --regionType=background-effect`. Also batchable inside `apply-edit-plan` as
-  `{op:'add-background-effect',atMs,durationMs,mode,strength?,outline?,
-  outlineWidth?,outlineColor?,outlineShadow?,matteContract?,matteFeather?}`.
+  --strength --backgroundImage --backgroundFit --outline --outlineWidth
+  --outlineColor --outlineShadow --matteContract --matteFeather]`, delete with
+  `remove-region --regionType=background-effect`. Also batchable inside
+  `apply-edit-plan` as `{op:'add-background-effect',atMs,durationMs,mode,
+  strength?,backgroundImage?,backgroundFit?,outline?,outlineWidth?,
+  outlineColor?,outlineShadow?,matteContract?,matteFeather?}`.
 - **See a frame to place it (v1.85.0):** `render-frame --atMs=<ms> [--outPath=<png>]`
   composites the preview frame at that edited-time to a PNG and returns
   `{ path, width, height, timeMs, maskRect }`. A vision model should `read` the
