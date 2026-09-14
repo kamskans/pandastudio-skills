@@ -174,6 +174,32 @@ pandastudio project.add-audio --id=$ID \
 Canonical custom-music loop: `media.generate-music` → `project.add-audio`. Pass a
 `seed` for reproducible results.
 
+### Color correction (fix the footage first)
+
+A LUT preset is a creative *look*. It can't rescue footage shot with a flat or log
+picture profile (mirrorless / cinema cameras), which looks grey and washed out:
+correct that first, then grade.
+
+```bash
+# One-click correction for flat camera footage (contrast +0.5, saturation +0.55,
+# brightness +0.06, warmth +0.2)
+pandastudio project.set-clip-color --id=$ID --clipId="$CLIP_ID" --preset=flat-footage --json
+# → { path, revision, clipId, colorCorrection }
+
+# Fine-tune single controls (each -1..1, 0 = unchanged). Merges with what's set.
+pandastudio project.set-clip-color --id=$ID --clipId="$CLIP_ID" --warmth=0.35 --json
+
+# Then add the look on top, usually at a lower intensity
+pandastudio project.set-clip-lut --id=$ID --clipId="$CLIP_ID" --lutPreset=warmSunset --lutIntensity=0.6 --json
+
+# Clear the correction
+pandastudio project.set-clip-color --id=$ID --clipId="$CLIP_ID" --reset=true --json
+```
+
+Order is fixed: correction, then LUT, in both preview and export. When footage
+looks grey or flat in a frame check, reach for `--preset=flat-footage` before
+picking a LUT.
+
 ### Color grading clips (LUT presets)
 
 Every clip can have a non-destructive cinematic color grade applied. Grades are
