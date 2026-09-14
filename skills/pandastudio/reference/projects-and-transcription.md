@@ -110,6 +110,33 @@ pandastudio system.setTranscriptionLanguage --language=chinese --json
 - Language hint is locked, not auto-detected, when Whisper is active. If the user picks "chinese" and then transcribes a Japanese file, the output is garbage. Match the setting to the actual source language.
 - `system.setTranscriptionLanguage` only writes the setting — it does not download the Whisper model. The download is a Settings-UI-only action because it streams ~1.1 GB and surfaces a progress modal.
 
+## Smooth preview for heavy camera footage
+
+Some camera footage can't be decoded in real time, so the editor preview stutters however light the edit is: 10-bit or 4:2:2/4:4:4 video, HDR, ProRes / DNxHD / CineForm / MPEG-2, or anything above 150 Mbps (for example 4K 50fps H.264 4:2:2 10-bit intra from Sony cameras, ~480 Mbps).
+
+With the setting on (`auto`, the default), opening a project makes a lighter copy of those sources in the background: same frame size and timing, 8-bit H.264 (HEVC above 4096x2160), hardware-encoded where possible, stored under the app's `preview-proxies` folder. The preview switches to it at the next pause. **Exports, transcription and every edit keep reading the original file.**
+
+```bash
+# Is a copy being built for this source?
+pandastudio system.previewProxyStatus --path=/Users/me/Footage/C0042.MP4 --json
+# → { status: { state: "generating", progress: 0.42, reasons: ["high-bit-depth", "chroma", "bitrate"] } }
+
+# All sources this session + cache size
+pandastudio system.previewProxyStatus --json
+
+# Read / change the setting
+pandastudio system.getPreviewProxyMode --json
+pandastudio system.setPreviewProxyMode --mode=off --json
+```
+
+States: `not-needed` (plays fine as is), `queued`, `generating`, `ready`, `failed` (original keeps playing), `skipped` (less than 15 GB free), `unsupported` (media engine missing, odd frame size, or a very large frame this machine can't play as HEVC), `disabled` (setting is off).
+
+### When to use it
+
+- **User says the preview is choppy on camera footage**: check `system.previewProxyStatus`. If `generating`, tell them playback smooths out when it finishes. If `disabled`, suggest turning it back on.
+- **Don't wait for it** before editing, `project.render-frame`, or `export.start`. Render-frame reads whatever the preview is showing; export always reads the original.
+- **Disk space**: copies are capped at 30 GB (oldest removed first). The user can remove them in Settings → Playback.
+
 ## Transcribing a standalone audio / video file → text, SRT, or VTT
 
 A very common ask: the user has a loose `interview.mp3` / `lecture.mov` on disk and just
