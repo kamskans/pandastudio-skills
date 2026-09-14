@@ -166,13 +166,12 @@ repeat:1`), or a gentle group wobble. Solids "pop" in with
    tl.to('.hole', { scale:1.12, svgOrigin:'760 560', duration:0.7,
                     ease:'sine.inOut', yoyo:true, repeat:1 }, 4.5);
    ```
-2. **Don't trust `motion.screenshot` for this style.** Compositions whose
-   every element starts hidden (dashoffset 1 / clip-path 100% / opacity 0)
-   can screenshot as an empty paper frame even with `--atMs` mid-scene.
-   That does NOT mean the animation is broken. The real verification is the
-   render pipeline itself: the pre-render lint + post-render STATIC_RENDER
-   gate catch a dead timeline, and `motion.verify-frames` on the rendered MP4
-   shows the true animated frames. Render → verify-frames → read the PNGs.
+2. **`motion.screenshot` matches the render (app >= 1.88.18).** It seeks
+   and captures through the same HyperFrames engine as `motion.render-html`,
+   so a frame at `--atMs` shows exactly what the MP4 shows at that time,
+   even when every element starts hidden (dashoffset 1 / clip-path 100% /
+   opacity 0). On older apps it could return an empty paper frame; there,
+   verify with `motion.verify-frames` on the rendered MP4 instead.
 
 Plus the standard contract (motion-philosophy.md): GSAP via
 `_shared/gsap.min.js`, paused timeline, slot anchor, `window.__timelines`

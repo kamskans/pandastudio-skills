@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.109.0 -->
+<!-- version: 3.112.0 -->
 
 # PandaStudio
 
@@ -414,6 +414,16 @@ pandastudio project.auto-reframe --id=$PID --clear=true --json
 - **`--zoom`**: omit for the default ADAPTIVE punch-in (each speaker's face
   sized to a consistent fraction of frame). Pass a fixed value (e.g. `1.3`) to
   force a uniform punch-in on every shot.
+- **Letterboxed sources are handled automatically.** Many camera and
+  screen-recording exports have black bars baked into the pixels. On its first
+  run per clip, auto-reframe detects the real picture area (sampled frames, a
+  second or two) and stores it on the clip as `activePictureRect` (0–1 source
+  fractions). Every crop is kept inside it, in preview and export, so the bars
+  never show up in the vertical frame, including after you move the video with
+  `project.set-screen-transform` to make room for graphics. The result lists
+  `activePicture: [{clipId, rect}]` (`rect: null` = no bars). Expect a slight
+  extra punch-in on letterboxed clips. A plain static crop (`project.set-crop`)
+  on a clip that has the rect is kept inside it too.
 - **Set the 9:16 aspect FIRST** (`project.set-aspect-ratio --aspect=9:16`), then
   auto-reframe — the track is computed for the canvas aspect and is ignored if
   the aspect later changes (recompute after an aspect switch).
@@ -427,6 +437,10 @@ pandastudio project.auto-reframe --id=$PID --clear=true --json
 ## Publishing (YouTube + Instagram)
 
 **Hard rules:** YouTube `privacyStatus` defaults to `unlisted` — never public without explicit user say; Instagram needs a Business/Creator account; never publish in the wrong workspace (confirm `isInActiveWorkspace`). Flows: connect → publish an export. Full detail: [`reference/publishing.md`](reference/publishing.md).
+## Recipes — run a proven edit style
+
+When the user names a style ("TV-style explainer", "like my usual Shorts", "product demo edit"), says "like last time", or wants a repeatable look, check recipes BEFORE designing from scratch: `recipe.list --format=short|long`, `recipe.get`, `recipe.render --values=...`, then follow the prompt, apply the fixed style exactly and verify the checklist with rendered frames. After an edit the user is happy with, offer to save it with `recipe.save`. Full detail: [`reference/recipes.md`](reference/recipes.md).
+
 ## Memory — remember preferences across chats
 
 You have a durable, per-workspace memory that persists across every chat. Its
@@ -503,7 +517,7 @@ specific operation, this is the intended end-to-end pipeline, in order:
    the UI, a fresh `project.read` shows the new `trimCount` / `editedDurationMs`
    / `totalTrimmedMs` — treat that as "silences already done".)
 6. **Clean audio** (`audio.clean`) on clips where `audioCleaned === false`.
-7. **Add captions** — `caption.toggle` + `caption.set-template` (default `bold`
+7. **Add captions** — `caption.toggle` + `caption.set-template` (default `modern`
    per profile; see the caption styles in "DO BY DEFAULT").
 8. **Add motion graphics** — follow the Motion-graphics **Rules** + selection
    guide: `motion_list` first, vary templates by beat, prefer the **featured
@@ -722,7 +736,7 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 | `transcript.find-issues` | Run after remove-fillers. Surfaces re-takes (`duplicate-take`), abandoned restarts (`false-start`), and stutters (`adjacent-repeat`) as candidates — each with the `wordIds` of the discarded attempt. **Read-only — it never edits.** **Default: keep the most recent (last) take and delete the earlier attempt** by feeding the candidate's `wordIds` into `transcript.delete-words` — **but `severity: "low"` candidates are REVIEW-class: keep them by default** (a low `false-start` = the restart diverges from the fragment, often intentional parallel structure like "one for transcription, one for outreach"). The detector already skips comma-terminated parallel list items and lone stopword "repeats" across pause tokens. Review against context first — if a repeat looks intentional (emphasis) or you can't tell which take is cleaner, ask the user which to keep rather than blind-applying. |
 | `transcript.remove-silences` | Run after the content cleanup. Runs the SAME two passes as the UI Remove Silences button and unions them: (1) transcript word-gaps (leading, between-word, trailing) and (2) ffmpeg audio-level `silencedetect` on each clip's media — pass 2 catches real dead air the transcript misses when speech-to-text invents phantom words over quiet stretches, which is why this now removes the same sections a manual click would (it previously did pass 1 only and left audio-only silence behind). Default threshold 600ms; don't hand-pick a higher value "to be safe" — that leaves dead air the user expects gone. |
 | `audio.clean` | Denoise only clips where `clipStates[i].audioCleaned === false`. Writes a sibling `.cleaned.wav`; original audio untouched. |
-| `caption.set-template` (when user said "add captions" without naming a style) | Default to `bold`. Static styles: `classic, modern, minimal, spotlight, boxed, neon, colored, editorial` (`editorial` = magazine emphasis: the spoken word renders big + accent while the rest shrinks). **Animated, transcript-driven styles** (each word animates as it's spoken, identical in preview + export): `kineticSlam` (words slam in), `clipWipe` (wipe reveal per word), `gradientPop` (gradient text, elastic pop), `matrixDecode` (character scramble resolves), `glitchRgb` (RGB chromatic split), `blendDifference` (auto-inverts over any footage). Reach for an animated style for Shorts/TikTok energy; keep `bold`/`editorial` for long-form. |
+| `caption.set-template` (when user said "add captions" without naming a style) | Default to `modern` (the app's default style). Static styles: `classic, modern, minimal, bold, spotlight, boxed, neon, colored, editorial, glowStack` (`glowStack` = short-form headline look: a small white lead-in word stacked over big bold words in a glowing yellow-to-orange gradient, words pop in as spoken; great for Shorts/Reels talking heads) (`editorial` = magazine emphasis: the spoken word renders big + accent while the rest shrinks). **Animated, transcript-driven styles** (each word animates as it's spoken, identical in preview + export): `kineticSlam` (words slam in), `clipWipe` (wipe reveal per word), `gradientPop` (gradient text, elastic pop), `matrixDecode` (character scramble resolves), `glitchRgb` (RGB chromatic split), `blendDifference` (auto-inverts over any footage). Reach for an animated style for Shorts/TikTok energy; keep `bold`/`editorial` for long-form. |
 | `llm.generate-title` / `llm.generate-description` / `llm.generate-timestamps` | Generate after the edit pass. Show the user; let them say "regenerate" or "use this exact title" or edit inline. |
 | Specific zoom moments | Heuristically pick from the transcript ("you said 'click here' at 12.4s — adding a zoom"). Don't pre-ask. Iterate via preview. |
 | FX overlays (`project.add-fx`) | **NOT do-by-default.** Never add an effect on your own — not on a plain edit, not for "make it engaging". Only when the user explicitly asks for one ("add a film burn", "put grain on it"). When they ask, place it where they said and follow the restraint rules. |
@@ -985,9 +999,16 @@ you: which verb, in what order, and the non-obvious gotchas.
   `apply-edit-plan` as `{op:'add-background-effect',atMs,durationMs,mode,
   strength?,backgroundImage?,backgroundFit?,outline?,outlineWidth?,
   outlineColor?,outlineShadow?,matteContract?,matteFeather?}`.
-- **See a frame to place it (v1.85.0):** `render-frame --atMs=<ms> [--outPath=<png>]`
+- **See a frame to place it (v1.85.0):** `render-frame --atMs=<ms> [--width=<px>] [--outPath=<png>]`
   composites the preview frame at that edited-time to a PNG and returns
-  `{ path, width, height, timeMs, maskRect }`. A vision model should `read` the
+  `{ path, width, height, timeMs, maskRect }`. The PNG size does NOT depend on
+  the editor window: by default it is the project's export resolution capped to
+  a 1920 long edge (1080x1920 for a 1080p 9:16 project, 1920x1080 for 16:9), so
+  it is usable directly as a gallery/recipe preview image with no upscaling.
+  `--width` overrides it (height follows the project aspect, 64-3840 px per
+  edge); pass a small width (e.g. 540) when you only need to eyeball a frame.
+  Layout, overlays, captions, grade and background effect are identical to the
+  on-screen preview at any size. A vision model should `read` the
   returned `path` to LOCATE on-screen text/UI (e.g. the email to blur), then place
   a focus region. `maskRect` is the video content rect as 0..1 fractions of the
   image — the SAME space as spotlight/blur x/y/width/height. Convert an image-space

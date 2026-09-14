@@ -176,7 +176,8 @@ A render can pass every technical check and still be a monotonous slideshow.
 So verify all three:
 
 1. **Motion** — AUTOMATIC on app >= 1.60: the renderer fails any clip frozen
-   for >=90% of its duration (STATIC_RENDER), so a frozen scene can't reach
+   for >=90% of its duration with no real motion (STATIC_RENDER; a short
+   entrance then a long hold passes), so a frozen scene can't reach
    you as success. Per-scene holds inside a longer video can still hide — for
    multi-scene single renders, extract 3+ frames *within each scene* and
    confirm they visibly differ.

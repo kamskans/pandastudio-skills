@@ -627,7 +627,8 @@ you never ship them and never spend tokens checking for them:
   __timelines registration, ms-vs-s duration confusion, shadow/blur
   radii > 500px). Fix exactly what the error names.
 - **Post-render static gate** — a clip frozen for >=90% of its duration
-  fails with STATIC_RENDER instead of returning. A frozen render can no
+  with less than ~0.15s of real motion fails with STATIC_RENDER instead of
+  returning (a short entrance followed by a long hold passes). A frozen render can no
   longer masquerade as success; if you see STATIC_RENDER, the animation
   never ran (gsap load, registration id, or selectors matching nothing).
 

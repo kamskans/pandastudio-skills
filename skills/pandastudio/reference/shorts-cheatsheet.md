@@ -58,7 +58,8 @@ No Date.now()/Math.random() — renders must be deterministic.
 The renderer GATES your output (app >= 1.60): a pre-render lint rejects
 contract violations (unpaused timeline, repeat:-1, Math.random, missing
 registration, shadow/blur radii > 500px), and a post-render check fails
-any clip that is frozen for >=90% of its duration with STATIC_RENDER.
+any clip that is frozen for >=90% of its duration with less than ~0.15s of
+real motion, with STATIC_RENDER (a 0.4s entrance + long hold passes).
 If you get STATIC_RENDER: your animation never ran — check the gsap
 load, the registration id, and that tween selectors match real elements.
 Fix and re-render; never place a clip that failed the gate.
@@ -105,7 +106,8 @@ Render the composited preview frame at a given edited-time to a PNG and return i
 ```
 ps_ project.render-frame --atMs=<number>
 ```
-Optional: `--id=<string>` `--path=<string>` `--outPath=<string>`
+Optional: `--id=<string>` `--path=<string>` `--width=<number>` `--outPath=<string>`
+PNG is the export resolution capped to a 1920 long edge (independent of the editor window) unless `--width` is given.
 
 ### `transcript.get`
 Return the merged transcript. Each word carries BOTH time bases: `startMs`/`endMs`
