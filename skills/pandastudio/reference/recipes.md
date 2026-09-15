@@ -14,16 +14,22 @@ Recipes are grouped by **format**: `short` (vertical Shorts / Reels / TikTok) an
 |---|---|---|
 | `split-screen-short-broll` | short | Speaker in a studio on the bottom half, B-roll on top, keyword pills, click on every image change |
 | `framework-explainer-short` | short | Educator framework: pain-question hook echoed as typography, section headers building in the top third, highlighted captions, payoff punch-in |
+| `hard-truth-one-liner-short` | short | Blunt one-idea Short: restarts and pauses cut hard, huge 2-word Bold captions with the spoken word in the accent color, punch-in on every other sentence, strongest on the kicker, no music or graphics |
 | `rules-listicle-cutaways-short` | short | Fast educator listicle: claim-stack pill badges, numbered rules, a full-screen cutaway per rule, picture changes every 3 to 5 s |
 | `rapid-fire-list-short` | short | Cheat-sheet list: title card, one item every ~3 s with a colored name and use line as the caption, no music |
+| `storytime-turn-short` | short | Story Short: hook card pinned at the top for the whole video over a speaker card, jump cuts, Colored captions, thud + 1.5x push-in on the turn, no music |
 | `tv-style-explainer` | long | Chapter header bar, big number callouts, camera sliding into cards and corners |
 | `product-demo-walkthrough` | long | Title card per feature, feature banner while demoing, zooms on what's discussed, takeaways card |
 | `punchy-youtube-talking-head` | long | Tight jump cuts, punch-in zooms on strong lines, keyword pops, stat cards, takeaways |
+| `educator-talking-head-chapters` | long | Friendly teaching video: step cards on the left, callouts on the right that build on the words they match, gentle zooms, soft continuous music, recap checklist that ticks off, no captions |
+| `business-lesson-rule-slams` | long | Blunt business lesson: restarts and read-out notes cut hard, beat-by-beat punch-ins as a second angle, full-screen Rule N text slams with a thud, bold boxless captions, no music |
 | `course-lesson-chapters` | long | Title + learning goals, chapter cards, highlighted definitions, captions, recap, chapter timestamps |
 | `product-promo-from-url` | long | Footage optional: launch video from real product footage or website screenshots, camera flies into what's used, drawn cursor clicks, crisp typed close-ups, logo + line close |
 | `whiteboard-explainer` | long | No footage: hand-drawn draw-on scenes on paper, one metaphor, red arrow on each key point, summary board |
 | `social-ad-hook-variants` | short | Footage optional: 9:16 ad (hook, problem, product, proof, offer, CTA), three hook versions, 1:1 and 16:9 copies |
 | `warm-educator-short` | short | Calm premium educator Short: sh-serif-hook-title in the first 2 s, Boxed pill captions, one sh-serif-quote on the key sentence, sh-icon-badge-band cutaways, sh-annotated-card for walked-through screens, gentle punch-ins, soft music |
+| `faceless-short` | short | No footage: hook-first 30 to 50 s story, one AI image per beat with slow zooms, cloud or local AI narrator, big Bold captions, quiet cinematic music |
+| `faceless-youtube-explainer` | long | No footage: narrated story in 10 to 20 s beats over one AI image each with slow zooms, 2.5 s title card, Modern captions, music bed |
 
 Shorts recipes follow the short-form grammar measured across popular educator, business and podcast Shorts: no preamble (speech by 2.5 s), something visible changes every 3 to 8 s, graphics in the top ~40%, captions at chest height, faces never covered, end on the payoff.
 
