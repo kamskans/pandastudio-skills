@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.119.0 -->
+<!-- version: 3.120.0 -->
 
 # PandaStudio
 
@@ -680,13 +680,33 @@ hero/marketing asset. Ask once up front:
    NOT apply to Mode A — graphics layered over existing footage — where templates
    stay the default and you should not ask.)
 
+**Sound design: effects timed to the action.** Product demos, launch videos and
+UI walkthroughs are carried by sound effects, not by a song: a key click for
+every typed character (or a typing burst sized to the typing), a mouse click on
+every cursor click, a whoosh on every camera fly-in, pull-back and blur cut, a
+soft pop when UI appears, and a riser into an impact on the logo or payoff.
+Music, if any, sits very low underneath. Workflow:
+1. Get exact action times from the source: the scene's GSAP timeline when you
+   authored it, otherwise rendered frames around each click or zoom.
+2. Use a bundled sound (`asset.list-sounds`) when one fits; otherwise
+   `media.generate-sound-effect --prompt="single mechanical keyboard key press,
+   close mic, dry" --durationMs=250`. One sound per call. Generate a few
+   variants of anything that repeats (keys, clicks) so it doesn't sound robotic.
+3. Place each with `project.add-audio --startMs=<action frame>` (a whoosh starts
+   ~150 ms BEFORE the move it leads into). Effects around 40-70% volume; with a
+   voiceover, keep effects under the voice and never land a loud effect on a
+   spoken word.
+4. Export and listen back through a loudness check (`volumedetect` on the typing
+   and on the loudest hit) before calling it done.
+
 **5. Voiceover & music for a from-scratch promo.** Narration and a music bed are
 first-class capabilities (`media.generate-narration` — **local on-device Kokoro
 by default** for English, no key; cloud Replicate TTS via `--model` for more
 voices/languages; `--model=elevenlabs-direct` uses the user's OWN ElevenLabs
 account (their CLONED voices — pass the voice name or voice_id; needs the
 ElevenLabs key in Settings → Integrations); see reference/media-generation.md;
-`media.generate-music` / bundled `asset.list-music`). For a Mode-B piece (promo,
+`media.generate-music` / bundled `asset.list-music`; sound effects via bundled
+`asset.list-sounds` or `media.generate-sound-effect`). For a Mode-B piece (promo,
 explainer, intro/outro, teaser), if the brief doesn't already specify, **ASK up
 front** whether to add them:
    > "Want a voiceover and/or a music bed? Both shape the timing, so I'll lock them in before building the scenes."
