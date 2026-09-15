@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.112.0 -->
+<!-- version: 3.115.0 -->
 
 # PandaStudio
 
@@ -294,9 +294,19 @@ pandastudio workspace.set-brand --brand='{"name":"Acme","colors":{"primary":"#25
 # capture CLI so use a long timeout.
 JOB=$(pandastudio workspace.capture-brand --url=https://acme.com --json | jq -r '.data.jobId')
 pandastudio job.wait --id="$JOB" --timeoutMs=300000 --json | jq '.data.job.result.brand'
+
+# Capture WITHOUT touching the workspace brand kit (a client's or competitor's
+# site, or a promo for a product that isn't the user's brand):
+JOB=$(pandastudio workspace.capture-brand --url=https://acme.com --apply=false --maxScreenshots=4 --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$JOB" --timeoutMs=300000 --json \
+  | jq '.data.job.result | {brand, logo: .captured.logoPath, og: .captured.ogImagePath, shots: [.captured.screenshots[].path]}'
 ```
 
 Reach for `workspace.capture-brand` whenever the user says "use my brand", "make it match my site", or you're onboarding a new client and only have their URL — it beats asking them to type six hex codes. Needs network access. After it lands, the classified brand is a starting point; if the user corrects a color, apply it with `workspace.set-brand`.
+
+- **`--apply=false`** returns `{ applied:false, brand }` and leaves the active brand kit alone. Default is `true` (merge). Don't overwrite the user's own brand with someone else's site.
+- **Logo**: `captured.logoPath` is the site's real mark — the header logo, else a non-glyph logo SVG, else the apple-touch-icon, else the SVG favicon, else the og:image (`captured.logoSource` says which). Inline UI icons (lucide arrows etc.) are never chosen. A text-only wordmark site gets its app icon; set the wordmark font via typography instead.
+- **Screenshots**: `captured.screenshots[]` are real 1920×1080 viewport PNGs of the live page (hero first, then spread down the page; `--maxScreenshots` 0–12, default 4). Use them in promo recipes (`motion.render-html --assets=<path>` / `<img src="screenshot-1.png">`) instead of drawing a fake UI. `captured.ogImagePath` is the site's social card.
 
 ## Organising projects, renaming, transcription languages
 
@@ -304,7 +314,7 @@ Folders, `project.rename`, project-look defaults, transcription-language switchi
 
 ### Smooth preview for heavy camera footage (v1.88.17+)
 
-Camera files that are 10-bit, 4:2:2/4:4:4, HDR, ProRes/DNxHD, or over 150 Mbps are too heavy to preview in real time. When a project opens, the editor builds a lighter same-size preview copy of them in the background (a "Preparing smooth playback" badge shows progress) and switches to it at the next pause. Exports and every edit read the ORIGINAL file, so nothing about the output changes. `system.previewProxyStatus` reports progress, `system.getPreviewProxyMode` / `system.setPreviewProxyMode --mode=auto|off` read or change the setting. Details: [`reference/projects-and-transcription.md`](reference/projects-and-transcription.md).
+Camera files that are 10-bit, 4:2:2/4:4:4, HDR, ProRes/DNxHD, or over 150 Mbps are too heavy to preview in real time. When a project opens, the editor builds a lighter same-size preview copy of them in the background (a "Preparing smooth playback" badge shows progress) and switches to it at the next pause. Exports and every edit read the ORIGINAL file, so nothing about the output changes. `system.preview-proxy-status` reports progress, `system.get-preview-proxy-mode` / `system.set-preview-proxy-mode --mode=auto|off` read or change the setting. Details: [`reference/projects-and-transcription.md`](reference/projects-and-transcription.md).
 
 ## Recording the screen yourself (agent-driven, v1.86+)
 
@@ -483,7 +493,8 @@ specific operation, this is the intended end-to-end pipeline, in order:
    obvious misspellings — *especially* product, brand, person, and technical
    names the speech-to-text got wrong (e.g. "Right Panda" → "WritePanda") —
    with `transcript.find-replace` (patches the word text in place, keeps
-   timing). Do this BEFORE captions, motion graphics, or title generation —
+   caption timing continuous — when STT split a name into several tokens, e.g.
+   "P a n d a S t u d i o", the match becomes ONE word spanning the whole span). Do this BEFORE captions, motion graphics, or title generation —
    they all derive their text from the transcript, so a typo propagates.
    **`find-replace` only rewrites words that already exist. When STT DROPPED a
    word entirely (the transcript is missing a spoken word), use
@@ -687,7 +698,13 @@ front** whether to add them:
    to read back what was said. The flag transcribes the narration and merges its
    words into the project transcript at the overlay's position. It returns a
    `transcribeJobId`; `job.wait` on it before calling `caption.toggle` or any
-   transcript verb. Do NOT pass it for music or ambience.
+   transcript verb, and CHECK the job status — it fails loudly (instead of
+   merging nothing) when the audio has no recognisable speech. Other edits
+   while it runs are safe: the merge re-reads the project and retries. The
+   words belong to that overlay: `project.update-region` moving it moves them,
+   `project.remove-audio` removes them. `audioPath` must be an existing absolute
+   file (a missing/empty path is rejected with `audio_file_invalid` — check the
+   narration path variable isn't empty). Do NOT pass it for music or ambience.
    ```bash
    NARR=$(pandastudio media.generate-narration --text="..." --json | jq -r '.data.path')
    OUT=$(pandastudio project.add-audio --id=$ID --audioPath="$NARR" --startMs=0 \
@@ -1423,9 +1440,10 @@ pandastudio transcript.remove-silences --id=$ID --json
 # → returns { removedCount, totalTrimmedMs }
 
 # 3c. Fix STT errors — NEVER use project.read → JSON mutation → project.save for this.
-#     find-replace patches the word text in-place and preserves timing.
+#     find-replace patches the word text in-place; a multi-word match collapses
+#     into ONE word spanning the whole match so captions have no blank gap.
 pandastudio transcript.find-replace --id=$ID --find="RightPanda" --replace="WritePanda" --json
-# → returns { replacedCount, wordsPatched }
+# → returns { replacedCount, wordsPatched, wordsMerged }
 #  Matcher caveats:
 #  - Matching is case-insensitive; punctuation is ignored on both sides
 #    (`--find="graph, crew"` matches "graph crew").

@@ -132,6 +132,9 @@ in `reference/motion-philosophy.md` — read it before authoring):
 ```bash
 # Pre-flight ONE frame before a full render (sub-second; catches layout bugs).
 pandastudio motion.screenshot --htmlPath=/tmp/scene.html --atMs=1500 --json
+# Screenshot and render load the same document: web fonts named in CSS
+# (font-family: 'Caveat') are embedded in both, and with no --aspectRatio/--width
+# the HTML's own data-width/data-height is used and reported (1080×1920 stays 1080×1920).
 
 # Render to MP4 (opaque). Renders are SEQUENTIAL — job.wait before firing the
 # next or you get RENDER_BUSY. For many scenes, fire in parallel + job.wait each.

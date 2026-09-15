@@ -14,13 +14,13 @@ The Home page groups projects into flat folders (workspace-scoped, no nesting). 
 
 ```bash
 # By id (preferred):
-pandastudio project.setFolder --id=$PID --folder="Tutorials" --json
+pandastudio project.set-folder --id=$PID --folder="Tutorials" --json
 
 # By path:
-pandastudio project.setFolder --path="$P" --folder="Tutorials" --json
+pandastudio project.set-folder --path="$P" --folder="Tutorials" --json
 
 # Clear the folder (move to Unsorted):
-pandastudio project.setFolder --id=$PID --folder="" --json
+pandastudio project.set-folder --id=$PID --folder="" --json
 ```
 
 Returns `{ id, path, folder }` where `folder` is the trimmed, normalised label (or `null` for Unsorted).
@@ -32,7 +32,7 @@ Returns `{ id, path, folder }` where `folder` is the trimmed, normalised label (
 pandastudio project.list --json | \
   jq -r '.projects[] | select(.name | startswith("Tut")) | .id' | \
   while read pid; do
-    pandastudio project.setFolder --id=$pid --folder="Tutorials" --json
+    pandastudio project.set-folder --id=$pid --folder="Tutorials" --json
   done
 ```
 
@@ -78,11 +78,11 @@ The setting is **workspace-scoped**: a user can run an English channel in one wo
 
 ```bash
 # Read the active engine.
-pandastudio system.getTranscriptionLanguage --json
+pandastudio system.get-transcription-language --json
 # → { language: "auto" }
 
 # Before switching to a non-European language, make sure the model is on disk.
-pandastudio system.isWhisperModelDownloaded --json
+pandastudio system.is-whisper-model-downloaded --json
 # → { downloaded: false }
 
 # If false, ask the user to open Settings and click "Download Whisper model"
@@ -90,7 +90,7 @@ pandastudio system.isWhisperModelDownloaded --json
 # main-window context. Once they confirm it's downloaded, proceed.
 
 # Switch.
-pandastudio system.setTranscriptionLanguage --language=chinese --json
+pandastudio system.set-transcription-language --language=chinese --json
 # → { language: "chinese" }
 
 # Now `transcript.transcribe` (or the editor's Transcribe button) will use
@@ -108,7 +108,7 @@ pandastudio system.setTranscriptionLanguage --language=chinese --json
 
 - Whisper's seq2seq decoder smooths over fillers. That's fine for Chinese/Japanese/Korean where fillers behave differently anyway, but DO NOT switch to Whisper for English projects — the editor's "Remove Filler Words" / "Remove Silences" features depend on Parakeet's CTC honesty.
 - Language hint is locked, not auto-detected, when Whisper is active. If the user picks "chinese" and then transcribes a Japanese file, the output is garbage. Match the setting to the actual source language.
-- `system.setTranscriptionLanguage` only writes the setting — it does not download the Whisper model. The download is a Settings-UI-only action because it streams ~1.1 GB and surfaces a progress modal.
+- `system.set-transcription-language` only writes the setting — it does not download the Whisper model. The download is a Settings-UI-only action because it streams ~1.1 GB and surfaces a progress modal.
 
 ## Smooth preview for heavy camera footage
 
@@ -118,22 +118,22 @@ With the setting on (`auto`, the default), opening a project makes a lighter cop
 
 ```bash
 # Is a copy being built for this source?
-pandastudio system.previewProxyStatus --path=/Users/me/Footage/C0042.MP4 --json
+pandastudio system.preview-proxy-status --path=/Users/me/Footage/C0042.MP4 --json
 # → { status: { state: "generating", progress: 0.42, reasons: ["high-bit-depth", "chroma", "bitrate"] } }
 
 # All sources this session + cache size
-pandastudio system.previewProxyStatus --json
+pandastudio system.preview-proxy-status --json
 
 # Read / change the setting
-pandastudio system.getPreviewProxyMode --json
-pandastudio system.setPreviewProxyMode --mode=off --json
+pandastudio system.get-preview-proxy-mode --json
+pandastudio system.set-preview-proxy-mode --mode=off --json
 ```
 
 States: `not-needed` (plays fine as is), `queued`, `generating`, `ready`, `failed` (original keeps playing), `skipped` (less than 15 GB free), `unsupported` (media engine missing, odd frame size, or a very large frame this machine can't play as HEVC), `disabled` (setting is off).
 
 ### When to use it
 
-- **User says the preview is choppy on camera footage**: check `system.previewProxyStatus`. If `generating`, tell them playback smooths out when it finishes. If `disabled`, suggest turning it back on.
+- **User says the preview is choppy on camera footage**: check `system.preview-proxy-status`. If `generating`, tell them playback smooths out when it finishes. If `disabled`, suggest turning it back on.
 - **Don't wait for it** before editing, `project.render-frame`, or `export.start`. Render-frame reads whatever the preview is showing; export always reads the original.
 - **Disk space**: copies are capped at 30 GB (oldest removed first). The user can remove them in Settings → Playback.
 

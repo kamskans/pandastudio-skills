@@ -73,7 +73,7 @@ pandastudio project.update-region --id=$ID \
   --regionType=audio-overlay --regionId=audio-1 \
   --startMs=5000 --endMs=20000 --sourceStartMs=2000 --volume=0.7 --json
 
-# 5) Remove
+# 5) Remove (a transcribed voiceover's words go with it → { transcriptWordsRemoved })
 pandastudio project.remove-audio --id=$ID --overlayId=audio-1 --json
 # or: pandastudio project.remove-region --regionType=audio-overlay --regionId=audio-1
 ```
