@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.120.0 -->
+<!-- version: 3.121.0 -->
 
 # PandaStudio
 
@@ -681,23 +681,30 @@ hero/marketing asset. Ask once up front:
    stay the default and you should not ask.)
 
 **Sound design: effects timed to the action.** Product demos, launch videos and
-UI walkthroughs are carried by sound effects, not by a song: a key click for
-every typed character (or a typing burst sized to the typing), a mouse click on
-every cursor click, a whoosh on every camera fly-in, pull-back and blur cut, a
-soft pop when UI appears, and a riser into an impact on the logo or payoff.
-Music, if any, sits very low underneath. Workflow:
+UI walkthroughs are carried by sound effects (and a voiceover), not by a song.
+Bundled ids (`asset.list-sounds`, use as `bundled:sound/<id>`):
+- Typing: `keyboard-key-1` / `-2` / `-3` (one per typed character, vary them),
+  `keyboard-space`, `keyboard-enter` (sending a prompt), `keyboard-typing-fast` /
+  `keyboard-typing-steady` (bursts to cut to length when text isn't animated per
+  letter), `typewriter-typing` (retro/editorial looks only).
+- Clicks and UI: `mouse-click` (every cursor click), `ui-tick` (UI appears, an
+  item checks off), `marker-strike` (something crossed out), `message-pop`.
+- Movement: `swoosh-fast` ONLY on scene changes and when a card or panel flies
+  away. Never one per camera move or blur cut: about one per 8-10 s, never two
+  within a second. Too many swooshes is the most common mistake.
+- Endings: `noise-riser` leading into `logo-impact` on the frame the logo lands.
+- Bed: `room-tone` very quiet under everything so there's no dead silence.
+Workflow:
 1. Get exact action times from the source: the scene's GSAP timeline when you
-   authored it, otherwise rendered frames around each click or zoom.
-2. Use a bundled sound (`asset.list-sounds`) when one fits; otherwise
-   `media.generate-sound-effect --prompt="single mechanical keyboard key press,
-   close mic, dry" --durationMs=250`. One sound per call. Generate a few
-   variants of anything that repeats (keys, clicks) so it doesn't sound robotic.
-3. Place each with `project.add-audio --startMs=<action frame>` (a whoosh starts
-   ~150 ms BEFORE the move it leads into). Effects around 40-70% volume; with a
-   voiceover, keep effects under the voice and never land a loud effect on a
-   spoken word.
-4. Export and listen back through a loudness check (`volumedetect` on the typing
-   and on the loudest hit) before calling it done.
+   authored it, otherwise rendered frames around each click, type and cut.
+2. Use bundled sounds first. Only when nothing fits,
+   `media.generate-sound-effect --prompt="…" --durationMs=…` (one sound per
+   call). Don't generate whooshes: generated ones often come back musical.
+3. Place each with `project.add-audio --startMs=<action frame>`. Effects well
+   under the voice (duck them while it speaks); no voice lines over typing
+   close-ups; lines never overlap.
+4. Export and check levels (`volumedetect` on a typing stretch, a voice line
+   and the loudest hit) before calling it done.
 
 **5. Voiceover & music for a from-scratch promo.** Narration and a music bed are
 first-class capabilities (`media.generate-narration` — **local on-device Kokoro
