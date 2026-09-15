@@ -67,6 +67,12 @@ template's own palette.) All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay
 - `transitions-destruction` `O` (5s) — headline assembles from slabs, holds, then shatters apart. Dramatic reveal/transition. Slots: kicker, **headline**, accentColor, textColor.
 - `caption-parallax-layers` `O` (5s) — one word stacked in 5 depth layers (solid front + receding ghosts) that enters with a vertical stretch and parallaxes. Slots: eyebrow, **headline**, frontColor, ghostColor.
 
+**Educator Short overlays** (all `O`, built vertical-first for 9:16 talking heads; they sit in the top third/half so the speaker and the Boxed captions stay clear below. Pair with `caption.set-template boxed`.)
+- `sh-serif-hook-title` `O` (5s) — the opener: cream serif setup line over a big gold-gradient serif payoff with twinkling sparkles and a soft dark fade behind the top. Place at 0 ms. Slots: line1, **line2**, sparkles (on/off), inkColor, accentColor, accent2Color.
+- `sh-serif-quote` `O` (6s) — the one sentence that carries the idea, warm serif, words revealing in speaking rhythm; phrases wrapped in `*asterisks*` turn gold italic. Place on the moment the speaker says it. Slots: **quote**, inkColor, accentColor.
+- `sh-annotated-card` `O` (7s) — a screenshot pops in as a tilted white card, then 1 to 4 handwritten labels write in around it with marker arrows (last word of each label in the accent). For explaining a flow or a page. Slots: image, items[{label}], inkColor, accentColor. Grab the screenshot first (e.g. `motion.screenshot` of a page or a real product image).
+- `sh-icon-badge-band` `O` (5s) — quick cutaway: the top band dims to scrolling faint words and a round badge pops in with a built-in line icon (laptop, mail, chat, money, book, idea, clock, check, chart, phone) or your image. Use every few seconds on lists and stories. Slots: image, icon, texture, badgeColor, iconColor, bandColor.
+
 **Lower thirds** (all `O`, 5s, transparent overlays — add in ONE call with `project.add-lower-third --name --title --atMs [--templateId]`; slots: **name**, title + per-template colors. Also in the editor's Lower 3rds tab.)
 - `yt-lower-third` `O` (4.5s) — subscribe lower-third: avatar + name + title + red Subscribe pill, slides in bottom-left. Slots: **name**, title, accentColor, cardColor, inkColor.
 - `lt-vox-marker` — the name lands on a highlighter swipe; mono role on an accent rule. The Vox look.

@@ -47,6 +47,7 @@ pandastudio media.generate-narration \
   `[whispers]`), `gemini-flash-tts` (30 voices, multilingual; `--style` sets the
   tone), `minimax-turbo` (fast; `--style` maps to an emotion, `--speed` 0.5-2).
   Local Kokoro is English-only and ignores `--language`/inline tags.
+- **Names and brands in narration.** The local Kokoro voice spells any word it doesn't know letter by letter. It now says joined words made of words it knows as separate words (`PandaStudio` -> "Panda Studio", `writepanda` -> "write panda"), and leaves short acronyms (AI, URL) spelled. For a name or word that can't be split, pass `--pronunciations='{"Kamal":"Ka mal"}'` (whole-word, case-insensitive, applied for every engine). Listen back to the first line before generating a long script.
 - **Canonical promo loop:** write the script → `media.generate-narration` →
   `project.add-audio` at `startMs` with the returned `durationMs` → time your
   motion graphics / B-roll to the voice.

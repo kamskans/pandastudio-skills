@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.115.0 -->
+<!-- version: 3.119.0 -->
 
 # PandaStudio
 
@@ -1284,6 +1284,30 @@ pandastudio project.add-motion-graphic --id="$PROJECT" --fromJob="$JOB" --durati
 ### Background modes, designed segments, and the template catalog
 
 `--background` modes, the host-on-one-half designed-segment pattern, and the full bundled-template catalog (incl. podcast layouts). Full detail: [`reference/motion-templates.md`](reference/motion-templates.md).
+### Editing a graphic that's already placed
+
+Generated graphics stay editable. Every overlay placed from a `motion.generate` job, an inline-`--html` `motion.render-html` job, `project.add-lower-third`, or the editor's Graphics panel carries `generatedFrom` in `project.read` (`kind: "template"` with `templateId` + `slots` + `background`, or `kind: "html"` with the markup). When the user asks to fix a typo, change a title, swap a color or switch to glass, **re-render in place instead of deleting and regenerating**:
+
+```bash
+JOB=$(pandastudio project.update-motion-graphic --id="$PROJECT" --overlayId=overlay-3 \
+  --slots='{"headline":"Record, edit, publish"}' --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$JOB" --json | jq '.data.job.result'
+```
+
+- Template graphics: pass only the slots that change (merged over `generatedFrom.slots`), and/or `--background=solid|transparent|glass`.
+- HTML graphics: pass `--html` with the full new markup (start from `generatedFrom.html`).
+- Timing, position, size, SFX, anchor and link group are untouched. The old render stays on disk.
+- No `generatedFrom` (an imported file, or a graphic placed by an older version): the verb fails with a clear message; render a new one and replace it.
+- An `--htmlPath` render isn't editable (its relative assets can't be replayed); use inline `--html` + `--assets` when the user may want edits later.
+
+The user can do the same by selecting the graphic: Settings shows **Edit graphic** with its fields and an **Update graphic** button.
+
+### GIFs, animated emoji and looping overlays
+
+- **GIF / animated WebP / APNG:** `project.add-motion-graphic --file=/path/reaction.gif` converts it to a looping transparent WebM automatically, so it animates in preview AND export (a raw GIF would export as a still). Still images keep placing as image overlays.
+- **Animated emoji:** `project.add-emoji --id=$ID --emoji=🔥 --atMs=4200 --durationMs=2500 --x=78 --y=30 --size=22` places a looping Google Noto animated emoji (downloaded once, cached). Find one with `asset.list-emoji --query=laugh`. Use them sparingly for reactions and emphasis beats in Shorts, never over the speaker's face.
+- **Loop any video overlay:** `project.update-region --regionType=overlay --regionId=<id> --loop=true` repeats it for the whole window (default is play once, hold the last frame). Looping overlays play without their own sound.
+
 ## Custom motion graphics — HTML authoring
 
 When no template fits, author HTML against the HyperFrames contract. Render verbs (`motion.screenshot`/`render-html`/`concat`), transparent overlays + frosted glass, add-by-jobId. Read [`reference/motion-philosophy.md`](reference/motion-philosophy.md) + [`reference/motion-recipes.md`](reference/motion-recipes.md) before authoring; verbs in [`reference/custom-html.md`](reference/custom-html.md).

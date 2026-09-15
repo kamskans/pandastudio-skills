@@ -20,9 +20,10 @@ Recipes are grouped by **format**: `short` (vertical Shorts / Reels / TikTok) an
 | `product-demo-walkthrough` | long | Title card per feature, feature banner while demoing, zooms on what's discussed, takeaways card |
 | `punchy-youtube-talking-head` | long | Tight jump cuts, punch-in zooms on strong lines, keyword pops, stat cards, takeaways |
 | `course-lesson-chapters` | long | Title + learning goals, chapter cards, highlighted definitions, captions, recap, chapter timestamps |
-| `product-promo-from-url` | long | No footage: brand captured from a website, problem hook, one depicted benefit per scene, logo and call-to-action close |
+| `product-promo-from-url` | long | Footage optional: launch video from real product footage or website screenshots, camera flies into what's used, drawn cursor clicks, crisp typed close-ups, logo + line close |
 | `whiteboard-explainer` | long | No footage: hand-drawn draw-on scenes on paper, one metaphor, red arrow on each key point, summary board |
 | `social-ad-hook-variants` | short | Footage optional: 9:16 ad (hook, problem, product, proof, offer, CTA), three hook versions, 1:1 and 16:9 copies |
+| `warm-educator-short` | short | Calm premium educator Short: sh-serif-hook-title in the first 2 s, Boxed pill captions, one sh-serif-quote on the key sentence, sh-icon-badge-band cutaways, sh-annotated-card for walked-through screens, gentle punch-ins, soft music |
 
 Shorts recipes follow the short-form grammar measured across popular educator, business and podcast Shorts: no preamble (speech by 2.5 s), something visible changes every 3 to 8 s, graphics in the top ~40%, captions at chest height, faces never covered, end on the payoff.
 

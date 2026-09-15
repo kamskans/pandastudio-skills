@@ -592,21 +592,22 @@ tl.to({}, { duration: 3 }, 0);  // anchor
 
 ## Assets
 
-When a scene needs a real image — the brand logo, a product screenshot, a
-photo — stage it with `--assets`:
+When a scene needs a real image or clip (the brand logo, a product screenshot,
+a screen recording), stage it with `--assets`: a JSON array of absolute file
+paths, used together with **inline** `--html`. Each file is copied next to the
+composition and referenced by its **file name**:
 
 ```bash
-pandastudio motion.render-html --htmlPath=/tmp/scene.html \
-  --durationMs=5000 --assets="logo=/Users/me/brand/logo.svg,shot=/Users/me/shots/app.png"
+pandastudio motion.render-html --html="$(cat /tmp/scene.html)" \
+  --durationMs=5000 --assets='["/Users/me/brand/logo.svg","/Users/me/shots/app@2x.png"]'
 ```
-
-Then reference by the alias in HTML:
 
 ```html
-<img src="logo" alt="" class="hero-logo">
-<img src="shot" alt="" class="app-shot">
+<img src="logo.svg" alt="" class="hero-logo">
+<img src="app@2x.png" alt="" class="app-shot">
 ```
 
+`--assets` does nothing with `--htmlPath`; with a path you stage files yourself.
 This is strictly better than base64-inlining images (smaller HTML, cleaner
 caching, the renderer can pre-decode).
 

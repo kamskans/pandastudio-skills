@@ -40,7 +40,9 @@ All accept `id` or `path`, plus optional `expectedRevision` for conflict-safe wr
 | `project.remove-clip` | `clipId` | Drop a clip by id. |
 | `project.move-clip` | `clipId`, `toIndex` | Reorder a clip on the main track. Project-level regions automatically migrate to follow their original clips, so zooms/trims/etc. stay attached to the same content after the reorder. |
 | `project.split-clip` | `clipId`, `atSourceMs` | Split a clip in two at a position in its source time. |
-| `project.add-motion-graphic` | `file`, `durationMs`, `atMs` (optional, defaults to end-of-timeline), `muted` (default true), `volume` (0–1) | Drop an MP4 (typically from `motion.generate`) as a media-overlay region. An overlay VIDEO's own audio is muted by default; pass `muted=false` to hear it in preview and export. Timeline mute regions still silence it. |
+| `project.add-motion-graphic` | `file` or `fromJob`, `durationMs`, `atMs` (optional, defaults to end-of-timeline), `muted` (default true), `volume` (0–1), `loop` | Drop an MP4/WebM (typically from `motion.generate`) as a media-overlay region; a `fromJob` render keeps its source so it stays editable. Animated GIF / WebP / APNG files are converted to a looping transparent WebM. An overlay VIDEO's own audio is muted by default; pass `muted=false` to hear it in preview and export. Timeline mute regions still silence it. |
+| `project.update-motion-graphic` | `overlayId` (req), `slots` (template), `background` (`solid`\|`transparent`\|`glass`), `html` (HTML graphics) | **Async.** Re-render a placed generated graphic with edits, in place (timing, position, sound kept). Needs `generatedFrom` on the overlay. |
+| `project.add-emoji` | `emoji` (req: 🔥, `1f525` or `fire`), `atMs`, `durationMs` (default 3000), `x`/`y` (center %, default 50), `size` (height %, default 25), `soundUrl` | **Async.** Place a looping Google Noto animated emoji overlay. Discover with `asset.list-emoji`. |
 | `project.update-region` | `regionType`, `regionId`, then only the fields to change | Patch a placed region in place. For `regionType=overlay` this includes `x`/`y`/`width`/`height`, `layer`, `muted` (the overlay video's own audio) and `volume` (0–1). |
 | `project.set-clip-color` | `clipId` (req), `preset` (`flat-footage` \| `none`), `brightness`, `contrast`, `saturation`, `warmth` (each −1..1, 0 = unchanged), `reset` | Color-correct a clip BEFORE any LUT look. `flat-footage` fixes flat, washed-out camera footage (log / flat picture profiles). Merges with the current correction; `reset=true` or `preset=none` clears. Same result in preview and export. |
 | `project.add-lower-third` | `name` (req), `title`, `atMs` (req), `templateId` (default `lt-vox-marker`), `slots`, `anchorSourceMs` | **Async.** Renders an `lt-*` nameplate template and places it as a transparent overlay in one call. Returns `{ jobId }`; `job.wait` resolves once placed. |
@@ -63,6 +65,7 @@ Bundled sound effects + FX overlays that ship inside the app installer.
 
 | Command | Args | Purpose |
 |---|---|---|
+| `asset.list-emoji` | `query` (optional) | Animated emoji available to `project.add-emoji` (char, Noto code, name, keywords). |
 | `asset.list-sounds` | — | Every bundled sound: `{ id, name, category, absolutePath }`. |
 | `asset.list-fx` | — | Every FX overlay: `{ id, title, blendMode, defaultOpacity, durationSeconds, defaultSoundId, absolutePath }`. |
 | `asset.list-transitions` | — | Every bundled transition: `{ id, title, category, durationSeconds, defaultSoundId, absolutePath }`. Use the id with `project.add-transition`. |
