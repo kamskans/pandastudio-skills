@@ -19,7 +19,7 @@ Recipes are grouped by **format**: `short` (vertical Shorts / Reels / TikTok) an
 | `rapid-fire-list-short` | short | Cheat-sheet list: title card, one item every ~3 s with a colored name and use line as the caption, no music |
 | `storytime-turn-short` | short | Story Short: hook card pinned at the top for the whole video over a speaker card, jump cuts, Colored captions, thud + 1.5x push-in on the turn, no music |
 | `tv-style-explainer` | long | Chapter header bar, big number callouts, camera sliding into cards and corners |
-| `product-demo-walkthrough` | long | Title card per feature, feature banner while demoing, zooms on what's discussed, takeaways card |
+| `product-demo-walkthrough` | long | Title card per feature, feature banner while demoing, zooms on what's discussed, takeaways card; optional AI voiceover (cuts on-camera parts, mutes the recording, one ElevenLabs/local line per on-screen action, no overlaps, quiet music) |
 | `punchy-youtube-talking-head` | long | Tight jump cuts, punch-in zooms on strong lines, keyword pops, stat cards, takeaways |
 | `educator-talking-head-chapters` | long | Friendly teaching video: step cards on the left, callouts on the right that build on the words they match, gentle zooms, soft continuous music, recap checklist that ticks off, no captions |
 | `business-lesson-rule-slams` | long | Blunt business lesson: restarts and read-out notes cut hard, beat-by-beat punch-ins as a second angle, full-screen Rule N text slams with a thud, bold boxless captions, no music |
