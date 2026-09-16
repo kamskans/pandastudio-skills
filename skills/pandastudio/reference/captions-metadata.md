@@ -55,11 +55,11 @@ call. Pass only the fields you want to change.
 
 ## YouTube thumbnails (v1.18+)
 
-PandaStudio can generate YouTube thumbnails via Replicate's `openai/gpt-image-2` model using **the user's own Replicate API key** — PandaStudio never pays for or proxies these calls. Before any thumbnail verb will work, the user must open **Settings → Integrations** and paste a key from https://replicate.com/account/api-tokens. The key is stored encrypted via the OS keychain (Keychain on macOS, DPAPI on Windows, libsecret on Linux).
+PandaStudio can generate YouTube thumbnails via Replicate's `openai/gpt-image-2` model on **the user's own Replicate account** — PandaStudio never pays for or proxies these calls. Before any thumbnail verb will work, the user must connect Replicate in **Settings → Integrations → Connectors** (a one-time sign-in, no key to paste).
 
-Requires a Replicate key set in **Settings → Integrations** (not via CLI — by
-design, so it never lands in shell history). If a verb returns "No Replicate API
-key set", tell the user to add one rather than looping.
+Requires Replicate connected in **Settings → Integrations → Connectors** (a
+sign-in the user does in the app, never via CLI). If a verb returns "Connect
+Replicate…", tell the user to connect it rather than looping.
 
 **Verbs:**
 - `export.generate-thumbnail --id=$EID` — gpt-image-2 (3:2). Two ways to drive it:

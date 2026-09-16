@@ -154,8 +154,8 @@ When the bundled library doesn't cover what the user wants (a specific genre,
 mood, or instrument combination), generate an original instrumental track with
 `media.generate-music` (Replicate / Google Lyria-2). The bundled library is the
 faster default for common moods — reach for generation only when the user asks
-for something specific/custom. Requires the user's Replicate API key (Settings →
-Integrations). Output is instrumental only, ~30s, 48kHz stereo — loop it for
+for something specific/custom. Requires Replicate to be connected (Settings →
+Integrations → Connectors). Output is instrumental only, ~30s, 48kHz stereo — loop it for
 longer videos.
 
 ```bash

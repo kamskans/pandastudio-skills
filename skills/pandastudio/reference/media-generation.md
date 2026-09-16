@@ -13,8 +13,8 @@ engines, and **local is the default so it works out of the box**:
   model does); pre-warm it with `system.download-kokoro-model` or check
   `system.is-kokoro-model-downloaded`.
 - **Cloud Replicate (opt-in).** Set `--model` to a Replicate model when you want
-  more voices/languages or the most expressive delivery. Needs the user's
-  Replicate key (Settings → Integrations).
+  more voices/languages or the most expressive delivery. Needs Replicate
+  connected (Settings → Integrations → Connectors).
 
 ### The verb
 
@@ -57,8 +57,8 @@ pandastudio media.generate-narration \
 
 ## B-roll generation (Replicate gpt-image-2)
 
-PandaStudio ships with a project-level image-gen verb backed by the
-user's own Replicate API key. Use it to author B-roll, concept
+PandaStudio ships with a project-level image-gen verb that runs on the
+user's own connected Replicate account. Use it to author B-roll, concept
 stills, mood-board frames, or reference imagery for explainer beats —
 without leaving the editor.
 
@@ -76,9 +76,9 @@ pandastudio media.generate-image \
 a 16:9 video, generate `3:2` and crop in the wrap. For 9:16, generate
 `2:3`. Don't ask the model for `16:9` — it doesn't exist in this API.
 
-**Requires a Replicate API key.** If the user hasn't connected one in
-Settings → Integrations, the verb returns an error explaining how to
-set it up. Don't loop on this; surface to the user.
+**Requires Replicate connected.** If the user hasn't connected it in
+Settings → Integrations → Connectors, the verb returns an error saying
+so. Don't loop on this; surface it to the user.
 
 ### ⚠ Don't drop a flat photo straight into the timeline
 

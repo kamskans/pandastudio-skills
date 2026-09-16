@@ -47,7 +47,14 @@ pandastudio recipe.get --id=product-demo-walkthrough --json
 # 3. Fill the blanks. Omitted blanks use their defaults, and anything still
 #    empty comes back as "(you decide this from the video: <label>)" with its
 #    label in `agentFilled` — read the transcript or render a frame and choose
-#    it yourself. Never stop to ask the user for a blank.
+#    it yourself.
+#    EXCEPTION: fields with `fromUser: true` (the idea behind a faceless or
+#    whiteboard video, a product name, website or offer) must come from the
+#    user. recipe.render FAILS until they're given ("needs your input first"):
+#    ask the user, never invent them. Fields with `allowScript: true` take an
+#    idea OR the user's finished script: for a script pass
+#    values.<key> = the script and values.<key>Kind = "script"; it's appended
+#    to the prompt and must be narrated word for word.
 pandastudio recipe.render --id=product-demo-walkthrough \
   --values='{"product":"PandaStudio","featureCount":"3"}' --json
 # → { prompt, runContext, values, checklist, agentFilled }
@@ -59,6 +66,13 @@ pandastudio recipe.render --id=product-demo-walkthrough \
 pandastudio recipe.apply-style --id=product-demo-walkthrough \
   --values='{"product":"PandaStudio"}' --json
 # → { applied: ["Aspect ratio 16:9", "Captions off"], failed: [], notes: [] }
+```
+
+Example, faceless Short from the user's own script:
+
+```bash
+pandastudio recipe.render --id=faceless-short \
+  --values='{"topic":"Every summer the Eiffel Tower grows...","topicKind":"script"}' --json
 ```
 
 Then do the edit on the current project: follow `prompt` for the content-dependent work, do anything listed in the apply-style `notes` yourself, and before reporting done, verify each checklist item with `project.render-frame` or `project.read`. When the user pressed Run in the app, the style was already applied for you — verify it rather than redoing it. Report anything you couldn't complete.

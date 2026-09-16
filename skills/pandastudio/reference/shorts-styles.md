@@ -393,7 +393,7 @@ Rules that keep it tasteful: every insert must be ANCHORED to the transcript
 word that motivates it (fire at that word's startMs); one insert per beat max
 outside polished-explainer; inserts count as the beat's L2 state change (don't
 stack a zoom on top); match the video's single accent color in any generated
-graphic. If media.generate fails (no Replicate key), degrade to template
+graphic. If media.generate fails (Replicate not connected), degrade to template
 motion graphics only — never block the edit on image generation.
 
 ## 10. Speed discipline (users are waiting)

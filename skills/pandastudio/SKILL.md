@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.127.0 -->
+<!-- version: 3.129.0 -->
 
 # PandaStudio
 
@@ -258,7 +258,7 @@ fi
 ```bash
 pandastudio workspace.switch --id=$TARGET_WS --json
 # Then re-run any pre-flight that depends on workspace state
-# (license check, youtube account list, replicate key check)
+# (license check, youtube account list, connector check)
 ```
 
 ### Project-look defaults (v1.49.1+)
@@ -449,7 +449,7 @@ pandastudio project.auto-reframe --id=$PID --clear=true --json
 **Hard rules:** YouTube `privacyStatus` defaults to `unlisted` — never public without explicit user say; Instagram needs a Business/Creator account; never publish in the wrong workspace (confirm `isInActiveWorkspace`). Flows: connect → publish an export. Full detail: [`reference/publishing.md`](reference/publishing.md).
 ## Recipes — run a proven edit style
 
-When the user names a style ("TV-style explainer", "like my usual Shorts", "product demo edit"), says "like last time", or wants a repeatable look, check recipes BEFORE designing from scratch: `recipe.list --format=short|long`, `recipe.get`, `recipe.apply-style` (sets the recipe's fixed look deterministically), `recipe.render --values=...` (blanks you omit come back as "(you decide this from the video: …)" — choose them from the footage yourself, never stop to ask), then follow the prompt, apply the fixed style exactly and verify the checklist with rendered frames. After an edit the user is happy with, offer to save it with `recipe.save`. Full detail: [`reference/recipes.md`](reference/recipes.md).
+When the user names a style ("TV-style explainer", "like my usual Shorts", "product demo edit"), says "like last time", or wants a repeatable look, check recipes BEFORE designing from scratch: `recipe.list --format=short|long`, `recipe.get`, `recipe.apply-style` (sets the recipe's fixed look deterministically), `recipe.render --values=...` (blanks you omit come back as "(you decide this from the video: …)" — choose them from the footage yourself; EXCEPT `fromUser` blanks like a faceless video's idea, a product name or an offer: render fails until the user gives them, so ask and never invent; `allowScript` blanks also take the user's own script via `<key>Kind: "script"`, narrated word for word), then follow the prompt, apply the fixed style exactly and verify the checklist with rendered frames. After an edit the user is happy with, offer to save it with `recipe.save`. Full detail: [`reference/recipes.md`](reference/recipes.md).
 
 ## Memory — remember preferences across chats
 
@@ -742,8 +742,8 @@ Workflow:
 first-class capabilities (`media.generate-narration` — **local on-device Kokoro
 by default** for English, no key; cloud Replicate TTS via `--model` for more
 voices/languages; `--model=elevenlabs-direct` uses the user's OWN ElevenLabs
-account (their CLONED voices — pass the voice name or voice_id; needs the
-ElevenLabs key in Settings → Integrations); see reference/media-generation.md;
+account (their CLONED voices — pass the voice name or voice_id; needs
+ElevenLabs connected in Settings → Integrations); see reference/media-generation.md;
 `media.generate-music` / bundled `asset.list-music`; sound effects via bundled
 `asset.list-sounds` or `media.generate-sound-effect`). For a Mode-B piece (promo,
 explainer, intro/outro, teaser), if the brief doesn't already specify, **ASK up
@@ -1388,7 +1388,7 @@ When no template fits, author HTML against the HyperFrames contract. Render verb
 **Golden rule: restraint.** Scene transitions (`project.add-transition`) and FX overlays (`project.add-fx`). Full detail: [`reference/fx-transitions.md`](reference/fx-transitions.md).
 ## Narration (voiceover) + B-roll generation
 
-Replicate TTS narration and gpt-image B-roll (always Ken-Burns + vignette a still, never drop a flat photo). Requires the user's Replicate key. Full detail: [`reference/media-generation.md`](reference/media-generation.md).
+Replicate TTS narration and gpt-image B-roll (always Ken-Burns + vignette a still, never drop a flat photo). Requires Replicate connected (Settings → Integrations → Connectors). Full detail: [`reference/media-generation.md`](reference/media-generation.md).
 
 ## Faceless videos — image-driven, voiceover-led
 
@@ -1443,9 +1443,9 @@ YouTube", "faceless short", or picks the home-screen "Faceless short" preset.
 
 **Timing rule:** each scene's length = its narration length; Ken-Burns the image
 over exactly that span so voice and visual stay locked. Match aspect to
-destination. If the user has no Replicate key, image generation is unavailable —
-say so and offer bundled templates as a (lesser) fallback, or ask them to add
-the key (Settings → Integrations).
+destination. If Replicate isn't connected, image generation is unavailable —
+say so and offer bundled templates as a (lesser) fallback, or ask them to
+connect Replicate (Settings → Integrations → Connectors).
 
 **Per-beat loop (9:16 short):**
 
