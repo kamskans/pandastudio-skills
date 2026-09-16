@@ -44,10 +44,13 @@ pandastudio recipe.list --format=long --json
 # 2. Read its blanks, fixed style and checklist
 pandastudio recipe.get --id=product-demo-walkthrough --json
 
-# 3. Fill the blanks. Omitted blanks use their defaults; required ones must be given.
+# 3. Fill the blanks. Omitted blanks use their defaults, and anything still
+#    empty comes back as "(you decide this from the video: <label>)" with its
+#    label in `agentFilled` — read the transcript or render a frame and choose
+#    it yourself. Never stop to ask the user for a blank.
 pandastudio recipe.render --id=product-demo-walkthrough \
   --values='{"product":"PandaStudio","featureCount":"3"}' --json
-# → { prompt, runContext, values, checklist, missing }
+# → { prompt, runContext, values, checklist, agentFilled }
 ```
 
 Then do the edit on the current project: follow `prompt` for the content-dependent work, apply everything under "Fixed style" in `runContext` exactly (don't redesign it), and before reporting done, verify each checklist item with `project.render-frame` or `project.read`. Report anything you couldn't complete.
