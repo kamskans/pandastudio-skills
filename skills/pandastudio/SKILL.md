@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.126.0 -->
+<!-- version: 3.127.0 -->
 
 # PandaStudio
 
@@ -700,9 +700,6 @@ product hero shot. Rules:
 
 **Other connectors** (only present when the user connected them; each spends
 or reads that account, so say what you're about to do first):
-- **Epidemic Sound**: licensed music and sound effects. Prefer it over generated
-  music for anything published. Search by mood, BPM or the video's frames, then
-  `media.import` the track's download link and `project.add-audio` it.
 - **ElevenLabs**: the user's own voices (clones included), sound effects, music,
   dubbing. Import generated audio with `media.import` before placing it.
 - **Replicate**: any model on Replicate. Use PandaStudio's own `media.*` verbs
