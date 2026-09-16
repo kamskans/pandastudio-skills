@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.122.0 -->
+<!-- version: 3.123.0 -->
 
 # PandaStudio
 
@@ -449,7 +449,7 @@ pandastudio project.auto-reframe --id=$PID --clear=true --json
 **Hard rules:** YouTube `privacyStatus` defaults to `unlisted` — never public without explicit user say; Instagram needs a Business/Creator account; never publish in the wrong workspace (confirm `isInActiveWorkspace`). Flows: connect → publish an export. Full detail: [`reference/publishing.md`](reference/publishing.md).
 ## Recipes — run a proven edit style
 
-When the user names a style ("TV-style explainer", "like my usual Shorts", "product demo edit"), says "like last time", or wants a repeatable look, check recipes BEFORE designing from scratch: `recipe.list --format=short|long`, `recipe.get`, `recipe.render --values=...` (blanks you omit come back as "(you decide this from the video: …)" — choose them from the footage yourself, never stop to ask), then follow the prompt, apply the fixed style exactly and verify the checklist with rendered frames. After an edit the user is happy with, offer to save it with `recipe.save`. Full detail: [`reference/recipes.md`](reference/recipes.md).
+When the user names a style ("TV-style explainer", "like my usual Shorts", "product demo edit"), says "like last time", or wants a repeatable look, check recipes BEFORE designing from scratch: `recipe.list --format=short|long`, `recipe.get`, `recipe.apply-style` (sets the recipe's fixed look deterministically), `recipe.render --values=...` (blanks you omit come back as "(you decide this from the video: …)" — choose them from the footage yourself, never stop to ask), then follow the prompt, apply the fixed style exactly and verify the checklist with rendered frames. After an edit the user is happy with, offer to save it with `recipe.save`. Full detail: [`reference/recipes.md`](reference/recipes.md).
 
 ## Memory — remember preferences across chats
 

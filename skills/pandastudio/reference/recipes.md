@@ -53,7 +53,15 @@ pandastudio recipe.render --id=product-demo-walkthrough \
 # → { prompt, runContext, values, checklist, agentFilled }
 ```
 
-Then do the edit on the current project: follow `prompt` for the content-dependent work, apply everything under "Fixed style" in `runContext` exactly (don't redesign it), and before reporting done, verify each checklist item with `project.render-frame` or `project.read`. Report anything you couldn't complete.
+```bash
+# 4. Apply the fixed style (aspect ratio, captions + template, wallpaper, camera
+#    layout, backdrop, grade). Deterministic — do this BEFORE the content work.
+pandastudio recipe.apply-style --id=product-demo-walkthrough \
+  --values='{"product":"PandaStudio"}' --json
+# → { applied: ["Aspect ratio 16:9", "Captions off"], failed: [], notes: [] }
+```
+
+Then do the edit on the current project: follow `prompt` for the content-dependent work, do anything listed in the apply-style `notes` yourself, and before reporting done, verify each checklist item with `project.render-frame` or `project.read`. When the user pressed Run in the app, the style was already applied for you — verify it rather than redoing it. Report anything you couldn't complete.
 
 When the user runs a recipe from the app, the in-app agent receives the same `runContext` in its editor context for that turn, so the flow is identical.
 
