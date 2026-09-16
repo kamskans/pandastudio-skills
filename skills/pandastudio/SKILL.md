@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.124.0 -->
+<!-- version: 3.125.0 -->
 
 # PandaStudio
 
@@ -680,9 +680,10 @@ hero/marketing asset. Ask once up front:
    NOT apply to Mode A — graphics layered over existing footage — where templates
    stay the default and you should not ask.)
 
-**Higgsfield: real generated video and images.** When Higgsfield is connected
-(Settings → Integrations in the app, or `https://mcp.higgsfield.ai/mcp` added to
-an external agent), its MCP tools generate video and images with Sora 2, Veo
+**Higgsfield: real generated video and images.** Higgsfield and HeyGen are
+*connectors*: hosted MCP servers the user signs in to (Settings → Integrations →
+Connect), billed to their own plan credits. When Higgsfield is connected (or
+`https://mcp.higgsfield.ai/mcp` is added to an external agent), its MCP tools generate video and images with Sora 2, Veo
 3.1, Kling 3.0, Seedance 2.0, WAN, Hailuo, Soul, Nano Banana Pro and more,
 billed to the user's own Higgsfield plan credits. Use it when a still with a
 Ken Burns move isn't enough: moving B-roll, a faceless story shot per beat, a
@@ -1452,32 +1453,27 @@ audio and video locked.
 
 ## Avatar (talking-head) videos — HeyGen
 
-Generate a talking-head clip from the user's **own HeyGen avatar** + a script, then drop it on the timeline and edit/caption/export like any other clip. Bring-your-own key + credits: requires the user's HeyGen API key (Settings → Integrations). The HeyGen API is a **paid capability, not on every plan**, and renders are billed against the user's own HeyGen credits — say so if a call 401s/402s.
+HeyGen connects through its own hosted MCP server, not a PandaStudio key: the
+user clicks **Connect** on HeyGen in **Settings → Integrations** (or adds
+`https://mcp.heygen.com/mcp/v1/` to an external agent) and signs in. It works
+on every HeyGen plan, free included, and renders use the user's HeyGen plan
+credits. There are no `media.*-avatar` verbs any more.
 
-**HeyGen is a NATIVE PandaStudio integration — use these verbs, never fetch external URLs or ask the user to paste avatar/voice IDs.** The moment the user asks for a HeyGen / avatar / talking-head video, your FIRST action is `media.list-avatars` (and `media.list-avatar-voices`) to discover their options — don't ask them for IDs, look them up. If either returns **"No HeyGen API key set"**, STOP and tell the user to connect HeyGen in **Settings → Integrations** before continuing; do not ask anything else first.
-
-**Discover, then generate. `generate-avatar-video` is ASYNC** (HeyGen renders server-side over minutes) — it returns `{ jobId }`; poll `job.wait` with a generous timeout, then add the returned MP4 with `project.add-clip`.
-
-```bash
-# 1. Find the avatar (the user's clone) and a voice.
-AVATAR=$(pandastudio media.list-avatars --json | jq -r '.data.avatars[0].avatarId')
-VOICE=$(pandastudio media.list-avatar-voices --json | jq -r '.data.voices[0].voiceId')
-
-# 2. Kick off the render (16:9 YouTube by default; 9:16 for Shorts).
-JOB=$(pandastudio media.generate-avatar-video \
-  --avatarId="$AVATAR" --voiceId="$VOICE" \
-  --script="Hey everyone, in today's video…" \
-  --aspectRatio=16:9 --resolution=720p \
-  --json | jq -r '.data.jobId')
-
-# 3. Wait for the server-side render (minutes) — poll with a long timeout.
-VIDEO=$(pandastudio job.wait --id="$JOB" --timeoutMs=900000 --json | jq -r '.data.job.result.videoPath')
-
-# 4. Add it to the timeline like any recording; edit/caption/export as normal.
-pandastudio project.add-clip --id="$PROJECT" --path="$VIDEO"
-```
-
-Args: `avatarId`, `voiceId`, `script` (required); `avatarKind` (`avatar` default | `talking_photo`), `aspectRatio` (`16:9` default | `9:16` | `1:1`), `resolution` (`720p` default | `1080p`), `speed` (0.5–1.5), `backgroundColor` (hex), `outputName`. If `job.wait` returns `timedOut: true`, the render is still going — poll again; never treat it as a failure.
+When connected you'll see HeyGen's tools (`list_avatar_groups`,
+`list_avatar_looks`, `list_voices`, `create_video`, `get_video`,
+`create_video_translation`, `create_lipsync`, …). Workflow:
+1. Look up the user's own avatar and voice with the list tools; never ask them
+   for ids.
+2. Say what you're about to render (avatar, voice, length) in one line: it
+   spends their credits. Then `create_video` with the script and the project's
+   aspect ratio (9:16 for Shorts, 16:9 otherwise).
+3. Poll `get_video` until it's done (renders take minutes).
+4. `media.import --url=<video_url> --name=avatar-intro`, then
+   `project.add-clip --media=<path>` and edit it like any recording.
+Use HeyGen only for avatar videos, translation and lip-sync. For cutting,
+captions, filler removal and clipping, use PandaStudio's own verbs.
+If no HeyGen tools are available, tell the user to connect HeyGen in
+Settings → Integrations; don't improvise another route.
 
 ## Transcript-based editing — PandaStudio's signature feature
 
@@ -2027,7 +2023,7 @@ when the user reports the in-app agent doing something unattended.
 
 ## What this skill is NOT for
 
-- **Cloud video APIs** (HeyGen, Runway, Sora). PandaStudio is local-only.
+- **Cloud video APIs you'd call directly** (Runway, Sora's own API). Editing and export are local; generation goes through the connected services above (Higgsfield, HeyGen).
 - **Direct edits to `.pandastudio` project JSON.** The format is owned by the editor and changes between versions. Use `project.read` / `project.save` and treat the JSON as opaque between reads.
 - **Cloud video APIs** — PandaStudio is local-only; `export.start` renders on the user's machine.
 
