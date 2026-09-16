@@ -68,7 +68,7 @@ When the user runs a recipe from the app, the in-app agent receives the same `ru
 ## Saving and sharing
 
 - **"Save this as a recipe" / "remember this style"** after an edit came out right → `recipe.save --recipe='<json>'`. Turn video-specific values (language, colors, product name, topic) into blanks with sensible defaults; keep the things that define the look fixed in `style`; write 3 to 6 checklist items a frame can confirm. Set `format` to `short` for vertical output and `long` otherwise (it's inferred from `aspectRatio` when omitted).
-- `recipe.export --id=<id>` writes a `.pandarecipe` file (no project data or footage). `recipe.import --file=<path>` adds one.
+- `recipe.export --id=<id>` writes a `.pandarecipe` file (no project data or footage). `recipe.import --file=<path>` adds one. Users can do both from the app: Import sits at the top of the Recipes tab, and Export (plus Delete, for their own) sits in a recipe's detail view.
 - `recipe.delete --id=<id>` removes a saved recipe; starters can't be deleted.
 
 ## Caveats
