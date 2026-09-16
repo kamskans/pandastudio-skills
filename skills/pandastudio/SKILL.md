@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.123.0 -->
+<!-- version: 3.124.0 -->
 
 # PandaStudio
 
@@ -679,6 +679,23 @@ hero/marketing asset. Ask once up front:
    backbone here if they explicitly choose speed — and say so. (This question does
    NOT apply to Mode A — graphics layered over existing footage — where templates
    stay the default and you should not ask.)
+
+**Higgsfield: real generated video and images.** When Higgsfield is connected
+(Settings → Integrations in the app, or `https://mcp.higgsfield.ai/mcp` added to
+an external agent), its MCP tools generate video and images with Sora 2, Veo
+3.1, Kling 3.0, Seedance 2.0, WAN, Hailuo, Soul, Nano Banana Pro and more,
+billed to the user's own Higgsfield plan credits. Use it when a still with a
+Ken Burns move isn't enough: moving B-roll, a faceless story shot per beat, a
+product hero shot. Rules:
+1. Before generating video, say which model, how many clips and how long each
+   is, in one line. Generations cost the user real credits.
+2. Match the project's aspect ratio (9:16 Shorts, 16:9 long-form).
+3. Higgsfield returns links that expire after about a week. ALWAYS run
+   `media.import --url=<link> --name=<beat>` right away and place the returned
+   local `path` (project.add-clip for the main track, project.add-motion-graphic
+   for an overlay). Never put the remote link itself into a project.
+4. If no Higgsfield tools are available, fall back to `media.generate-image` +
+   `media.image-to-video` (Ken Burns) and say so.
 
 **Sound design: effects timed to the action.** Product demos, launch videos and
 UI walkthroughs are carried by sound effects (and a voiceover), not by a song.
