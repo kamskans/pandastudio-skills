@@ -47,6 +47,40 @@ Anti-patterns that make it read as generated: a grid of feature cards; every bea
 centred; one idea per frame with a transition between; text that states benefits the
 product could have shown; a camera that never moves.
 
+## Agent and chat beats
+
+When a beat is "ask the AI and watch it work", use the catalog's **`claude-exchange`**
+block rather than drawing a chat yourself: a full Claude conversation on a phone —
+composer, typing, thinking line, tool rows, then the answer streaming in with real
+scrolling. `motion.catalog-item --name=claude-exchange` lists its editable fields
+(`prompt`, `thinking`, `lead`, `search`, `answer1`…`answer10`).
+
+Its editing contract (shipped as TEMPLATE.md beside it) is binding:
+
+- Change ONLY those declared fields. The Claude name, model name, usage notice,
+  disclaimer, icons, layout, palette, timing and typing cadence stay as they are, and
+  the brand's colours and fonts are never applied to the Claude shell.
+- Keep each replacement within about 20% of the original's length, or the typing and
+  streaming timing stops matching the copy.
+- Write what your product genuinely does. The answer is an ad for the brand, so it must
+  be true: no invented benchmarks, rankings, review quotes or numbers.
+
+Mount it in a device frame inside the world:
+
+```html
+<div class="phone">
+  <div class="screen clip" data-start="8.6" data-duration="12" data-track-index="2"
+       data-composition-id="claude-exchange" data-composition-src="catalog:claude-exchange"
+       data-variable-values='{"prompt":"Can you tighten this recording?", …}'></div>
+</div>
+```
+
+For a long conversation it is often easier to render the block once on its own
+(`motion.render-html` at 1080×1920) and play that clip inside the phone with a
+`<video>`; the clip holds its last frame, so the answer stays on screen while the camera
+moves on. Other chat shapes: `chat-thread`, `notes-typing`, `typed-prompt`,
+`streaming-text`, `agent-progress-theater`.
+
 ## The three rules that decide quality
 
 Read `motion.craft --id=motion-language` once per film. In short:
@@ -89,12 +123,16 @@ reveal). Tag a candidate blueprint per beat from `motion.craft --id=blueprints`.
 Pick each beat's `transitionIn` (see step 6). Show the user the beat list with voiceover before
 building when they are around.
 
-### 4. Voiceover first (it sets the timing)
+### 4. Timing
 
-With narration, generate each beat's line (`media.generate-narration`, one call per beat) and read
-its duration. Each frame's `durationMs` = its narration + about 600 ms of air (the last beat gets
-1.5 to 2 s to hold the lockup). Silent films: 2.5 to 5 s per beat by density. Timing drives step 5:
-write each frame's reveals at the moments its voiceover says the words.
+Default (no voiceover): pace by what is happening on screen — 3 to 5 s for a camera leg that
+reveals one thing, 8 to 12 s for a chat or demo beat that has to play out, 4 to 6 s for the end
+card. Write the section lines (the on-screen type) at the same time, one short line per section,
+and hold each one for 2.5 to 3.5 s.
+
+Only when the user asks for narration: generate each beat's line first
+(`media.generate-narration`, one call per beat), read its duration, and set that frame's
+`durationMs` to the line plus about 600 ms of air, so reveals can land on the words.
 
 ### 5. Build each frame (a camera leg)
 
@@ -178,15 +216,24 @@ Read `warnings`: a frame whose timeline wasn't registered renders static.
 Verify the film: `motion.verify-frames --videoPath=<outputPath> --timestamps=[...]` at each frame's
 middle and through two or three transitions.
 
-### 7. Sound and assembly
+### 7. Sound and assembly (no voiceover by default)
+
+A launch film carries itself on picture, music and sound design — the reference films
+in this space have no narration at all, and neither should these unless the user asks
+for one. The on-screen type does the talking: one short line per section.
 
 Put the film in a project so the user can adjust it: `project.new` with the film's aspect ratio,
-`project.add-clip --media=<film>`, then each narration line with `project.add-audio` at its frame's
-`startMs`. Sound design (bundled `asset.list-sounds`): `noise-riser` into `logo-impact` on the logo
+`project.add-clip --media=<film>`, then the music bed. Match the bed to the film rather than
+grabbing one: the launch films that work sit on a restrained, mid-tempo (around 90-100 BPM) bed
+with little percussion. `media.generate-music` writes one to order ("restrained modern tech
+underscore, 96 bpm, soft pulsing synth, minimal percussion, no vocals"), or pick the closest from
+`asset.list-music`. Never lift the audio from a reference video; match its character instead. Sound design (bundled `asset.list-sounds`): `noise-riser` into `logo-impact` on the logo
 landing, `swoosh-fast` only on zoom-through / whip / wipe transitions (about one per 8 to 10 s),
 `ui-tick` for list items and checks, `mouse-click` for cursor clicks, `keyboard-*` under typed
-prompts. Music, when wanted, sits well under the voice (`asset.list-music` or
-`media.generate-music`) and fades out on the end card. Captions usually off: the type is on screen.
+prompts. With no voiceover the bed sits forward (it is the floor of the mix, not a whisper) and the
+effects sit under it. Aim for about -18 LUFS with true peak at -1 dBFS or lower; check with the
+export and raise the bed, not the effects, if it comes out quiet. Captions stay off: the type is
+already on screen.
 Export with `export.start`, then `export.verify` before handing it over.
 
 ## Craft index
