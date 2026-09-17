@@ -99,6 +99,24 @@ pandastudio project.set-webcam-style --id=$ID --reset=true            # back to 
 # Applies to the camera tile in pip / side-by-side / vertical-stack; podcast
 # participant grids keep their co-equal tile design.
 
+# Camera CARD shapes (v1.89.3+). A picture-in-picture tile is square unless the
+# camera is cropped: then the tile takes the crop's shape (clamped 9:16..16:9),
+# so a tall crop is a portrait card, never a squashed square.
+pandastudio project.set-webcam-layout --id=$ID --preset=picture-in-picture \
+  --cropX=0.3 --cropY=0 --cropWidth=0.4 --cropHeight=1 --cx=0.17 --cy=0.5 --scale=1.8
+#   -> tall camera card on the left third over a full-bleed screen
+# Side-by-side is adjustable too: cx < 0.5 = camera on the LEFT, scale 0.4-1 =
+# card height as a fraction of the screen panel, cy = where that card sits.
+pandastudio project.set-webcam-layout --id=$ID --preset=side-by-side --cx=0.2 --cy=0.5 --scale=0.7
+
+# Move or resize the camera and/or screen for ONE SECTION only (custom
+# clip-transform). Outside the window the project layout applies, with a smooth
+# blend at the edges. Works on screen + camera recordings.
+pandastudio project.add-clip-transform-region --id=$ID --startMs=12000 --endMs=20000 \
+  --preset=custom --webcamCx=0.83 --webcamCy=0.5 --webcamScale=2.2      # camera card jumps right and grows
+pandastudio project.add-clip-transform-region --id=$ID --startMs=30000 --endMs=36000 \
+  --preset=custom --screenScale=0.8 --screenX=0.08                        # shrink the screen for a beat
+
 # PER-SECTION podcast layout: a different layout for each clip (section). Use
 # this to cut to whoever is talking. Split first, then set each section.
 pandastudio project.set-clip-layout --id=$ID --clipId=clip-2 --preset=podcast-host-full
