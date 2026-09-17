@@ -21,7 +21,7 @@ Project files are JSON on disk under the user's recordings dir. All paths are va
 
 | Command | Args | Purpose |
 |---|---|---|
-| `project.list` | `allWorkspaces` (bool, default false) | Projects in the active workspace (or all, with `allWorkspaces=true`), newest-first: `{ id, revision, path, name, clipCount, modifiedAt, createdAt, sizeBytes, workspaceId }`. Top-level response also returns `currentWorkspaceId`. |
+| `project.list` | `allWorkspaces` (bool, default false), `sortBy` (modifiedAt\|createdAt\|name), `order`, `limit`, `query` | Projects in the active workspace (or all, with `allWorkspaces=true`), newest-first: `{ id, revision, path, name, clipCount, modifiedAt, createdAt, sizeBytes, workspaceId }`. Top-level response also returns `currentWorkspaceId`. |
 | `project.locate` | `id` (req) | Look up a project's owning workspace WITHOUT reading the body. Returns `{ id, filePath, workspaceId, workspaceName, isInActiveWorkspace }`. Pre-flight check before any edit/export/publish on a bare project id — prevents publishing to the wrong client's YouTube channel. See SKILL.md "Workspaces" §"When given a project id with no other context". |
 | `project.read` | `id` \| `path` | Full JSON. **Pass back `project.revision` as `expectedRevision` on save.** |
 | `project.show` | `id` \| `path` (or no args) | Resolve to path + summary. With no args, returns recordingsDir + userDataDir. |
@@ -38,6 +38,7 @@ All accept `id` or `path`, plus optional `expectedRevision` for conflict-safe wr
 |---|---|---|
 | `project.add-clip` | `media` (path), `atIndex` (optional, 0 = prepend) | Insert a video clip on the main track. Probes duration. Default: append at end. |
 | `project.remove-clip` | `clipId` | Drop a clip by id. |
+| `project.batch` | `commands` (array of `{command, args}`), `stopOnError` | Run up to 200 project/transcript/caption/timeline/audio commands on one project in one call; per-step `createdIds`/`removedIds`. Not atomic. |
 | `project.set-clip-webcam` | `clipId` \| `clipIndex`, `webcam` (path, `''` removes), `audio` (auto\|camera\|keep) | Attach, replace or remove a clip's camera video (makes it a Screen + camera clip that follows the project camera layout). For camera footage made elsewhere, e.g. a Seedance AI presenter. The camera layer plays muted; `audio=auto` muxes the camera's sound into a copy of a silent main video (then re-transcribe). Warns when lengths differ. Not for podcast clips. |
 | `project.move-clip` | `clipId`, `toIndex` | Reorder a clip on the main track. Project-level regions automatically migrate to follow their original clips, so zooms/trims/etc. stay attached to the same content after the reorder. |
 | `project.split-clip` | `clipId`, `atSourceMs` | Split a clip in two at a position in its source time. |

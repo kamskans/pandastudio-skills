@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.133.0 -->
+<!-- version: 3.134.0 -->
 
 # PandaStudio
 
@@ -888,6 +888,17 @@ Terminal `job.status` is `succeeded | failed | canceled`. Read `result.outputPat
 ## Argument shape
 
 Flags are either **scalars** (`--name=value`) or **JSON** (`--slots='{"title":"x"}'`). Anything starting with `{` or `[` is parsed as JSON. Strings stay strings; `true` / `false` / numbers auto-coerce.
+
+## Keep calls small and few
+
+- **Edit responses are compact.** Every edit returns `{ revision, editedDurationMs, projectOmitted: true, ... }` instead of the whole project. Call `project.read --includeTranscript=false` when you need the body, or pass `includeProject: true` to any command.
+- **Batch edits.** `project.batch --commands='[{"command":"project.add-spotlight","args":{...}}, ...]'` runs up to 200 project/transcript/caption/timeline/audio commands on one project in order and reports `createdIds` / `removedIds` per step (stops at the first failure unless `stopOnError=false`; not atomic). For atomic add-only plans, `project.apply-edit-plan` also takes `add-blur` / `add-spotlight` ops.
+- **Update tools take `patch`.** `project.update-region` accepts the fields at the top level or inside `patch: {...}`.
+- **Find projects fast.** `project.list --sortBy=modifiedAt --limit=1` is the latest project; `query` filters by name; `total` gives the full count.
+- **Convert times in bulk.** `timeline.source-to-edited --sourceMsList='[...]'` and `timeline.edited-to-source --editedMsList='[...]'`; both return `totalEditedMs`.
+- **Check before you export.** `project.render-frame` / `project.render-sheet` now draw the camera at the captured moment (custom sections, any transition length) and include blur/spotlight regions, so blurs can be verified without exporting.
+- **Silence removal never cuts into words** (`transcript.remove-silences --paddingMs=100` sets the margin kept around every word).
+- **Text edits never move cuts.** `transcript.find-replace` splits a match that crosses a deleted part (the replacement goes on the kept words), verifies trims are unchanged and supports `--preview=true`. `transcript.restore-words` removes only the restored words' time from the cuts, so restoring one word of a deleted sentence keeps the rest deleted.
 
 ## Error model
 
