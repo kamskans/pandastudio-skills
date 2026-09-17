@@ -10,6 +10,43 @@ HyperFrames' launch-video craft (Apache-2.0) and its catalog of ~390 motion comp
 craft through `motion.craft`, build each beat as its own frame composition that mounts catalog
 components, and render the whole film in one pass with `motion.render-film`.
 
+## The shot grammar: one world, one camera
+
+The difference between a launch film and a slideshow is not the components, it is
+the shape of the whole piece. Good launch films (HeyGen's Astra film, Linear, Raycast,
+Notion) are **one continuous product world the camera flies across**, not a run of
+centred cards.
+
+Build it that way:
+
+- **One canvas, laid out in space.** Put the beats at real coordinates on a world
+  several times larger than the frame (a 4000×2500 world for a 1920×1080 frame) and
+  animate the camera — a wrapper's `x`/`y`/`scale` — from beat to beat. A frame in
+  `motion.render-film` is a LEG OF THE FLIGHT, not a slide; consecutive frames should
+  continue the same camera path so the cut reads as a move.
+- **The product is the subject.** Reconstruct the real interface at large scale (a
+  transcript panel, a composer, a result list, a file card) or place a real screenshot,
+  and then let it CHANGE: text types, a word strikes through, a reply streams in,
+  cards land, a chip flips to Ready. The demo IS the argument. Never a card that
+  *describes* a feature in words.
+- **An actor drives it.** An oversized cursor (or a touch dot) travels, clicks with a
+  ripple, and the interface answers in the same beat.
+- **Compose past the edges.** Let panels run off frame. A frame where everything sits
+  centred with even margins reads as a slide; a frame cropped by its content reads as a
+  window into a bigger place.
+- **Depth and air.** A soft colour wash (two or three blurred brand-tinted blobs) under a
+  light ground, thin connectors between stations, cards with real shadow. Not flat white.
+- **Blur only while flying.** Add a few px of blur during fast camera legs and take it
+  off as the camera lands; holds are perfectly sharp.
+- **Type is punctuation, not the backbone.** One or two full-bleed lines between
+  sections, and the end card. If the film is mostly typography, it is a slideshow.
+- **The end card earns its glow.** Dark ground, the mark and wordmark together, the URL
+  in a lit pill.
+
+Anti-patterns that make it read as generated: a grid of feature cards; every beat
+centred; one idea per frame with a transition between; text that states benefits the
+product could have shown; a camera that never moves.
+
 ## The three rules that decide quality
 
 Read `motion.craft --id=motion-language` once per film. In short:
@@ -59,7 +96,14 @@ its duration. Each frame's `durationMs` = its narration + about 600 ms of air (t
 1.5 to 2 s to hold the lockup). Silent films: 2.5 to 5 s per beat by density. Timing drives step 5:
 write each frame's reveals at the moments its voiceover says the words.
 
-### 5. Build each frame
+### 5. Build each frame (a camera leg)
+
+Lay the world out first: where each station sits, and the camera path that visits them.
+The blueprints that fit this grammar are `camera-journey`, `cursor-ui-demo`,
+`prompt-type-submit-generate`, `agent-progress-theater`, `device-surface-showcase`,
+`zoom-out-workspace-reveal` and `spatial-pan-stations`. `kinetic-type-beats` and
+`grid-card-assemble` are punctuation only — reaching for them every beat is what
+produces a deck.
 
 Per beat, read `motion.craft --id=visual-design` once, then the beat's blueprint
 (`motion.craft --id=<blueprint>`) and the rules it cites (`motion.craft --id=<rule>`). Write a
