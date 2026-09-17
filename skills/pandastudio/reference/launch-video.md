@@ -225,9 +225,12 @@ for one. The on-screen type does the talking: one short line per section.
 Put the film in a project so the user can adjust it: `project.new` with the film's aspect ratio,
 `project.add-clip --media=<film>`, then the music bed. Match the bed to the film rather than
 grabbing one: the launch films that work sit on a restrained, mid-tempo (around 90-100 BPM) bed
-with little percussion. `media.generate-music` writes one to order ("restrained modern tech
-underscore, 96 bpm, soft pulsing synth, minimal percussion, no vocals"), or pick the closest from
-`asset.list-music`. Never lift the audio from a reference video; match its character instead. Sound design (bundled `asset.list-sounds`): `noise-riser` into `logo-impact` on the logo
+with little percussion. Two bundled beds are built for exactly this film and
+need no generation: `launch-pulse` (confident, carries the cut) and `quiet-launch` (quieter and
+more considered), both ~33s, so repeat them for a longer film. `media.generate-music` writes a
+custom one when neither fits ("restrained modern tech underscore, 96 bpm, soft pulsing synth,
+minimal percussion, no vocals"), and `--model=musicgen --reference=` matches a track the user
+already has. Never lift the audio from a reference video; match its character instead. Sound design (bundled `asset.list-sounds`): `noise-riser` into `logo-impact` on the logo
 landing, `swoosh-fast` only on zoom-through / whip / wipe transitions (about one per 8 to 10 s),
 `ui-tick` for list items and checks, `mouse-click` for cursor clicks, `keyboard-*` under typed
 prompts. With no voiceover the bed sits forward (it is the floor of the mix, not a whisper) and the

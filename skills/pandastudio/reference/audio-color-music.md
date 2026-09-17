@@ -111,7 +111,7 @@ any project without sourcing external files. Every track carries **`intents`**
 pandastudio asset.list-music --json | jq '.data.tracks'
 ```
 
-**Current library (v3):**
+**Current library (v4):**
 
 | id | category | mood | intents | recommendedFor |
 |---|---|---|---|---|
@@ -121,6 +121,8 @@ pandastudio asset.list-music --json | jq '.data.tracks'
 | `chill-lofi` | lofi | calm | vlog, lifestyle, day_in_life, ambient_underscore, background | youtube-long, shorts |
 | `cinematic-build` | cinematic | dramatic | intro, cinematic, reveal, product_reveal, ambient_underscore, motion_graphics | youtube-long, shorts |
 | `bright-playful` | pop | happy | promo, vlog, kinetic_text, social, intro | shorts, youtube-long, linkedin |
+| `launch-pulse` | electronic | confident | product_video, promo, product_launch, motion_graphics, product_reveal, saas_walkthrough, no_voiceover | youtube-long, linkedin, shorts |
+| `quiet-launch` | electronic | calm | product_video, promo, product_launch, motion_graphics, explainer, under_voiceover, no_voiceover | youtube-long, linkedin, loom |
 
 **Intent → track selection (use unless the user specifies a track):**
 
@@ -131,6 +133,7 @@ pandastudio asset.list-music --json | jq '.data.tracks'
 - Tech review / tutorial / explainer / SaaS walkthrough / under-voiceover bed → `corporate-underscore`
 - Vlog / day-in-life / lifestyle / behind-the-scenes → `chill-lofi`
 - Fun / lighthearted promo / social clip → `bright-playful`
+- **Motion-graphics product launch film with NO voiceover** → `launch-pulse` (the bed carries the cut) or `quiet-launch` when the film is quieter and more considered. Both run ~33s, so loop or repeat them for a longer film, and mix so the finished export lands near -18 LUFS with peaks at or under -1 dBFS.
 - Anything else / don't-know / "just add music" → `corporate-underscore` (neutral default)
 - **LinkedIn / Loom:** prefer `corporate-underscore` (neutral, won't distract from message) — only use `driving-promo` or `bright-playful` when the brief is explicitly promo/reveal/fun
 
@@ -195,6 +198,10 @@ pandastudio media.generate-music --model=musicgen \
 - `continuation=true` continues the reference from where it was read instead of
   re-interpreting it — useful to extend a bed you already like.
 - `durationSec` means no looping: ask for the film's length.
+- MusicGen's weights are published under CC-BY-NC-4.0, so treat its output as
+  non-commercial: fine for a draft, an internal cut or a temp bed, not for a track the
+  user sells, ships inside a product or runs as an ad. For anything commercial use
+  Lyria (the default) or the bundled library, and say why when it comes up.
 
 ### Color correction (fix the footage first)
 
