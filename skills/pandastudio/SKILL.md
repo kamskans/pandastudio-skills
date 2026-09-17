@@ -1,9 +1,9 @@
 ---
 name: pandastudio
-description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
+description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.132.0 -->
+<!-- version: 3.133.0 -->
 
 # PandaStudio
 
@@ -18,9 +18,10 @@ description: Edit videos in PandaStudio — a desktop video editor for YouTube, 
 >    --json`). If it succeeds, you're on the CLI path; every example
 >    in this skill is written for it directly.
 >
-> 2. **MCP server** — tools prefixed `mcp__pandastudio__*` (in-app
->    PandaStudio agent) or `mcp__writepanda__*` (external hosts like
->    Cursor, Claude Desktop). **Use only when the CLI is not
+> 2. **MCP server** — tools prefixed `mcp__pandastudio__*` (the in-app
+>    agent and external hosts like Cursor or Claude Desktop; setups made
+>    before PandaStudio 1.89.4 may show `mcp__writepanda__*`, the same
+>    tools under the old name). **Use only when the CLI is not
 >    installed** — i.e. `command -v pandastudio` returned empty AND
 >    one of the MCP prefixes is visible in your tools.
 >
