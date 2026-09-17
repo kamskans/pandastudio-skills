@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.136.0 -->
+<!-- version: 3.137.0 -->
 
 # PandaStudio
 
@@ -753,7 +753,9 @@ by default** for English, no key; cloud Replicate TTS via `--model` for more
 voices/languages; `--model=elevenlabs-direct` uses the user's OWN ElevenLabs
 account (their CLONED voices — pass the voice name or voice_id; needs
 ElevenLabs connected in Settings → Integrations); see reference/media-generation.md;
-`media.generate-music` / bundled `asset.list-music`; sound effects via bundled
+`media.generate-music`, whose `--model=musicgen --reference=<audio or video>`
+matches the feel of a track the user already has instead of describing it in
+words; bundled `asset.list-music`; sound effects via bundled
 `asset.list-sounds` or `media.generate-sound-effect`). For a Mode-B piece (promo,
 explainer, intro/outro, teaser), if the brief doesn't already specify, **ASK up
 front** whether to add them:

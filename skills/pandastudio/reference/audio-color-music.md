@@ -148,7 +148,7 @@ Among tracks that match an intent, rotate between variants (`-a` and `-b`) or
 pick by `durationMs` closest to what the project needs. Never pick by filename
 — always query `asset.list-music` so new tracks get picked up automatically.
 
-### Custom music — generate an original track (Lyria-2)
+### Custom music — generate an original track (Lyria-2 or MusicGen)
 
 When the bundled library doesn't cover what the user wants (a specific genre,
 mood, or instrument combination), generate an original instrumental track with
@@ -173,6 +173,28 @@ pandastudio project.add-audio --id=$ID \
 
 Canonical custom-music loop: `media.generate-music` → `project.add-audio`. Pass a
 `seed` for reproducible results.
+
+**Matching a track you already have (MusicGen).** `model=musicgen` takes an exact
+length and, with `reference`, follows the melody, tempo and feel of a track you
+point it at — the way to match a brand track, the bed from an earlier cut, or temp
+music the user supplied, instead of describing it in words:
+
+```bash
+pandastudio media.generate-music --model=musicgen \
+  --prompt="restrained modern tech underscore, soft pulsing synth, minimal percussion, no vocals" \
+  --reference="/path/to/their-brand-track.mp3" --referenceStartMs=12000 \
+  --referenceDurationMs=15000 --durationSec=45 --json
+```
+
+- `reference` can be audio OR a video; the audio is trimmed
+  (`referenceStartMs` / `referenceDurationMs`, default 15s, max 30s) and sent with the
+  request. Point it only at audio the user has the rights to — their own track, a
+  bundled one, or something they licensed. To chase the feel of a video you admire,
+  describe its character in `prompt` instead (tempo, instruments, how busy it is)
+  rather than feeding in its soundtrack.
+- `continuation=true` continues the reference from where it was read instead of
+  re-interpreting it — useful to extend a bed you already like.
+- `durationSec` means no looping: ask for the film's length.
 
 ### Color correction (fix the footage first)
 
