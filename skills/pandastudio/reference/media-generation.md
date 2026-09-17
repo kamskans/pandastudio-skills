@@ -145,8 +145,22 @@ render with `motion.render-html --durationMs=…`.
 Seedance 2.5 (Replicate `bytedance/seedance-2.5`) generates a realistic talking
 presenter WITH her own voice and lip sync in one pass. No separate TTS track is
 needed. Reach for it when a recipe or edit needs a camera layer and there is no
-real footage (examples, demos, faceless-with-a-face explainers). Runs through the
-Replicate connector's `create_models_predictions` / `get_predictions` tools.
+real footage (examples, demos, faceless-with-a-face explainers).
+
+One verb runs it: `media.generate-presenter`. It writes the take to
+<userData>/generated-avatars/ and returns { videoPath, durationMs, width, height }.
+
+```bash
+pandastudio media.generate-presenter --durationSec=18 --aspectRatio=9:16 \
+  --prompt='A woman in her early thirties, cream knit sweater, sitting at a desk by a
+window in a bright home office, speaking straight to camera: "Most people think good
+lighting needs expensive gear. It does not. Turn your desk to face a window and switch
+off the ceiling light." Voice: warm, mid-pitch, unhurried, close microphone, quiet room.
+No music, no sound effects. Single continuous locked-off medium close-up, tripod, no
+camera movement, no cuts, same framing and lighting throughout.' --json
+```
+
+Do not add `media.generate-narration` on top: the voice is already in the file.
 
 Rules that make it work:
 
@@ -161,17 +175,15 @@ Rules that make it work:
   sound effects".
 - **Lock the camera**: "single continuous locked-off medium close-up, tripod,
   no camera movement, no cuts, same framing and lighting".
-- Inputs: `duration` 4-30, `resolution` 480p or 720p, `aspect_ratio` 16:9.
+- Inputs: `durationSec` 4-30, `resolution` 480p or 720p, `aspectRatio` 16:9 or 9:16,
+  `seed`. A script runs at about 2.4 words a second, so size the take to the words.
 
 ```bash
-# 1. Generate (Replicate connector tool), poll get_predictions until succeeded.
-#    input: { prompt, duration: 30, resolution: "720p", aspect_ratio: "16:9",
-#             generate_audio: true, seed: 7 }
-# 2. Download the output URL into PandaStudio (links expire)
-pandastudio media.import --url="$OUTPUT_URL" --name=presenter --json   # -> data.path
-# 3. Check the words: new project from it, transcribe, compare with the script
-# 4a. Camera-only video: project.new --withMedia=<path>, then edit as usual
-# 4b. Presenter over a screen track: put the screen video on the main track and
+# 1. Generate the take (the verb downloads it for you; no media.import step)
+PRESENTER=$(pandastudio media.generate-presenter --durationSec=30 --json | jq -r '.data.videoPath')
+# 2. Check the words: new project from it, transcribe, compare with the script
+# 3a. Camera-only video: project.new --withMedia=<path>, then edit as usual
+# 3b. Presenter over a screen track: put the screen video on the main track and
 #     attach the presenter as its camera (make the screen track the same length).
 #     A silent screen track takes the presenter's voice automatically
 #     (audio=auto); then transcribe so transcript edits cut both.
