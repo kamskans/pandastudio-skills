@@ -99,6 +99,13 @@ pandastudio project.set-webcam-style --id=$ID --reset=true            # back to 
 # Applies to the camera tile in pip / side-by-side / vertical-stack; podcast
 # participant grids keep their co-equal tile design.
 
+# Attach a CAMERA VIDEO recorded or generated elsewhere (v1.89.3+) to a clip, so
+# it plays as the camera layer of a Screen + camera clip. Same length as the clip
+# is ideal (the result warns when they differ). webcam='' removes it.
+pandastudio project.set-clip-webcam --id=$ID --clipIndex=0 --webcam="/abs/path/presenter.mp4"
+# Then style it with set-webcam-layout / set-webcam-style below. In the editor:
+# Video tab -> Camera video -> Add camera video.
+
 # Camera CARD shapes (v1.89.3+). A picture-in-picture tile is square unless the
 # camera is cropped: then the tile takes the crop's shape (clamped 9:16..16:9),
 # so a tall crop is a portrait card, never a squashed square.

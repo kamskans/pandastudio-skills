@@ -138,3 +138,46 @@ render with `motion.render-html --durationMs=…`.
 - **Logos / brand marks / typography** — image-gen wrecks fine type. Author those as HTML in `motion.render-html`.
 - **Anything with text overlays** — gpt-image-2's text rendering is unreliable. Generate a clean photo, add text via the motion-graphic wrap.
 
+
+
+## AI presenter with Seedance (camera footage without a shoot)
+
+Seedance 2.5 (Replicate `bytedance/seedance-2.5`) generates a realistic talking
+presenter WITH her own voice and lip sync in one pass. No separate TTS track is
+needed. Reach for it when a recipe or edit needs a camera layer and there is no
+real footage (examples, demos, faceless-with-a-face explainers). Runs through the
+Replicate connector's `create_models_predictions` / `get_predictions` tools.
+
+Rules that make it work:
+
+- **One take, at most 30 seconds.** Each generation invents its own voice, so
+  keep the script under ~70 words and make it ONE take. Two takes can sound
+  like two different people.
+- **Describe the person in words.** Uploading a photo of a realistic face as
+  `image` or `reference_images` is rejected as sensitive (E005). Describe age,
+  look, clothing and setting in the prompt instead.
+- **Dialogue in double quotes**, with `generate_audio: true`. Add a voice line
+  (age, accent, tone, pace, "close microphone, quiet room") and "no music, no
+  sound effects".
+- **Lock the camera**: "single continuous locked-off medium close-up, tripod,
+  no camera movement, no cuts, same framing and lighting".
+- Inputs: `duration` 4-30, `resolution` 480p or 720p, `aspect_ratio` 16:9.
+
+```bash
+# 1. Generate (Replicate connector tool), poll get_predictions until succeeded.
+#    input: { prompt, duration: 30, resolution: "720p", aspect_ratio: "16:9",
+#             generate_audio: true, seed: 7 }
+# 2. Download the output URL into PandaStudio (links expire)
+pandastudio media.import --url="$OUTPUT_URL" --name=presenter --json   # -> data.path
+# 3. Check the words: new project from it, transcribe, compare with the script
+# 4a. Camera-only video: project.new --withMedia=<path>, then edit as usual
+# 4b. Presenter over a screen track: put the screen video on the main track and
+#     attach the presenter as its camera (make the screen track the same length,
+#     with the presenter's audio muxed in, so transcript edits cut both)
+pandastudio project.set-clip-webcam --id=$ID --clipIndex=0 --webcam="$PRESENTER" --json
+pandastudio project.set-webcam-layout --id=$ID --preset=picture-in-picture \
+  --cropX=0.3 --cropY=0 --cropWidth=0.4 --cropHeight=1 --cx=0.17 --cy=0.5 --scale=2.9
+```
+
+Tell the user the presenter is AI-generated and that platforms may require a
+disclosure label.

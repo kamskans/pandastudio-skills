@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the writepanda MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.131.0 -->
+<!-- version: 3.132.0 -->
 
 # PandaStudio
 
@@ -1388,7 +1388,7 @@ When no template fits, author HTML against the HyperFrames contract. Render verb
 **Golden rule: restraint.** Scene transitions (`project.add-transition`) and FX overlays (`project.add-fx`). Full detail: [`reference/fx-transitions.md`](reference/fx-transitions.md).
 ## Narration (voiceover) + B-roll generation
 
-Replicate TTS narration and gpt-image B-roll (always Ken-Burns + vignette a still, never drop a flat photo). Requires Replicate connected (Settings → Integrations → Connectors). Full detail: [`reference/media-generation.md`](reference/media-generation.md).
+Replicate TTS narration and gpt-image B-roll (always Ken-Burns + vignette a still, never drop a flat photo). Also: a realistic AI presenter with its own voice via Seedance 2.5 (one take, max 30s, describe the person in words), attached as a clip's camera with `project.set-clip-webcam`. Requires Replicate connected (Settings → Integrations → Connectors). Full detail: [`reference/media-generation.md`](reference/media-generation.md).
 
 ## Faceless videos — image-driven, voiceover-led
 
