@@ -102,6 +102,9 @@ pandastudio project.set-webcam-style --id=$ID --reset=true            # back to 
 # Attach a CAMERA VIDEO recorded or generated elsewhere (v1.89.3+) to a clip, so
 # it plays as the camera layer of a Screen + camera clip. Same length as the clip
 # is ideal (the result warns when they differ). webcam='' removes it.
+# The camera layer plays MUTED. --audio=auto (default) muxes the camera's sound
+# into a copy of the main video when that video is silent (camera = always,
+# keep = never); re-run transcript.transcribe when usedCameraAudio is true.
 pandastudio project.set-clip-webcam --id=$ID --clipIndex=0 --webcam="/abs/path/presenter.mp4"
 # Then style it with set-webcam-layout / set-webcam-style below. In the editor:
 # Video tab -> Camera video -> Add camera video.

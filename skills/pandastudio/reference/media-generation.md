@@ -172,9 +172,11 @@ pandastudio media.import --url="$OUTPUT_URL" --name=presenter --json   # -> data
 # 3. Check the words: new project from it, transcribe, compare with the script
 # 4a. Camera-only video: project.new --withMedia=<path>, then edit as usual
 # 4b. Presenter over a screen track: put the screen video on the main track and
-#     attach the presenter as its camera (make the screen track the same length,
-#     with the presenter's audio muxed in, so transcript edits cut both)
+#     attach the presenter as its camera (make the screen track the same length).
+#     A silent screen track takes the presenter's voice automatically
+#     (audio=auto); then transcribe so transcript edits cut both.
 pandastudio project.set-clip-webcam --id=$ID --clipIndex=0 --webcam="$PRESENTER" --json
+pandastudio transcript.transcribe --id=$ID --json   # then job.wait
 pandastudio project.set-webcam-layout --id=$ID --preset=picture-in-picture \
   --cropX=0.3 --cropY=0 --cropWidth=0.4 --cropHeight=1 --cx=0.17 --cy=0.5 --scale=2.9
 ```
