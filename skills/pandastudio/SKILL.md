@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.134.0 -->
+<!-- version: 3.135.0 -->
 
 # PandaStudio
 
@@ -897,6 +897,8 @@ Flags are either **scalars** (`--name=value`) or **JSON** (`--slots='{"title":"x
 - **Find projects fast.** `project.list --sortBy=modifiedAt --limit=1` is the latest project; `query` filters by name; `total` gives the full count.
 - **Convert times in bulk.** `timeline.source-to-edited --sourceMsList='[...]'` and `timeline.edited-to-source --editedMsList='[...]'`; both return `totalEditedMs`.
 - **Check before you export.** `project.render-frame` / `project.render-sheet` now draw the camera at the captured moment (custom sections, any transition length) and include blur/spotlight regions, so blurs can be verified without exporting.
+- **Check after you export.** `export.verify --exportId=<id>` (async, job.wait) compares the finished MP4 with the editor preview: picture length vs the edit, sound present and in step with the picture, and editor-vs-export frame pairs at even moments plus inside every layout section. Read `summary` and look at `sheetPath` (editor left, export right, red outline = difference) before telling the user the export is good. Same as "Check against editor" on the export page.
+- **Screen + camera looks (v1.89.4+).** `project.center-camera-on-face` (async) keeps the presenter's face centred in the camera card. `project.set-clip-color` / `set-clip-lut --target=camera` grade the camera separately from the screen. `add-clip-transform-region --preset=layout-guest-full --cameraFit=fill|centered --backgroundColor=#hex` gives a reliable full-frame camera beat. Detail: [`reference/visual-edits.md`](reference/visual-edits.md), [`reference/audio-color-music.md`](reference/audio-color-music.md).
 - **Silence removal never cuts into words** (`transcript.remove-silences --paddingMs=100` sets the margin kept around every word).
 - **Text edits never move cuts.** `transcript.find-replace` splits a match that crosses a deleted part (the replacement goes on the kept words), verifies trims are unchanged and supports `--preview=true`. `transcript.restore-words` removes only the restored words' time from the cuts, so restoring one word of a deleted sentence keeps the rest deleted.
 
@@ -1888,9 +1890,10 @@ if [ "$PROFILE" != "loom" ]; then
   # enabled, so these carve out exceptions — use when subtitles would cover
   # something on screen (a UI demo, on-screen text, a lower third).
   # Times are EDITED-timeline ms. Overlapping regions are fine.
-  # pandastudio project.add-caption-region --id=$ID --atMs=12000 --durationMs=5000
-  # Remove one (ids come from project.read → editor.captionRegions[].id):
-  # pandastudio project.remove-caption-region --id=$ID --regionId=caption-hide-1
+  # Also callable as project.hide-captions; startMs/endMs work too. Returns regionId.
+  # pandastudio project.hide-captions --id=$ID --startMs=12000 --endMs=17000
+  # Show them again (alias project.show-captions; ids also in editor.captionRegions[].id):
+  # pandastudio project.show-captions --id=$ID --regionId=caption-hide-1
 fi
 
 # MUTE part of the video's audio. Silences the MAIN voice/screen track over a

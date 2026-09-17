@@ -65,8 +65,17 @@ pandastudio recipe.render --id=product-demo-walkthrough \
 #    layout, backdrop, grade). Deterministic — do this BEFORE the content work.
 pandastudio recipe.apply-style --id=product-demo-walkthrough \
   --values='{"product":"PandaStudio"}' --json
-# → { applied: ["Aspect ratio 16:9", "Captions off"], failed: [], notes: [] }
+# → { applied: ["Aspect ratio 16:9", "Captions off"], failed: [], notes: [], warnings: [] }
 ```
+
+A recipe's `style` can carry the whole screen + camera layout, and apply-style
+sets all of it: `screen` (`padding`, `borderRadius`, `shadow`, `fill`: `fit` |
+`cover`) and `camera` (`layout`, `crop`, `cx`/`cy`/`scale`, `shape`,
+`cornerRadius`, `borderWidth`/`borderColor`, `shadow`, `faceCentred`). Camera
+steps are skipped when the project has no camera video. `warnings` flags
+recordings whose shape doesn't match the canvas (e.g. a 16:10 Mac recording in a
+16:9 project); with `fill: "cover"` the screen is scaled to fill the frame
+instead of leaving a strip of wallpaper. Pass each warning on to the user.
 
 Example, faceless Short from the user's own script:
 

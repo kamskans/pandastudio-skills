@@ -196,6 +196,18 @@ pandastudio project.set-clip-lut --id=$ID --clipId="$CLIP_ID" --lutPreset=warmSu
 pandastudio project.set-clip-color --id=$ID --clipId="$CLIP_ID" --reset=true --json
 ```
 
+**Camera and screen are graded separately (v1.89.4+).** `set-clip-color` and
+`set-clip-lut` take `--target=screen` (default) or `--target=camera`. A camera
+grade only touches the camera layer (card, side panel, full-frame beats), so a
+warm or black-and-white presenter never tints the screen recording:
+
+```bash
+pandastudio project.set-clip-color --id=$ID --clipId="$CLIP_ID" --target=camera --preset=flat-footage --json
+pandastudio project.set-clip-lut --id=$ID --clipId="$CLIP_ID" --target=camera --lutPreset=warmSunset --lutIntensity=0.5 --json
+```
+
+In the editor the grade panel has a Screen / Camera switch.
+
 Order is fixed: correction, then LUT, in both preview and export. When footage
 looks grey or flat in a frame check, reach for `--preset=flat-footage` before
 picking a LUT.

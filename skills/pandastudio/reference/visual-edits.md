@@ -131,6 +131,25 @@ pandastudio project.add-clip-transform-region --id=$ID --startMs=30000 --endMs=3
 pandastudio project.add-clip-transform-region --id=$ID --startMs=40000 --endMs=48000 \
   --preset=layout-guest-full --webcamCropX=0 --webcamCropY=0 --webcamCropWidth=1 --webcamCropHeight=1
 
+# FULL-FRAME CAMERA beats on a screen + camera clip (v1.89.4+). layout-guest-full
+# takes cameraFit: fill (default) = the camera fills the frame with no card
+# border, shadow or rounding; centered = a large centred camera over a flat
+# colour with the screen hidden. Change an existing section with update-region.
+pandastudio project.add-clip-transform-region --id=$ID --startMs=52000 --endMs=58000 \
+  --preset=layout-guest-full --cameraFit=centered --backgroundColor="#F4F0E8"
+pandastudio project.update-region --id=$ID --regionType=clip-transform --regionId=ctr-2 --cameraFit=fill
+# In the editor: select the section, Camera full -> Fill the frame / Centred on a colour.
+
+# KEEP THE FACE CENTRED in the camera card (v1.89.4+). Detects the presenter's
+# face through the camera video and stores a smoothed track that preview,
+# render-frame and export all follow, so a tight card crop never shows an empty
+# wall when they lean. ASYNC: returns { jobId }; job.wait. About 4s per 30s of
+# camera. Re-run after replacing the camera video. clear=true turns it off.
+JOB=$(pandastudio project.center-camera-on-face --id=$ID --json | jq -r .data.jobId)
+pandastudio job.wait --id=$JOB --json
+pandastudio project.center-camera-on-face --id=$ID --clear=true
+# In the editor: Video tab -> Layout -> Keep face centred.
+
 # PER-SECTION podcast layout: a different layout for each clip (section). Use
 # this to cut to whoever is talking. Split first, then set each section.
 pandastudio project.set-clip-layout --id=$ID --clipId=clip-2 --preset=podcast-host-full
