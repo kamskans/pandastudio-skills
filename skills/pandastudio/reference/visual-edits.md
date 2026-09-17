@@ -116,6 +116,10 @@ pandastudio project.add-clip-transform-region --id=$ID --startMs=12000 --endMs=2
   --preset=custom --webcamCx=0.83 --webcamCy=0.5 --webcamScale=2.2      # camera card jumps right and grows
 pandastudio project.add-clip-transform-region --id=$ID --startMs=30000 --endMs=36000 \
   --preset=custom --screenScale=0.8 --screenX=0.08                        # shrink the screen for a beat
+# Any section can also crop the camera differently. With a portrait card crop on
+# the project, a full-frame talking beat needs the whole camera frame back:
+pandastudio project.add-clip-transform-region --id=$ID --startMs=40000 --endMs=48000 \
+  --preset=layout-guest-full --webcamCropX=0 --webcamCropY=0 --webcamCropWidth=1 --webcamCropHeight=1
 
 # PER-SECTION podcast layout: a different layout for each clip (section). Use
 # this to cut to whoever is talking. Split first, then set each section.

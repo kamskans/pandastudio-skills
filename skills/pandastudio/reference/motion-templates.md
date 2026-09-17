@@ -73,6 +73,12 @@ template's own palette.) All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay
 - `sh-annotated-card` `O` (7s) — a screenshot pops in as a tilted white card, then 1 to 4 handwritten labels write in around it with marker arrows (last word of each label in the accent). For explaining a flow or a page. Slots: image, items[{label}], inkColor, accentColor. Grab the screenshot first (e.g. `motion.screenshot` of a page or a real product image).
 - `sh-icon-badge-band` `O` (5s) — quick cutaway: the top band dims to scrolling faint words and a round badge pops in with a built-in line icon (laptop, mail, chat, money, book, idea, clock, check, chart, phone) or your image. Use every few seconds on lists and stories. Slots: image, icon, texture, badgeColor, iconColor, bandColor.
 
+**Calm explainer beats** (16:9, cream page, serif display; the "Floating camera explainer" look. Full-frame ones hide the camera: place them as normal motion graphics over the footage.)
+- `calm-statement` (4.5s) — one big serif line that builds word by word over a slow ribbon wave; the phrase in `*asterisks*` takes the accent. Use on the sentence a section hinges on. Slots: **text**, bgColor, waveColor, inkColor, accentColor.
+- `calm-tier-stack` (6s) — a 2 to 5 tier pyramid that builds bottom up, each tier a lighter shade of the accent, top tier optionally faded as the goal. For ladders, levels, price tiers. Slots: title, tiers[{label}] (bottom first), fadeTop (on/off), bgColor, accentColor, inkColor.
+- `calm-proof-card` (5.5s) — a real screenshot floats in as a large rounded white card, then a soft highlighter sweeps one area. Slots: image, caption, highlight ("x,y,w,h" % of the card), bgColor, markColor, inkColor.
+- `calm-twin-cards` `O` (5s) — two rounded pastel cards on either side of a full-frame talking head (left, then right), for a two-sided question. Slots: left, right, leftColor, leftInk, rightColor, rightInk.
+
 **Lower thirds** (all `O`, 5s, transparent overlays — add in ONE call with `project.add-lower-third --name --title --atMs [--templateId]`; slots: **name**, title + per-template colors. Also in the editor's Lower 3rds tab.)
 - `yt-lower-third` `O` (4.5s) — subscribe lower-third: avatar + name + title + red Subscribe pill, slides in bottom-left. Slots: **name**, title, accentColor, cardColor, inkColor.
 - `lt-vox-marker` — the name lands on a highlighter swipe; mono role on an accent rule. The Vox look.
