@@ -70,6 +70,9 @@ Before hand-building any named look, search the catalog: `motion.catalog --query
 hit with `motion.catalog-item --name=<name>`: its `htmlPath` is the recipe (markup, CSS hooks, GSAP
 timeline) and `demoPath` shows it mounted. Two ways to use an item:
 
+The same catalog is in the app under the Graphics tab → Catalog, where the user
+can search it, preview a piece, change its values and add it to the timeline.
+
 - **Mount it** inside the frame when it is a whole shot (a pull-back reveal, a logo sting, a device
   stage): `<div data-composition-id="pull-back-reveal" data-composition-src="catalog:pull-back-reveal"
   data-start="0" data-duration="4.5" data-track-index="2" data-variable-values='{"headline":"..."}'></div>`.
