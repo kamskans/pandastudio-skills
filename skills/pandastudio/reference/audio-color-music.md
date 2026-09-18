@@ -12,6 +12,40 @@ pandastudio job.wait --id=$JOB --timeoutMs=600000 --json
 # → each processed clip gets a sibling .cleaned.wav file; export auto-uses it
 ```
 
+### Room echo / reverb (`--echo`)
+
+DeepFilter removes steady noise (fans, hum, hiss) but NOT room reverb: in a
+bare or hard-walled room every phrase still trails off. `--echo=true` adds a
+second stage on the cleaned track that shortens that tail (statistical
+late-reverb suppression with the room's reverb time measured from the
+recording itself). Soft speech is not gated, and the speech level is kept the
+same, so switching it on and off is a clean A/B.
+
+```bash
+# Clean + reduce echo in one job
+JOB=$(pandastudio audio.clean --id=$ID --echo=true --json | jq -r '.data.jobId')
+pandastudio job.wait --id=$JOB --timeoutMs=600000 --json
+# → data.result.results[i]: { clipId, cleanedPath, denoisedPath, echoReducedPath,
+#     rt60Ms, decayBeforeMs, decayAfterMs }
+
+# Already cleaned? Only the fast echo stage runs (well under a second per minute of audio)
+pandastudio audio.clean --id=$ID --clipId=clip-1 --echo=true --json
+# Back to noise removal only (instant, the DeepFilter WAV is kept)
+pandastudio audio.clean --id=$ID --clipId=clip-1 --echo=false --json
+```
+
+- Opt-in. Turn it on when the user mentions echo, reverb, a boomy/hollow/
+  "bathroom" sound, or asks for a studio sound. Don't add it to every clean.
+- Files: `x.cleaned.wav` (DeepFilter only, kept) and `x.cleaned.dereverb.wav`
+  (+ echo reduction). `clip.cleanedAudioPath` points at whichever is active;
+  `clip.cleanedAudioDenoisedPath` holds the DeepFilter one while echo is on.
+- Verify from the job result: `decayAfterMs` well below `decayBeforeMs`
+  (typically ~50% shorter). `rt60Ms` above ~600 means a very live room: tell
+  the user it helps but can't fully fix it, and suggest soft furnishings or a
+  closer mic for the next take.
+- `project.read` → `clipStates[i].echoReduced` / `roomRt60Ms` show the state.
+- In the app: Audio panel → Clean Audio → **Reduce echo** switch.
+
 ### Per-clip volume (balance loudness across clips)
 
 Each main-track clip carries a linear audio **gain**: `1` = original level (the

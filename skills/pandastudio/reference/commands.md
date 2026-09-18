@@ -140,7 +140,7 @@ The editorial primitive that makes PandaStudio PandaStudio. Every operation that
 
 | Command | Args | Purpose |
 |---|---|---|
-| `audio.clean` | `id` \| `path`, `clipId` (optional) | **Async.** Run DeepFilter denoising on each clip; writes a sibling `.cleaned.wav` and points `clip.cleanedAudioPath` at it. |
+| `audio.clean` | `id` \| `path`, `clipId` (optional), `echo` (optional bool) | **Async.** Run DeepFilter denoising on each clip; writes a sibling `.cleaned.wav` and points `clip.cleanedAudioPath` at it. `--echo=true` also reduces room reverb (writes `.cleaned.dereverb.wav`, keeps the DeepFilter WAV); `--echo=false` switches back. Job result reports `rt60Ms`, `decayBeforeMs`, `decayAfterMs` per clip. |
 | `audio.probe` | `id` \| `path`, `clipId?`, `noiseDb?` (-30), `minSilenceSec?` (0.5) | EARS without export: per-clip hasAudio, mean/max dB, silence spans (clip-source time), + the project's music-bed overlays. Synchronous. |
 
 ## caption.* (v1.9.1)
