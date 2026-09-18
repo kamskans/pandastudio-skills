@@ -147,8 +147,10 @@ presenter WITH her own voice and lip sync in one pass. No separate TTS track is
 needed. Reach for it when a recipe or edit needs a camera layer and there is no
 real footage (examples, demos, faceless-with-a-face explainers).
 
-One verb runs it: `media.generate-presenter`. It writes the take to
-<userData>/generated-avatars/ and returns { videoPath, durationMs, width, height }.
+One verb runs it: `media.generate-presenter`. It is ASYNC: it returns `{ jobId }` at
+once, and `job.wait` (give it `--timeoutMs=900000`; a take takes 5 to 10 minutes)
+returns `{ videoPath, durationMs, width, height }`, the take in
+<userData>/generated-avatars/.
 
 ```bash
 pandastudio media.generate-presenter --durationSec=18 --aspectRatio=9:16 \
@@ -180,7 +182,8 @@ Rules that make it work:
 
 ```bash
 # 1. Generate the take (the verb downloads it for you; no media.import step)
-PRESENTER=$(pandastudio media.generate-presenter --durationSec=30 --json | jq -r '.data.videoPath')
+JOB=$(pandastudio media.generate-presenter --durationSec=30 --prompt='...' --json | jq -r '.data.jobId')
+PRESENTER=$(pandastudio job.wait --id="$JOB" --timeoutMs=900000 --json | jq -r '.data.job.result.videoPath')
 # 2. Check the words: new project from it, transcribe, compare with the script
 # 3a. Camera-only video: project.new --withMedia=<path>, then edit as usual
 # 3b. Presenter over a screen track: put the screen video on the main track and
