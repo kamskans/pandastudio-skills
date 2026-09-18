@@ -158,7 +158,11 @@ can search it, preview a piece, change its values and add it to the timeline.
 - **Mount it** inside the frame when it is a whole shot (a pull-back reveal, a logo sting, a device
   stage): `<div data-composition-id="pull-back-reveal" data-composition-src="catalog:pull-back-reveal"
   data-start="0" data-duration="4.5" data-track-index="2" data-variable-values='{"headline":"..."}'></div>`.
-  Only its declared variables are editable this way.
+  Only its declared variables are editable this way. Keep `data-composition-id` equal to the item
+  name. About a third of the components are paste-in primitives (blur-in, animated-bar-chart,
+  streaming-text…) that ship their animation as a "Timeline integration" snippet instead of a timeline
+  of their own; a mount runs that snippet for you from the mount's start, so they move like the rest.
+  When you need a different start or pacing, adapt the snippet into your frame's own timeline instead.
 - **Adapt its recipe** into your own markup when you need your copy, colours and layout (most
   components are demo-sized cards; the value is the timeline and the technique). Keep the motion,
   restyle with the design system.
