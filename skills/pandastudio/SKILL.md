@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.147.0 -->
+<!-- version: 3.148.0 -->
 
 # PandaStudio
 
@@ -907,7 +907,7 @@ Flags are either **scalars** (`--name=value`) or **JSON** (`--slots='{"title":"x
 - **Batch edits.** `project.batch --commands='[{"command":"project.add-spotlight","args":{...}}, ...]'` runs up to 200 project/transcript/caption/timeline/audio commands on one project in order and reports `createdIds` / `removedIds` per step (stops at the first failure unless `stopOnError=false`; not atomic). For atomic add-only plans, `project.apply-edit-plan` also takes `add-blur` / `add-spotlight` ops.
 - **Update tools take `patch`.** `project.update-region` accepts the fields at the top level or inside `patch: {...}`.
 - **Find projects fast.** `project.list --sortBy=modifiedAt --limit=1` is the latest project; `query` filters by name; `total` gives the full count.
-- **Convert times in bulk.** `timeline.source-to-edited --sourceMsList='[...]'` and `timeline.edited-to-source --editedMsList='[...]'`; both return `totalEditedMs`.
+- **Convert times in bulk.** `timeline.source-to-edited --sourceMsList='[...]'` and `timeline.edited-to-source --editedMsList='[...]'`; both return `totalEditedMs`; edited-to-source results also carry `clipId` + `clipSourceMs` (the `split-clip` argument).
 - **Check before you export.** `project.render-frame` / `project.render-sheet` now draw the camera at the captured moment (custom sections, any transition length) and include blur/spotlight regions, so blurs can be verified without exporting.
 - **Check after you export.** `export.verify --exportId=<id>` (async, job.wait) compares the finished MP4 with the editor preview: picture length vs the edit, sound present and in step with the picture, and editor-vs-export frame pairs at even moments plus inside every layout section. Read `summary` and look at `sheetPath` (editor left, export right, red outline = difference) before telling the user the export is good. Same as "Check against editor" on the export page.
 - **Screen + camera looks (v1.89.4+).** `project.center-camera-on-face` (async) keeps the presenter's face centred in the camera card. `project.set-clip-color` / `set-clip-lut --target=camera` grade the camera separately from the screen. `add-clip-transform-region --preset=layout-guest-full --cameraFit=fill|centered --backgroundColor=#hex` gives a reliable full-frame camera beat. Detail: [`reference/visual-edits.md`](reference/visual-edits.md), [`reference/audio-color-music.md`](reference/audio-color-music.md).
@@ -990,7 +990,17 @@ you: which verb, in what order, and the non-obvious gotchas.
 ### Adding things — the gotchas (call discovery for the arg schemas)
 
 - **Clips:** `add-clip` (`--atIndex=0` prepends), `move-clip`, `split-clip`,
-  `remove-clip`. **`project.delete` is permanent — no trash.** By default it only
+  `remove-clip`. All four carry every region (trims, speeds, zooms, overlays,
+  captions, anchors) with the clip it sits on; nothing is dropped by a move.
+  **Insert mid-recording = split, then add:** `timeline.edited-to-source
+  --editedMs=<playhead>` returns `clipId` + `clipSourceMs`; `project.split-clip
+  --clipId=<clipId> --atSourceMs=<clipSourceMs>` returns `rightClipIndex`;
+  `project.add-clip --media=<file> --atIndex=<rightClipIndex>`. `split-clip`
+  never changes the output: the left half ends at the split point, the right
+  half covers the clip's full media with a head trim over the part the left
+  half plays (clips play media from 0; in-points are head trims). Don't delete
+  that head trim unless you want the right half to replay the start of the
+  recording. **`project.delete` is permanent — no trash.** By default it only
   removes the project file and KEEPS the original source recording. Pass
   `--deleteRecording=true` to ALSO delete the original recording file(s) from disk
   (irreversible — only do this when the user explicitly asks to delete the source
