@@ -79,6 +79,18 @@ template's own palette.) All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay
 - `calm-proof-card` (5.5s) — a real screenshot floats in as a large rounded white card, then a soft highlighter sweeps one area. Slots: image, caption, highlight ("x,y,w,h" % of the card), bgColor, markColor, inkColor.
 - `calm-twin-cards` `O` (5s) — two rounded pastel cards on either side of a full-frame talking head (left, then right), for a two-sided question. Slots: left, right, leftColor, leftInk, rightColor, rightInk.
 
+**Hand-drawn diagram**
+- `glow-steps` `O` (5s, 16:9) — 2 to 4 steps drawn in glowing hand-drawn ink: number, label, a circle scribbled around it, arrows between. `layout` stack (down one side) or row; `side` left/center/right; `backdrop` panel (solid, full frame: use as a BACKGROUND graphic under a camera card on the other side), scrim (soft shade over footage) or none. Each step takes an optional `at` (seconds into the graphic) so it lands on the spoken word; steps can reveal out of order (raw, edit, then recipe in the middle). Slots: steps[{label, at}], layout, side, backdrop, inkColor, panelColor. The split look, speaker on the right with the steps on the left:
+  ```bash
+  pandastudio motion.generate --templateId=glow-steps --slots='{"steps":[{"label":"RAW","at":"1.6"},{"label":"RECIPE","at":"3.0"},{"label":"EDIT","at":"2.1"}],"layout":"stack","side":"left","backdrop":"panel"}' --background=transparent
+  pandastudio project.add-clip-transform-region --id=$P --startMs=$S --endMs=$E --preset=cam-right-portrait --transitionMs=320
+  # The card animates in over the 320 ms BEFORE $S and out over the 320 ms AFTER $E;
+  # the background must cover both or the wallpaper flashes behind the card.
+  # So start it 320 ms early (add 0.32 to every step's `at`) and end it 320 ms late.
+  pandastudio project.add-motion-graphic --id=$P --fromJob=$JOB --atMs=$((S-320)) --durationMs=$((E-S+640)) --layer=background
+  ```
+  Leave the sentence before the split full frame when the previous beat was a card on the OTHER side; two card segments back to back make the camera swell and shrink.
+
 **Lower thirds** (all `O`, 5s, transparent overlays — add in ONE call with `project.add-lower-third --name --title --atMs [--templateId]`; slots: **name**, title + per-template colors. Also in the editor's Lower 3rds tab.)
 - `yt-lower-third` `O` (4.5s) — subscribe lower-third: avatar + name + title + red Subscribe pill, slides in bottom-left. Slots: **name**, title, accentColor, cardColor, inkColor.
 - `lt-vox-marker` — the name lands on a highlighter swipe; mono role on an accent rule. The Vox look.
