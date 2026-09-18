@@ -60,7 +60,7 @@ All accept `id` or `path`, plus optional `expectedRevision` for conflict-safe wr
 | `project.add-annotation` | `startMs`, `endMs`, `type` (text/figure), `text`, `x/y/width/height` (%) | Drop text or figure annotation on canvas. |
 | `project.set-aspect-ratio` | `ratio` (16:9/9:16/1:1/4:3/3:4) | Switch project aspect ratio. |
 | `project.set-wallpaper` | `wallpaper` | Set project background wallpaper id or 'none'. |
-| `project.set-style` | `padding/shadowIntensity/borderRadius/motionBlurAmount/showBlur` | Bulk-set cinematic style preset fields. |
+| `project.set-style` | `padding/shadowIntensity/borderRadius/motionBlurAmount/showBlur`, main-video frame `shape` (rounded\|circle) / `borderWidth` (0-40) / `borderColor` / `resetFrame` | Bulk-set cinematic style preset fields + the main-video frame (border ring, circle). Camera-only videos get their border here. |
 
 ## asset.*
 

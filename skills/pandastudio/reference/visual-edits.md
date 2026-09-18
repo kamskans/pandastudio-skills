@@ -49,6 +49,20 @@ pandastudio project.set-style --id=$ID --padding=40 --shadowIntensity=30 \
 # tracks the captured cursor telemetry). 0 = off, ~1.5 = noticeably bigger.
 pandastudio project.set-style --id=$ID --cursorScale=1.5
 
+# Main-video FRAME: border ring + circle (PROJECT-LEVEL, Video panel -> Frame).
+# In a CAMERA-ONLY recording the camera IS the main video, so this (not
+# set-webcam-style) is how it gets a border or a circle, including inside
+# cam-left-portrait / cam-right-portrait card sections, where a ring looks best.
+pandastudio project.set-style --id=$ID --borderWidth=6 --borderColor="#ffffff"
+pandastudio project.set-style --id=$ID --shape=circle        # true circle, centred in the card
+pandastudio project.set-style --id=$ID --resetFrame=true     # clear shape + border
+# shape: rounded (borderRadius corners, default) | circle. borderWidth 0-40 px
+# at a 1080p reference (scales with export size); the ring sits INSIDE the edge
+# and the shadow follows it. Draws only while the video is a card (padding > 0,
+# a cam-* card, a corner layout); never when the video fills the canvas, so a
+# camera-only video cutting between full-frame and card sections shows the ring
+# on the cards only. Podcast guest tiles (3-4 person grids) are not framed.
+
 # Pick a wallpaper
 pandastudio project.set-wallpaper --id=$ID --wallpaper=gradient-night
 

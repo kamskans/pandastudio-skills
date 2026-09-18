@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.146.0 -->
+<!-- version: 3.147.0 -->
 
 # PandaStudio
 
@@ -379,6 +379,8 @@ Notes:
 Discover shots (`export.find-shots`), fork the source project per shot (`project.fork-from-shot`), the 9:16 vertical playbook, drift detection, and batch N shorts. Full detail: [`reference/shorts.md`](reference/shorts.md). To make a short actually RETAIN — "make it engaging/viral", "edit like Hormozi / Ali Abdaal / a podcast clip" — load [`reference/shorts-styles.md`](reference/shorts-styles.md): four evidence-based recipes with the seven retention laws, quantified caption/zoom/overlay parameters, and a render-frame verification pass. Load [`reference/shorts-cheatsheet.md`](reference/shorts-cheatsheet.md) alongside it — exact command shapes plus a hyperframes starter shell, so you never grep schemas or other reference files mid-edit. For `youtube-long` edits that should RETAIN (not just play clean), load [`reference/longform-styles.md`](reference/longform-styles.md) — quantified from a 9-video measured study (Ali Abdaal / MKBHD / Fireship, July 2026): three recipes (educator-pip, product-review, dev-explainer), the two-level rhythm, keyword pops instead of burned captions, in-edit segmentation, and ending liturgy.
 
 ### Shorts layout: full-frame vs camera-corner-over-blur
+
+**Border ring / circle on a camera-only video:** the camera is the MAIN video, so use `project.set-style --borderWidth=6 --borderColor="#ffffff"` (and `--shape=circle` for a round card), not `set-webcam-style` (that styles the camera tile of a screen+camera recording). It draws only while the video sits as a card, e.g. `cam-left-portrait` / `cam-right-portrait` sections or padding > 0, never full-bleed. Details: [`reference/visual-edits.md`](reference/visual-edits.md).
 
 For a **camera-only** clip in a 9:16 project, `project.set-shorts-layout` is the one-click layout picker:
 
