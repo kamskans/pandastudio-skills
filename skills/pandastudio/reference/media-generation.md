@@ -164,6 +164,20 @@ camera movement, no cuts, same framing and lighting throughout.' --json
 
 Do not add `media.generate-narration` on top: the voice is already in the file.
 
+**Real people.** `referenceVideos` / `referenceImages` keep a person's look and
+`referenceAudios` drives the lip sync ([Video1], [Image1], [Audio1] in the prompt). But
+Seedance refuses a REAL person's face as a reference, photo or video, with "flagged as
+sensitive (E005)" (confirmed Sep 18 2026 on the user's own footage). Don't retry or try to
+disguise the face. To put the user on camera, use their own recording.
+
+**Speaking in the user's own voice** (no ElevenLabs plan needed):
+`media.generate-narration --model=voice-clone --voiceSample=<their recording> --voiceSampleStartMs=… --voiceSampleDurationMs=15000`
+clones the voice from 10 to 20 s of their clean speech (Chatterbox). Keep each call to one
+or two sentences (it drops words from long scripts), transcribe each take and redo any
+that miss a word, then join them. `speed` below 1 slows a fast speaker (0.55 is its
+slowest), and an ffmpeg `atempo` stretch fine-tunes the length. Only the user's own voice,
+or one they have permission to use.
+
 Rules that make it work:
 
 - **One take, at most 30 seconds.** Each generation invents its own voice, so
