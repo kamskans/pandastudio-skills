@@ -155,12 +155,6 @@ timeline) and `demoPath` shows it mounted. Two ways to use an item:
 The catalog is yours, not the user's: it is not in the editor UI, because most
 items carry fixed demo copy. Use it to build scenes; hand the user the result.
 
-Some blocks depict other companies' products (claude-exchange, chatgpt-exchange,
-slack-notification-ad, x-post, spotify-card, the apple-terminal snippets). Use one
-only when the video is truthfully about that product being used, never to suggest
-that company endorses the user's product, and never as a skin for the user's own
-app: for their product, build its real interface instead.
-
 - **Mount it** inside the frame when it is a whole shot (a pull-back reveal, a logo sting, a device
   stage): `<div data-composition-id="pull-back-reveal" data-composition-src="catalog:pull-back-reveal"
   data-start="0" data-duration="4.5" data-track-index="2" data-variable-values='{"headline":"..."}'></div>`.
