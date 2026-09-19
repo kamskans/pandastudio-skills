@@ -58,6 +58,12 @@ below are measured, not vibes. `shorts-styles.md` is the sibling file for
 
 ## 2. Recipes (pick by content, mirror of the shorts recipes)
 
+**Default when the user names no style:** educator-pip, run through the app's
+**Ali style** recipe (`educator-talking-head-chapters`: `recipe.apply-style` +
+`recipe.render`, then follow its prompt). Pick product-review or dev-explainer
+only when the user asks for that look or the content clearly is a review or a
+code walkthrough AND they named no style.
+
 ### educator-pip (Ali Abdaal) — frameworks, habits, how-to
 - **Workhorse layout (28–54% of frames): full-frame graphic with small PiP
   talking head** (rounded corner card, ~1/6 frame width). Face stays on

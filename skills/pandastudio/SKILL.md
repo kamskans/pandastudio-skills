@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.150.0 -->
+<!-- version: 3.151.0 -->
 
 # PandaStudio
 
@@ -472,7 +472,7 @@ pandastudio project.auto-reframe --id=$PID --clear=true --json
 **Hard rules:** YouTube `privacyStatus` defaults to `unlisted` — never public without explicit user say; Instagram needs a Business/Creator account; never publish in the wrong workspace (confirm `isInActiveWorkspace`). Flows: connect → publish an export. Full detail: [`reference/publishing.md`](reference/publishing.md).
 ## Recipes — run a proven edit style
 
-When the user names a style ("TV-style explainer", "like my usual Shorts", "product demo edit"), says "like last time", or wants a repeatable look, check recipes BEFORE designing from scratch: `recipe.list --format=short|long`, `recipe.get`, `recipe.apply-style` (sets the recipe's fixed look deterministically), `recipe.render --values=...` (blanks you omit come back as "(you decide this from the video: …)" — choose them from the footage yourself; EXCEPT `fromUser` blanks like a faceless video's idea, a product name or an offer: render fails until the user gives them, so ask and never invent; `allowScript` blanks also take the user's own script via `<key>Kind: "script"`, narrated word for word), then follow the prompt, apply the fixed style exactly and verify the checklist with rendered frames. After an edit the user is happy with, offer to save it with `recipe.save`. Full detail: [`reference/recipes.md`](reference/recipes.md).
+When the user names a style ("TV-style explainer", "like my usual Shorts", "product demo edit"), says "like last time", or wants a repeatable look, check recipes BEFORE designing from scratch (and with NO style named on a long-form on-camera video, default to the Ali style recipe `educator-talking-head-chapters`, see "Long-form default style" below): `recipe.list --format=short|long`, `recipe.get`, `recipe.apply-style` (sets the recipe's fixed look deterministically), `recipe.render --values=...` (blanks you omit come back as "(you decide this from the video: …)" — choose them from the footage yourself; EXCEPT `fromUser` blanks like a faceless video's idea, a product name or an offer: render fails until the user gives them, so ask and never invent; `allowScript` blanks also take the user's own script via `<key>Kind: "script"`, narrated word for word), then follow the prompt, apply the fixed style exactly and verify the checklist with rendered frames. After an edit the user is happy with, offer to save it with `recipe.save`. Full detail: [`reference/recipes.md`](reference/recipes.md).
 
 ## Memory — remember preferences across chats
 
@@ -506,6 +506,23 @@ Video editing is a creative task with hundreds of small decisions. Asking the us
 **Ask only when the answer is genuinely user-specific AND can't be inferred AND is hard to reverse.** Default everything else, narrate what you did, and iterate via preview.
 
 ### The default edit pipeline (vague "edit my video", no specifics)
+
+> **Long-form default style: Ali style.** When the edit is `youtube-long` (or
+> any 16:9 long-form video) with the speaker ON CAMERA, and the user has NOT
+> named a style, a recipe or a reference creator, edit it with the **Ali
+> style** recipe (id `educator-talking-head-chapters`) instead of the bare
+> pipeline below. Run the cleanup steps below first (transcribe, fillers, STT
+> fixes, bad takes, silences), then `recipe.apply-style
+> --id=educator-talking-head-chapters --projectId=<P>` and `recipe.render
+> --id=educator-talking-head-chapters` (decide the blanks from the footage), and
+> follow that prompt: captions OFF, camera card (`cam-left-portrait`) over
+> numbered slides with `--layer=background`, serif statements, hand-drawn
+> diagrams, keyword pills, gentle 1.25x zooms with no zoom sounds, one soft
+> music bed at about 8%. Keep background-graphic content in the x=820..1860
+> zone so the card doesn't cover it. Tell the user you used Ali style because
+> no style was given, and offer another recipe. Does NOT apply to: Shorts /
+> vertical, `loom`, screen recordings with no camera, or when the user named
+> any style or recipe (theirs wins).
 
 When the user asks to **edit / polish / clean up** a video without naming a
 specific operation, this is the intended end-to-end pipeline, in order:
