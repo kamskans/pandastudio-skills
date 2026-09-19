@@ -27,8 +27,14 @@ pandastudio project.update-region --id=$ID --regionType=zoom \
 # Cut a section directly (without going through transcript)
 pandastudio project.add-trim --id=$ID --startMs=12000 --endMs=15000
 
-# Fast-forward a setup step
+# Fast-forward a setup step (startMs/endMs are SOURCE ms, like trims)
 pandastudio project.add-speed --id=$ID --startMs=8000 --endMs=20000 --speed=2
+# Timelapse a long boring stretch (an install, a render, a loading screen)
+pandastudio project.add-speed --id=$ID --startMs=60000 --endMs=240000 --speed=40
+# --speed takes any value from 0.25 to 100 (0.01 steps). Regions faster than 4
+# play SILENT in preview and export (sped-up speech is noise); keep narration
+# spans at 4 or below. Retime or change speed later with project.update-region
+# --regionType=speed --regionId=speed-1 --speed=8.
 
 # Drop a text annotation
 pandastudio project.add-annotation --id=$ID --startMs=2000 --endMs=4000 \
@@ -48,6 +54,10 @@ pandastudio project.set-style --id=$ID --padding=40 --shadowIntensity=30 \
 # Enlarged custom cursor (screen recordings only — draws a bigger cursor that
 # tracks the captured cursor telemetry). 0 = off, ~1.5 = noticeably bigger.
 pandastudio project.set-style --id=$ID --cursorScale=1.5
+# Smart hide for that cursor: fade out after 2 s still, back in before it moves;
+# optionally also while a zoom is in. Both default off.
+pandastudio project.set-style --id=$ID --cursorHideIdle=true --cursorIdleSeconds=2
+pandastudio project.set-style --id=$ID --cursorHideDuringZoom=true
 
 # Main-video FRAME: border ring + circle (PROJECT-LEVEL, Video panel -> Frame).
 # In a CAMERA-ONLY recording the camera IS the main video, so this (not
@@ -107,11 +117,19 @@ pandastudio project.set-webcam-style --id=$ID --shape=circle          # round ca
 pandastudio project.set-webcam-style --id=$ID --shape=rounded --cornerRadius=24
 pandastudio project.set-webcam-style --id=$ID --borderWidth=4 --borderColor="#ffffff"
 pandastudio project.set-webcam-style --id=$ID --shadow=0.6            # 0=none, omit=preset default
-pandastudio project.set-webcam-style --id=$ID --reset=true            # back to preset defaults
+pandastudio project.set-webcam-style --id=$ID --mirror=true           # flip the camera (selfie view)
+pandastudio project.set-webcam-style --id=$ID --reset=true            # back to preset defaults (clears mirror too)
 # shape: auto (preset radius, default) | rectangle | rounded | circle.
 # Px values are at a 1080p reference and scale with the export resolution.
 # Applies to the camera tile in pip / side-by-side / vertical-stack; podcast
 # participant grids keep their co-equal tile design.
+# --mirror: the live camera bubble while recording is mirrored but the recorded
+# camera is not, so users sometimes say "my camera looks flipped / wrong way
+# round" after recording. --mirror=true flips the camera tile in preview,
+# render-frame and export (--mirror=false undoes it). Default off. Never applied
+# to podcast layouts (those tiles are remote guests) or to a camera-only
+# video's main track. Don't mirror when the user holds up text or a product to
+# the camera: it would read backwards.
 
 # Attach a CAMERA VIDEO recorded or generated elsewhere (v1.89.3+) to a clip, so
 # it plays as the camera layer of a Screen + camera clip. Same length as the clip
@@ -204,6 +222,13 @@ pandastudio project.update-region --id=$ID \
   --regionType=audio-overlay --regionId=audio-1 \
   --startMs=2000 --endMs=15000 --sourceStartMs=4000 --volume=0.55
 # regionType: zoom | trim | speed | annotation | fx | overlay | audio-overlay
+
+# Duplicate a placed region (all settings, new id), right after the original
+pandastudio project.duplicate-region --id=$ID --regionType=annotation --regionId=ann-1
+# ...or at a given start (EDITED ms; SOURCE ms for --regionType=speed)
+pandastudio project.duplicate-region --id=$ID --regionType=zoom --regionId=zoom-1 --atMs=42000
+# Zooms and speed regions never overlap their own kind: the copy moves to the
+# next free gap (result.shiftedMs) or the call fails if none fits. Not for trims.
 
 # Export defaults (pre-fills the Export dialog; CLI export.start uses its own --quality)
 # PandaStudio is a video-only exporter; format is always mp4.

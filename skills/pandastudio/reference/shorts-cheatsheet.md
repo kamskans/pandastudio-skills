@@ -101,7 +101,7 @@ ps_ project.render-sheet
 Optional: `--id=<string>` `--path=<string>` `--fromMs=<number>` `--toMs=<number>` `--count=<number>` `--cols=<number>` `--outPath=<string>`
 
 ### `project.render-frame`
-Render the composited preview frame at a given edited-time to a PNG and return its path so a vision agent can READ it. Use to locate on-screen text/UI (e.g. an email to blur) before placing a focus region. Returns { path, width, height, timeMs, maskRect }. `maskRect` is the video content rect as 0..1 fractions of the image — the SAME space spotlight/blur x/y/width/height use. To cover something you see at image-fractions (ix,iy,iw,ih): regionX=(ix-maskRect.x)/maskRect.width, regionY=(iy-maskRect.y)/maskRect.height, regionW=iw/maskRect.width, regionH=ih/maskRect.height. Note: existing focus regions are NOT drawn in this frame (so you see the content clearly), and the frame reflects any active zoom at that time.
+Render the composited preview frame at a given edited-time to a PNG and return its path so a vision agent can READ it. Use to locate on-screen text/UI (e.g. an email to blur) before placing a focus region. Returns { path, width, height, timeMs, maskRect }. `maskRect` is the video content rect as 0..1 fractions of the image — the SAME space spotlight/blur x/y/width/height use. To cover something you see at image-fractions (ix,iy,iw,ih): regionX=(ix-maskRect.x)/maskRect.width, regionY=(iy-maskRect.y)/maskRect.height, regionW=iw/maskRect.width, regionH=ih/maskRect.height. Note: existing focus regions (spotlight, blur, pixelate) ARE drawn, exactly as the export draws them, so render-frame verifies a blur; the frame reflects any active zoom at that time.
 
 ```
 ps_ project.render-frame --atMs=<number>
@@ -178,7 +178,7 @@ ps_ project.add-zoom --atMs=<number> --durationMs=<number>
 Optional: `--id=<string>` `--path=<string>` `--depth=<number>` `--focusX=<number>` `--focusY=<number>` `--followCursor=<boolean>` `--soundUrl=<string>` `--soundVolume=<number>` `--anchorSourceMs=<number>` `--anchorSourceEndMs=<number>` `--expectedRevision=<number>`
 
 ### `project.add-speed`
-Mark a span to play back at a different speed. Useful for fast-forwarding setup steps.
+Mark a span (SOURCE time, like trims) to play back at a different speed: 0.25 to 100. Use 2 to 4 to tighten a slow demo, 8 to 100 to timelapse installs, renders and loading. Audio in regions faster than 4x is muted in preview and export.
 
 ```
 ps_ project.add-speed --startMs=<number> --endMs=<number> --speed=<number>

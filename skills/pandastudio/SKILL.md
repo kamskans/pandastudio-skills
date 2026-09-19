@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.148.0 -->
+<!-- version: 3.149.0 -->
 
 # PandaStudio
 
@@ -373,6 +373,16 @@ Notes:
   from the PandaStudio app itself, which can switch to standard screen capture.
 - `recording.stop --createProject=false` just finalizes the MP4 and returns
   `screenPath` if you want to compose `project.new --withMedia=…` yourself.
+- **Countdown:** `recording.start --countdownSeconds=3` shows a 3-2-1 overlay
+  (0-10 s, default 0) before capture starts. Use it when the USER is about to
+  present or act on screen, not when you drive the capture yourself. The
+  overlay is excluded from the recording. If the user presses Esc, the call
+  fails with `code: countdown_cancelled` and nothing is recorded: ask before
+  retrying.
+- **HUD countdown preference:** recordings the user starts from the recording
+  bar count down first (timer button: Off / 3s / 5s / 10s, default 3s; Esc or
+  the record button cancels). Read or change it with `recording.get-countdown`
+  / `recording.set-countdown --seconds=5` when the user asks.
 
 ## Shorts: turning an exported video into vertical clips
 
@@ -381,6 +391,8 @@ Discover shots (`export.find-shots`), fork the source project per shot (`project
 ### Shorts layout: full-frame vs camera-corner-over-blur
 
 **Border ring / circle on a camera-only video:** the camera is the MAIN video, so use `project.set-style --borderWidth=6 --borderColor="#ffffff"` (and `--shape=circle` for a round card), not `set-webcam-style` (that styles the camera tile of a screen+camera recording). It draws only while the video sits as a card, e.g. `cam-left-portrait` / `cam-right-portrait` sections or padding > 0, never full-bleed. Details: [`reference/visual-edits.md`](reference/visual-edits.md).
+
+**Camera looks flipped / "the wrong way round":** the live camera bubble mirrors while recording but the recorded camera does not. `project.set-webcam-style --mirror=true` flips the camera tile of a screen+camera recording (pip / side-by-side / vertical-stack) in preview, render-frame and export; `--mirror=false` undoes it. Podcast layouts are never mirrored (those tiles are guests). In the editor: Settings, Layout, Camera appearance, Mirror camera.
 
 For a **camera-only** clip in a 9:16 project, `project.set-shorts-layout` is the one-click layout picker:
 
@@ -806,7 +818,7 @@ For these operations, run them without asking and tell the user what you did in 
   "audioCleaned": false, "kind": "camera" }
 ```
 
-- `transcribed: true` → skip `transcript.transcribe` for that clip — it already has a transcript. Running it again would overwrite any manual word edits the user made in the app.
+- `transcribed: true` → skip `transcript.transcribe` for that clip — it already has a transcript. Re-run it only with `--clipId` when the transcript is genuinely wrong (new audio, a bad run): word fixes survive it (see "Word fixes survive re-transcription" below), but it costs time and can drop fixes whose words the new run hears differently.
 - `audioCleaned: true` → skip `audio.clean` for that clip — the `.cleaned.wav` already exists. `echoReduced: true` means room-echo reduction is also on (`roomRt60Ms` = the reverb time it measured).
 - `kind` → how the clip was captured: `"camera"` (talking-head — a PandaStudio camera-only recording), `"screen"` (screen recording, maybe with a webcam PiP), or `"upload"` (external import). **This is the authoritative signal for your visual strategy — use it, don't guess from aspect ratio:** `kind === "camera"` (talking-head) OR `kind === "upload"` (imported video) → there's no screen to zoom into, so **lead with a premium designed segment — `paper-panel` or `vox-side-panel`** (`project.add-designed-segment`) as the default for explainer beats; it's the highest-leverage way to make static footage look produced (`split-panel` is the plainer fallback — see the Motion-graphics "Rules" §5). `kind === "screen"` → use cursor-telemetry zooms, never clip-transform splits. On v1.28+ recordings this is stamped at capture; older projects don't have it, so `project.read` **infers** it (paired webcam track or cursor telemetry → `screen`; managed-dir media → `camera`; else `upload`) and sets `kindInferred: true`.
 
@@ -912,6 +924,7 @@ Flags are either **scalars** (`--name=value`) or **JSON** (`--slots='{"title":"x
 - **Check after you export.** `export.verify --exportId=<id>` (async, job.wait) compares the finished MP4 with the editor preview: picture length vs the edit, sound present and in step with the picture, and editor-vs-export frame pairs at even moments plus inside every layout section. Read `summary` and look at `sheetPath` (editor left, export right, red outline = difference) before telling the user the export is good. Same as "Check against editor" on the export page.
 - **Screen + camera looks (v1.89.4+).** `project.center-camera-on-face` (async) keeps the presenter's face centred in the camera card. `project.set-clip-color` / `set-clip-lut --target=camera` grade the camera separately from the screen. `add-clip-transform-region --preset=layout-guest-full --cameraFit=fill|centered --backgroundColor=#hex` gives a reliable full-frame camera beat. Detail: [`reference/visual-edits.md`](reference/visual-edits.md), [`reference/audio-color-music.md`](reference/audio-color-music.md).
 - **Silence removal never cuts into words** (`transcript.remove-silences --paddingMs=100` sets the margin kept around every word).
+- **Word fixes survive re-transcription.** Every text fix (`transcript.find-replace`, `transcript.insert-words`, a double-click edit in the app) is stored on the clip as a fix keyed by time + the transcriber's original text, not by word id. When the clip is transcribed again (`transcript.transcribe --clipId`, a camera-audio swap, the app's retry), each fix is re-applied where the new run heard the same original words at the same moment (case/punctuation ignored, ~0.4 s tolerance); a fix the new run already got right counts as re-applied. The job result reports `wordEditsReapplied`, `wordEditsDropped` and `droppedWordEdits[]` (`{ clipId, description, reason }`, reason `no-match` = the original words aren't heard there any more, `conflict` = a different word is now heard where one was inserted, `crosses-cut` = a merged fix would straddle a deletion). Surface dropped fixes to the user and redo them with find-replace if they still apply. Voiceover words merged into the clip are kept. Deletions are trims (time-based) and are never touched by re-transcription. `project.read` clipStates shows `wordFixes: n` on clips that carry fixes.
 - **Text edits never move cuts.** `transcript.find-replace` splits a match that crosses a deleted part (the replacement goes on the kept words), verifies trims are unchanged and supports `--preview=true`. `transcript.restore-words` removes only the restored words' time from the cuts, so restoring one word of a deleted sentence keeps the rest deleted.
 
 ## Error model
@@ -1043,6 +1056,18 @@ you: which verb, in what order, and the non-obvious gotchas.
   `--soundUrl=none` to silence), `add-motion-graphic` (default mouse-click SFX
   as of v1.36.0), `add-fx` (13 bundled FX overlays — film-burn, light-leak, light-flare, lens-flare-sweep, light-streaks, bokeh-drift, prism-leak, dust-scratches, film-grain, vhs-static, embers, snow-drift, film-flash; `--speed=0.25–4` adjusts loop speed, default 1; see the "Effects (FX) & transitions" section for when to reach for each), `set-region-sound` (retune/clear a placed region's
   SFX). Arg values: discovery (`asset.list-fx`).
+- **Smart cursor hide (drawn cursor, screen recordings):** `project.set-style
+  --cursorHideIdle=true [--cursorIdleSeconds=2]` fades the enlarged cursor
+  (`cursorScale > 0`) out after it has been still for N seconds (0.5-10,
+  default 2) and back in just before it moves; clicks count as activity.
+  `--cursorHideDuringZoom=true` also fades it out while a zoom is in (it
+  follows the zoom's ease). Both default OFF, including on new projects, so
+  existing exports never change. Idle time is measured on the EDITED timeline:
+  a trimmed pause doesn't count, a speed-up shortens it, and a cut where the
+  cursor jumps shows it again. Preview, render-frame and export fade on the
+  same frames. Use idle-hide for talking-over-a-screen videos where the cursor
+  sits parked; leave hide-during-zoom off when a zoom follows the cursor and
+  the viewer needs to see what it points at. UI: Video tab > Cursor size box.
 - **Spotlight / blur (v1.50.0):** `add-spotlight --atMs=<ms> --durationMs=<ms>
   [--kind=spotlight|blur]` — a focus rect over the video. `kind=spotlight`
   (default) DIMS everything outside the rect (draw the eye to one spot);
@@ -1058,6 +1083,22 @@ you: which verb, in what order, and the non-obvious gotchas.
   --maskOpacity --blurAmount]` patches only the fields you pass (move/resize,
   retime, restyle, or flip spotlight<->blur); `remove-spotlight --regionId=<id>`
   deletes it. Get ids from `project.read` under `editor.spotlightRegions[].id`.
+  **Pixelate + oval shape:** both `add-spotlight` and `update-spotlight` take
+  `--style=blur|pixelate` (blur kind only; default `blur` = gaussian),
+  `--pixelSize=<px>` (mosaic block size at a 1080p reference, 4..120, default
+  16) and `--shape=rectangle|ellipse` (default `rectangle`; `ellipse` is the
+  oval inscribed in the rect, `roundness` is ignored; works for spotlights
+  too). `--style=pixelate` with no `--kind` implies `kind=blur`. Reach for
+  PIXELATE for privacy: emails, account IDs, API keys, phone numbers, license
+  plates. A gaussian blur on large text can stay half-legible; a 16+ px mosaic
+  can't be read back. Use `--pixelSize=24` or more on big text. Use
+  `--shape=ellipse` for faces. Example: `project.add-spotlight --atMs=4000
+  --durationMs=6000 --style=pixelate --pixelSize=20 --x=0.1 --y=0.08
+  --width=0.3 --height=0.05`. Existing regions without these fields render
+  exactly as before (rounded-rect gaussian blur). The mosaic grid is anchored
+  to the region's corner and grows with zooms, so it covers the same content
+  in preview, render-frame and export. `project.apply-edit-plan` add-blur /
+  add-spotlight ops accept `style`, `pixelSize` and `shape` too.
 - **Background blur / removal / studio image + person outline (v3.69.0; outline v3.75.0; studio image v3.104.0):**
   `add-background-effect --mode=blur|remove|image [--atMs=<ms>]
   [--durationMs=<ms> | --endMs=<ms>] [--strength=<px>]
@@ -1162,6 +1203,21 @@ you: which verb, in what order, and the non-obvious gotchas.
   `--full=true` also resets LUT/crop/webcam/wallpaper). Use it for "start over";
   do NOT loop `project.remove-region` (that's for removing ONE region by
   `--regionType` + `--regionId`).
+- **Duplicate a region:** **`project.duplicate-region --regionType=<type>
+  --regionId=<id> [--atMs=<ms>]`** copies a placed region with every setting
+  (depth/focus, text + styles, overlay file + position + layer, FX, focus rect,
+  studio background, sound) under a new id. Types: `zoom | speed | annotation |
+  fx | overlay | clip-transform | background-effect | spotlight |
+  audio-overlay` (not `trim`). Without `--atMs` the copy lands right after the
+  original; `--atMs` is EDITED ms, except for `speed`, where it's SOURCE ms like
+  trims. A region in a link group (a designed segment's panel + camera
+  transform) is duplicated with its peers into a NEW group. Zooms and speed
+  regions can't overlap their own kind, so the copy moves later to the first
+  gap that fits (`shiftedMs` in the result says how far) or the call fails when
+  nothing fits. Returns `{ regionId, startMs, endMs, shiftedMs, created[] }`.
+  Use it to repeat a styled lower third / callout / blur box instead of
+  re-sending every arg. Same as Cmd/Ctrl+D in the editor (Cmd/Ctrl+C then
+  Cmd/Ctrl+V pastes at the playhead).
 
 ### Conflict-safe save
 
@@ -1424,6 +1480,8 @@ When no template fits, author HTML against the HyperFrames contract. Render verb
 **Golden rule: restraint.** Scene transitions (`project.add-transition`) and FX overlays (`project.add-fx`). Full detail: [`reference/fx-transitions.md`](reference/fx-transitions.md).
 ## Narration (voiceover) + B-roll generation
 
+**The user's OWN voice:** when the user wants to narrate in their own voice (they recorded the screen silently, or say "I'll talk over it"), don't generate TTS: point them to the editor's **Audio tab, Record voiceover**. The preview plays from the playhead while their mic records; pausing cuts the gap, and the take lands as a normal audio overlay at that position (`voiceover-*.wav` in the recordings folder, visible in `project.read` under `audioOverlays[]`, editable with the usual audio verbs). With "Transcribe for captions" on (default), its words merge into the transcript tagged to the overlay, exactly like `project.add-audio --transcribe`. You can't record their voice yourself.
+
 Replicate TTS narration and gpt-image B-roll (always Ken-Burns + vignette a still, never drop a flat photo). Also: a realistic AI presenter with its own voice via `media.generate-presenter` (Seedance 2.5 — one take, max 30s, describe the person in words, the spoken line in double quotes; the voice comes with the picture so never add narration on top), used as a camera-only video or attached as a clip's camera with `project.set-clip-webcam`. Requires Replicate connected (Settings → Integrations → Connectors). Full detail: [`reference/media-generation.md`](reference/media-generation.md).
 
 ## Faceless videos — image-driven, voiceover-led
@@ -1621,6 +1679,23 @@ pandastudio job.wait --id=$JOB --timeoutMs=600000 --json | jq '.data.job'
 Quality presets: `draft` (1280×720), `standard` / `high` (1920×1080), `ultra` (3840×2160). Aspect ratio comes from the project (`set-aspect-ratio`). Output lands in the recordings dir by default; pass `--outputPath=/somewhere/file.mp4` to override.
 
 The export honours **everything** in the project: clips, trims (incl. those from transcript word deletes), speed regions, zooms, captions, FX, lower-thirds with sound, motion graphics, annotations, cleaned audio, wallpaper, padding/shadow/radius/blur. One verb, full pipeline.
+
+**Loudness normalisation (on by default).** Every export's FINAL mix (voice + music + SFX + overlay audio) is normalised to a standard loudness with a two-pass EBU R128 measurement; the video stream is copied untouched. Targets:
+
+| Setting | Target | Use for |
+|---|---|---|
+| `streaming` (default, `true`, `-14`) | -14 LUFS integrated, -1 dBTP true peak | YouTube, Shorts, TikTok, Instagram, Spotify video, LinkedIn |
+| `podcast` (`-16`) | -16 LUFS, -1 dBTP | Apple Podcasts / podcast hosts, audio-first uploads |
+| `off` (`false`) | mix left as is | only when the user mastered the audio elsewhere |
+
+```bash
+# Per project (saved; the Export dialog shows it too):
+pandastudio project.set-export-settings --id=$ID --normalizeLoudness=podcast
+# Per export (overrides the project setting for this one render):
+pandastudio export.start --id=$ID --quality=high --normalizeLoudness=streaming --json
+```
+
+The `job.wait` result carries `loudness`: `{ preset, targetLufs, applied, inputLufs, outputLufs, outputTruePeakDbtp, mode, reason }`. `mode: "linear"` = one clean gain change; `"dynamic"` = the mix needed gentle limiting to reach the target without clipping. When `applied` is false, `reason` says why: `no-audio` (video-only export), `silent` (nothing to raise; boosting would only amplify hiss), `failed` (measurement or apply pass errored: the export still completed with the audio as mixed, surface it), `unavailable` (the media engine isn't installed). Tell the user the before/after, e.g. "normalised from -23.4 to -14.0 LUFS". Don't pre-boost clip volumes (`project.set-clip-volume`) to make a quiet recording loud; normalisation does that on the whole mix. Relative balance still matters: keep music under the voice with overlay volumes, then let normalisation set the overall level.
 
 **Video overlays (motion graphics) are fully composited in the export** — both opaque MP4 (`motion.generate`, `motion.render-html`) and transparent WebM (`motion.render-html --transparent`) are composited inline by the Tier-3 pipeline. Alpha channels from VP9/WebM sources are preserved exactly. There is nothing extra you need to call — `export.start` handles it automatically once overlays are on the timeline via `project.add-motion-graphic`.
 
