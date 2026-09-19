@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.152.0 -->
+<!-- version: 3.153.0 -->
 
 # PandaStudio
 
@@ -1169,6 +1169,29 @@ you: which verb, in what order, and the non-obvious gotchas.
   `apply-edit-plan` as `{op:'add-background-effect',atMs,durationMs,mode,
   strength?,backgroundImage?,backgroundFit?,outline?,outlineWidth?,
   outlineColor?,outlineShadow?,matteContract?,matteFeather?}`.
+- **Green screen / chroma key on an overlay (v3.153.0, app 1.94+):**
+  `project.set-overlay-chroma-key --regionId=<overlay-id> [--color=auto|#RRGGBB]
+  [--similarity=0-1] [--smoothness=0-1] [--spill=0-1] [--enabled=false]` removes
+  a flat-colour backdrop (green, blue, any solid colour) from an IMAGE or VIDEO
+  media overlay so whatever is behind it shows through: a presenter filmed on
+  green, stock footage on green, a UI element captured on a flat colour. Add the
+  footage first with `add-motion-graphic --file=<video>` (position/size it like
+  any overlay), then key it. `--color` defaults to `auto` on first enable: it is
+  read from the edges of the overlay's first shown frame, which keys a real
+  (duller than #00FF00) screen without tuning; the result's `detectedColor`
+  says what it found, and a `warning` means detection failed and the standard
+  chroma green `#00B140` was used. Defaults: similarity 0.45 (1 = as far from
+  the key as grey is), smoothness 0.25 (soft edge), spill 0.5 (removes the green
+  tint on edges). Omitted settings keep their current value, so you can nudge
+  one at a time. ALWAYS check with `render-frame`: backdrop patches or a green
+  halo left → raise `--similarity` (0.05 steps); the subject's edges, hair or
+  green-ish clothing eaten → lower it. `--enabled=false` removes the key. Stored
+  as `mediaOverlayRegions[].chromaKey = {color,similarity,smoothness,spill}`.
+  Preview, render-frame and export share one keyer, so they match. This is NOT
+  `add-background-effect`: that one finds a PERSON with AI on the camera track
+  and can't cut out a flat-colour backdrop or a non-person subject. In the UI:
+  select the overlay → Green screen → On (it detects the colour; Detect re-reads
+  it).
 - **See a frame to place it (v1.85.0):** `render-frame --atMs=<ms> [--width=<px>] [--outPath=<png>]`
   composites the preview frame at that edited-time to a PNG and returns
   `{ path, width, height, timeMs, maskRect }`. The PNG size does NOT depend on
