@@ -89,6 +89,7 @@ template's own palette.) All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay
   # So start it 320 ms early (add 0.32 to every step's `at`) and end it 320 ms late.
   pandastudio project.add-motion-graphic --id=$P --fromJob=$JOB --atMs=$((S-320)) --durationMs=$((E-S+640)) --layer=background
   ```
+  **Keep the background's content clear of the card.** `cam-left-portrait` covers roughly x=80..750 of a 1920-wide frame (about 35% width), so put text, lists and screenshots in the x=820..1860 zone (mirror it for `cam-right-portrait`). Content laid out from x=560 gets cut off by the card. Check with `project.render-frame` before exporting.
   Leave the sentence before the split full frame when the previous beat was a card on the OTHER side; two card segments back to back make the camera swell and shrink.
 
 **Lower thirds** (all `O`, 5s, transparent overlays — add in ONE call with `project.add-lower-third --name --title --atMs [--templateId]`; slots: **name**, title + per-template colors. Also in the editor's Lower 3rds tab.)

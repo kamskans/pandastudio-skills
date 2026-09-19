@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.149.0 -->
+<!-- version: 3.150.0 -->
 
 # PandaStudio
 
@@ -1910,17 +1910,17 @@ pandastudio transcript.remove-silences --id=$ID --thresholdMs=$SILENCE_MS   # NE
 #    re-anchors automatically on every trim/speed change.
 
 # Emphasis punch-in — modest scale, held through the thought
-pandastudio project.add-zoom --id=$ID --clipId=$CLIP_ID \
+pandastudio project.add-zoom --id=$ID \
   --atMs=<wordStartMs> --anchorSourceMs=<wordStartMs> \
   --durationMs=7000 --depth=3
 
 # Sustained held zoom — reframe on a topic and stay for the full section
-pandastudio project.add-zoom --id=$ID --clipId=$CLIP_ID \
+pandastudio project.add-zoom --id=$ID \
   --atMs=<sectionStartMs> --anchorSourceMs=<sectionStartMs> \
   --durationMs=15000 --depth=3
 
 # Reveal moment (dramatic, with SFX). Use SPARINGLY — 1-2 per video max.
-pandastudio project.add-zoom --id=$ID --clipId=$CLIP_ID \
+pandastudio project.add-zoom --id=$ID \
   --atMs=<ms> --anchorSourceMs=<ms> \
   --durationMs=6000 --depth=5 \
   --soundUrl=bundled:sound/dramatic-whoosh --soundVolume=0.7

@@ -545,10 +545,12 @@ pandastudio project.set-clip-lut --id=$ID --clipId="$CLIP_ID" \
   --lutPreset=modernVibrant --lutIntensity=0.5 --json
 
 # Stack zooms on each UI beat (durations match the narrative)
-pandastudio project.add-zoom --id=$ID --clipId="$CLIP_ID" \
-  --startMs=0 --endMs=2500 --targetX=0.45 --targetY=0.50 --zoom=1.8 --json
-pandastudio project.add-zoom --id=$ID --clipId="$CLIP_ID" \
-  --startMs=2500 --endMs=5500 --targetX=0.72 --targetY=0.35 --zoom=2.2 --json
+# add-zoom takes no clipId: atMs/durationMs on the edited timeline, focusX/focusY
+# 0-1, depth 1-6 (1=1.25x 2=1.5x 3=1.8x 4=2.2x 5=3.5x 6=5.0x).
+pandastudio project.add-zoom --id=$ID \
+  --atMs=0 --durationMs=2500 --focusX=0.45 --focusY=0.50 --depth=3 --json
+pandastudio project.add-zoom --id=$ID \
+  --atMs=2500 --durationMs=3000 --focusX=0.72 --focusY=0.35 --depth=4 --json
 # ... repeat for 6–10 zooms total, rotating focus across UI regions
 
 # ── Concat the pre-UI segments and the post-UI segments ──────────
