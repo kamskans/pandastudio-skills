@@ -47,7 +47,10 @@ pandastudio project.add-annotation --id=$ID --startMs=2000 --endMs=4000 \
 # crop is centered. Screen recordings keep their letterbox + padding.)
 pandastudio project.set-aspect-ratio --id=$ID --ratio=9:16
 
-# Apply cinematic style
+# Apply cinematic style. shadowIntensity is the slider's percentage (0-100);
+# a 0-1 fraction works too. App versions before 1.94 stored the number as given
+# and rendered 30 as a full-strength black wash over the wallpaper — pass 0.3
+# there, or upgrade (1.94+ normalizes, and heals projects written earlier).
 pandastudio project.set-style --id=$ID --padding=40 --shadowIntensity=30 \
   --borderRadius=20 --motionBlurAmount=15
 
