@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.155.0 -->
+<!-- version: 3.156.0 -->
 
 # PandaStudio
 
@@ -320,6 +320,16 @@ Reach for `workspace.capture-brand` whenever the user says "use my brand", "make
 ## Organising projects, renaming, transcription languages
 
 Folders, `project.rename`, project-look defaults, transcription-language switching (Parakeet/Whisper), and transcribing a standalone file → text/SRT/VTT. Full detail: [`reference/projects-and-transcription.md`](reference/projects-and-transcription.md).
+
+**When the language is one the on-device models are weak at, say so before you edit.** Parakeet (English + 25 European languages) and Whisper are good enough to cut against. Whisper is NOT good at Tamil, Telugu, Kannada or Malayalam, and the transcript is the foundation everything else stands on: captions, `transcript.remove-fillers`, `transcript.remove-silences`, shorts detection and any edit-by-text all inherit its mistakes. A bad transcript there does not degrade the edit slightly, it makes it wrong.
+
+`system.get-transcription-provider` reports who transcribes: `local` (default), `deepgram` (Nova-3) or `elevenlabs` (Scribe), plus `ready` saying which cloud providers have a key. Both cloud providers transcribe those languages properly for roughly a penny a minute.
+
+```bash
+pandastudio system.get-transcription-provider --no-launch --json
+```
+
+If the user is working in one of those languages on `local`, tell them the transcript will be rough and that Settings → Transcription can switch to a cloud provider. **Do not switch it yourself without asking**: `system.set-transcription-provider` sends their audio to a third party and bills their account there. Ask, then switch if they say yes. If a cloud provider is set but has no key, transcription silently falls back to local, so check `ready` before assuming the good path ran.
 
 ### Smooth preview for heavy camera footage (v1.88.17+)
 
