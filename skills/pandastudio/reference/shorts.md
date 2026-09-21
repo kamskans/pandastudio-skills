@@ -8,25 +8,33 @@ The shorts pipeline is two-step: **discover** the moments worth clipping, then *
 
 ### Step 1 — Discover shots in an exported video
 
-After an export has been transcribed, the AI Shorts generator suggests 3–5 self-contained `[startMs, endMs]` segments scored 1–10. The CLI verb is on the export entry — pass the export id and it writes the shots back onto that entry under `generatedShots`.
+The AI Shorts generator suggests 3–5 self-contained `[startMs, endMs]` segments scored 1–10, the same as the Exports library's **Generate Shorts** button. Pass the export id: it writes the shots onto that entry under `generatedShots` (replacing any previous set) and also returns them, best score first. MCP: `export_generate_shots { id }`.
 
 ```bash
 # Pick an export to mine for shorts
-EXPORT=$(pandastudio export.list --json | jq -r '.exports[0].id')
+EXPORT=$(pandastudio export.list --json | jq -r '.data.exports[0].id')
 
-# Run the generator (LLM picks engaging self-contained spans)
+# Run the generator (local LLM picks engaging self-contained spans; up to a minute or two)
 pandastudio export.generate-shots --id="$EXPORT" --json
-# → writes entry.generatedShots = [{ id, startMs, endMs, title, description, score }, ...]
+# → .data = { id, shots: [{ id, startMs, endMs, title, description, score }, ...] }
+#   and entry.generatedShots holds the same list
 ```
+
+**Needs:**
+- **A transcript on the export.** Exports copy the source project's transcript at export time, so run `transcript.transcribe` on the project BEFORE exporting. An export without one fails with `code: no_transcript`.
+- **The local AI model.** If it isn't downloaded the verb fails with `code: model_missing`. There is no verb to download it: ask the user to click **Settings → AI Model → Download model** in PandaStudio (or the "Download AI model" banner in the Exports library), then retry. `llm.status` reports `downloaded: true` once it's ready.
+
+If the model reply is unusable, it falls back to pause-based ~45 s segments (title = the opening words, score 5). Shots under 10 s are dropped.
 
 ### Step 2 — Fork the source project for ONE shot (the right path almost always)
 
 `project.fork-from-shot` makes a **new 9:16 project** from the original source project — NOT from the flat exported MP4. Use this whenever the source project still exists and you want the short fully re-editable:
 
 ```bash
-# Pick the highest-scoring shot from the export
+# Pick the highest-scoring shot from the export (read back from the entry,
+# or take .data.shots[0].id straight from the generate-shots result)
 SHOT=$(pandastudio export.list --json | jq -r --arg e "$EXPORT" '
-  .exports[] | select(.id == $e) | .generatedShots
+  .data.exports[] | select(.id == $e) | .generatedShots
   | sort_by(.score) | reverse | .[0].id
 ')
 
@@ -98,14 +106,11 @@ else, just fork.
 Combine the two verbs to fan out:
 
 ```bash
-EXPORT=$(pandastudio export.list --json | jq -r '.exports[0].id')
-pandastudio export.generate-shots --id="$EXPORT" --json
+EXPORT=$(pandastudio export.list --json | jq -r '.data.exports[0].id')
 
-# Fork the top 3 shots in parallel
-pandastudio export.list --json | jq -r --arg e "$EXPORT" '
-  .exports[] | select(.id == $e) | .generatedShots
-  | sort_by(.score) | reverse | .[0:3] | .[].id
-' | while read SHOT; do
+# Generate, then fork the top 3 shots in parallel (shots come back best-first)
+pandastudio export.generate-shots --id="$EXPORT" --json | jq -r '.data.shots[0:3] | .[].id' \
+| while read SHOT; do
   pandastudio project.fork-from-shot --exportId="$EXPORT" --shotId="$SHOT" --json &
 done
 wait
