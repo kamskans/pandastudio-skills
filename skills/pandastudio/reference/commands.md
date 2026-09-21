@@ -10,6 +10,7 @@ Every command takes args as `--key=value` flags. Object/array values must be JSO
 |---|---|---|
 | `system.status` | — | App version + license block. Always run this first. |
 | `system.list` | — | List every available `verb.noun` with summaries. Same as `pandastudio commands`. |
+| `skill.read` | `section` (id or title words), `file` (`shorts`, `reference/shorts.md`, `SKILL.md`) | This skill, in pieces, for agents that can't install skills (MCP-only clients: `skill_read`). No args: version, opening, section outline with sizes, reference docs. Works without a license. |
 | `system.ping` | — | `{ pong: true }`. Heartbeat. |
 | `system.echo` | `payload` (any) | Echo for transport debugging. |
 

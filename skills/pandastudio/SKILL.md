@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.158.0 -->
+<!-- version: 3.159.0 -->
 
 # PandaStudio
 
@@ -975,6 +975,8 @@ pandastudio commands --json   # full schema with arg hints per command
 ```
 
 Pattern-match `summary` against the user's intent. If you can't find a verb that fits, **say so** rather than fabricating one.
+
+This skill itself is readable through the app too: `skill.read` (MCP `skill_read`) returns an outline, then any section or reference doc. That's how agents that can't install skills (MCP-only clients) get it; if you're reading this as an installed skill you don't need it.
 
 ## Async jobs
 
