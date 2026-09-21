@@ -74,7 +74,8 @@ none does.
 > ```bash
 > # 1. Create a fresh project. Set aspectRatio to match the destination
 > #    profile (16:9 YouTube, 9:16 Shorts/Reels, 1:1 LinkedIn square).
-> P=$(pandastudio project.new --name="PandaScribe Promo" --aspectRatio=16:9 --json | jq -r '.data.id')
+> P=$(pandastudio project.new --name="PandaScribe Promo" --json | jq -r '.data.id')
+> pandastudio project.set-aspect-ratio --id=$P --ratio=16:9 --json
 >
 > # 2. Render each scene as its own motion graphic, then add the rendered
 > #    MP4 to the MAIN TRACK with project.add-clip. NOT add-motion-graphic

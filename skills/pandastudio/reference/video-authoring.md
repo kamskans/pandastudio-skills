@@ -629,14 +629,16 @@ infrastructure for an explainer beat. Always pair it with a motion
 graphic that plays during the same window:
 
 ```bash
-# 1. Author and add the motion graphic (use motion.render-html)
-pandastudio motion.render-html --html=$HTML --outId=$MGID --aspect=16:9
-pandastudio project.add-motion-graphic \
-  --src=$MGOUT --startMs=2000 --endMs=8000 \
-  --x=0 --y=0 --width=960 --height=1080   # left half of a 1920x1080 stage
+# 1. Render the graphic full-frame (1920x1080, transparent where the camera
+#    card sits) and place it for the same 6s window as the camera move.
+JOB=$(pandastudio motion.render-html --htmlPath=/tmp/beat.html --transparent \
+  --aspectRatio=16:9 --durationMs=6000 --json | jq -r '.data.jobId')
+pandastudio job.wait --id=$JOB --timeoutMs=600000 --json >/dev/null
+pandastudio project.add-motion-graphic --id=$PROJECT \
+  --fromJob=$JOB --atMs=2000 --durationMs=6000
 
 # 2. Add the matching clip-transform so the camera makes room
-pandastudio project.add-clip-transform-region \
+pandastudio project.add-clip-transform-region --id=$PROJECT \
   --startMs=2000 --endMs=8000 --preset=cam-right-portrait
 ```
 
@@ -659,8 +661,8 @@ camera and panel can never drift or mismatch.
 #    Paint the opaque panel + content on the panel side; leave the camera's
 #    half FULLY TRANSPARENT — that half reveals the repositioned host.
 JOB=$(pandastudio motion.render-html --htmlPath=/tmp/panel.html --transparent \
-  --width=1920 --height=1080 --durationMs=6000 --json | jq -r .jobId)
-pandastudio job.wait --jobId=$JOB
+  --width=1920 --height=1080 --durationMs=6000 --json | jq -r '.data.jobId')
+pandastudio job.wait --id=$JOB --timeoutMs=600000 --json >/dev/null
 
 # 2. One call: camera → right 55%, transparent panel → left 45%, coordinated.
 pandastudio project.add-designed-segment \

@@ -44,6 +44,9 @@ All accept `id` or `path`, plus optional `expectedRevision` for conflict-safe wr
 | `project.split-clip` | `clipId`, `atSourceMs` (clip's own source time; `timeline.edited-to-source` → `clipSourceMs`) | Split a clip in two without changing the output. Left keeps the id and ends at the split; right (`rightClipId`, `rightClipIndex`) covers the full media with a head trim over the left's part. Anchors/trims after the split move with the right half; transcript words divide at the split. |
 | `project.add-motion-graphic` | `file` or `fromJob`, `durationMs`, `atMs` (optional, defaults to end-of-timeline), `muted` (default true), `volume` (0–1), `loop` | Drop an MP4/WebM (typically from `motion.generate`) as a media-overlay region; a `fromJob` render keeps its source so it stays editable. Animated GIF / WebP / APNG files are converted to a looping transparent WebM. An overlay VIDEO's own audio is muted by default; pass `muted=false` to hear it in preview and export. Timeline mute regions still silence it. |
 | `project.set-overlay-chroma-key` | `regionId` (req), `color` (`auto` default \| `#RRGGBB`), `similarity`, `smoothness`, `spill` (0–1), `enabled` (false removes) | Green screen on an image/video overlay: removes a flat-colour backdrop. `auto` detects the colour from the frame edges. Check with `render-frame`. |
+| `project.set-overlay-crop` | `regionId` (req), `x`, `y`, `width`, `height` (0–1 of the overlay SOURCE; omit or pass 0,0,1,1 to clear) | Crop an image/video/graphic overlay's source pixels: cut black bars off B-roll, take the centre of a wide clip for a vertical short. |
+| `project.set-overlay-backdrop-blur` | `regionId` (req), `strength`, `tint` | Frosted-glass blur of whatever is under an overlay, shaped by the overlay's alpha (use a transparent overlay; opaque ones show nothing). |
+| `project.set-region-sound` | `regionId` (req), `regionType` (req: `zoom` \| `motionGraphic` \| `fx`), `soundUrl` (req; `none` removes), `soundVolume` | Swap, add or mute the sound effect on a placed zoom, motion graphic or FX. |
 | `project.update-motion-graphic` | `overlayId` (req), `slots` (template), `background` (`solid`\|`transparent`\|`glass`), `html` (HTML graphics) | **Async.** Re-render a placed generated graphic with edits, in place (timing, position, sound kept). Needs `generatedFrom` on the overlay. |
 | `project.add-emoji` | `emoji` (req: 🔥, `1f525` or `fire`), `atMs`, `durationMs` (default 3000), `x`/`y` (center %, default 50), `size` (height %, default 25), `soundUrl` | **Async.** Place a looping Google Noto animated emoji overlay. Discover with `asset.list-emoji`. |
 | `project.update-region` | `regionType`, `regionId`, then only the fields to change | Patch a placed region in place. For `regionType=overlay` this includes `x`/`y`/`width`/`height`, `layer`, `muted` (the overlay video's own audio) and `volume` (0–1). |
@@ -60,6 +63,8 @@ All accept `id` or `path`, plus optional `expectedRevision` for conflict-safe wr
 | `project.render-sheet` | `fromMs?`, `toMs?`, `count?` (default 12, max 24), `cols?` (default 4), `outPath?` | ONE call → tiled contact-sheet PNG of N verified preview frames across a range (row-major; cell k = `frames[k]`). THE pacing/motion verification tool — replaces N render-frame calls. |
 | `project.add-speed` | `startMs`, `endMs` (source ms), `speed` (0.25 to 100, 0.01 steps) | Speed up or slow down a span. 8 to 100 timelapses installs/renders/loading. Regions faster than 4 play silent in preview and export. |
 | `project.add-annotation` | `startMs`, `endMs`, `type` (text/figure), `text`, `x/y/width/height` (%) | Drop text or figure annotation on canvas. |
+| `project.update-spotlight` | `regionId` (req), then only what changes: `startMs`, `endMs`, `kind` (spotlight\|blur), `x`/`y`/`width`/`height`, `shape` (rectangle\|ellipse), `style` (gaussian blur\|pixelate), `blurAmount`, `pixelSize`, `maskOpacity`, `roundness`, `feathering` | Edit a focus region placed with `project.add-spotlight`. |
+| `project.remove-spotlight` | `regionId` (req) | Remove a spotlight/blur region (ids under `editor.spotlightRegions[]`). |
 | `project.set-aspect-ratio` | `ratio` (16:9/9:16/1:1/4:3/3:4) | Switch project aspect ratio. |
 | `project.set-wallpaper` | `wallpaper` | Set project background wallpaper id or 'none'. |
 | `project.set-style` | `padding/shadowIntensity` (0-100, the slider percentage; 0-1 also accepted)`/borderRadius/motionBlurAmount/showBlur`, main-video frame `shape` (rounded\|circle) / `borderWidth` (0-40) / `borderColor` / `resetFrame` | Bulk-set cinematic style preset fields + the main-video frame (border ring, circle). Camera-only videos get their border here. |
@@ -150,8 +155,10 @@ The editorial primitive that makes PandaStudio PandaStudio. Every operation that
 | Command | Args | Purpose |
 |---|---|---|
 | `caption.toggle` | `id` \| `path`, `enabled` (bool) | Show/hide captions for the whole project. |
-| `caption.set-template` | `id` \| `path`, `templateId` | One of: `classic, modern, minimal, bold, spotlight, boxed, neon, colored`. |
+| `caption.set-template` | `id` \| `path`, `templateId` | Default `glowStack`. Static: `classic, modern, minimal, bold, spotlight, boxed, neon, colored, coloredWords, editorial, glowStack`. Animated (word by word as spoken): `kineticSlam, clipWipe, gradientPop, matrixDecode, glitchRgb, blendDifference`. |
 | `caption.set-style` | `id` \| `path`, color/font/stroke/positionY/wordsPerLine overrides | Per-template style overrides. `positionY` is PERCENT of frame height from the top (0-100, default 85) — not a 0-1 fraction (fractions are auto-converted, but write percent). |
+| `project.add-caption-region` (alias `project.hide-captions`) | `atMs` + `durationMs` or `startMs` + `endMs` (edited ms) | HIDE captions for a stretch, e.g. under a full-frame statement card or a UI demo. Returns `regionId`. |
+| `project.remove-caption-region` (alias `project.show-captions`) | `regionId` (req; ids under `editor.captionRegions[]`) | Show captions there again. |
 
 ## export.* (v1.9.1 — the centerpiece)
 
@@ -183,7 +190,8 @@ PandaStudio bundles Gemma 4 E2B (~2B params). Good for summarisation / classific
 |---|---|---|
 | `job.get` | `id` (string, required) | Snapshot of one job's status + progress + result. |
 | `job.list` | — | Every job in memory (last hour after completion). |
-| `job.wait` | `id` (string, required), `timeoutMs` (number, default 60_000, max 300_000) | Block server-side until terminal state. Returns `{ job, timedOut? }`. **Prefer this over client-side polling.** |
+| `job.wait` | `id` (string, required), `timeoutMs` (number, default 300_000 = 5 min, hard cap 30 min) | Block server-side until terminal state. Returns `{ job, timedOut? }`; `timedOut: true` is NOT a failure, call again with the same id. **Prefer this over client-side polling.** |
+| `job.cancel` | `id` (string, required) | Cancel a running or queued job. Idempotent. |
 
 ## preview.* (v1.9.2)
 
@@ -195,6 +203,15 @@ Floating, always-on-top overlay window that mounts the editor's WYSIWYG canvas. 
 | `preview.seek` | `atMs` | Move the playhead in the open overlay. |
 | `preview.hide` | — | Close the overlay. |
 | `preview.list` | — | `{ open, size?, position?, url? }` — what's visible right now. |
+
+## workspace.* / youtube.* (the rest: SKILL.md "Workspaces", reference/publishing.md)
+
+| Command | Args | Purpose |
+|---|---|---|
+| `workspace.get-brand` | — | The active workspace's brand kit (colors, fonts, logoPath, voice). Read it before authoring custom graphics and use its values. |
+| `workspace.rename` | `id` (req), `name` (req) | Rename a workspace. |
+| `youtube.list-channels` | `accountId` (req) | Re-pull a connected account's channels from YouTube (a just-created channel missing from `youtube.list-accounts`). |
+| `youtube.disconnect` | `accountId` (req) | Remove a YouTube connection from the active workspace. Confirm with the user first. |
 
 ## window.*
 

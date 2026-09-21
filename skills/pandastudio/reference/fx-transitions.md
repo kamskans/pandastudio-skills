@@ -82,7 +82,7 @@ A looping texture overlay over a clip span (screen/lighten/add/normal blend).
 
 ```bash
 pandastudio project.add-fx --id=$PROJECT \
-  --fxId=film-grain --startMs=0 --endMs=15000 --speed=1 --json   # MCP: project_add_fx
+  --fxId=film-grain --atMs=0 --durationMs=15000 --speed=1 --json   # MCP: project_add_fx
 ```
 
 > FX defaults (blend mode, opacity, native speed, default SFX) come from the

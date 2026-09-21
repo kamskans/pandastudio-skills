@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.157.0 -->
+<!-- version: 3.158.0 -->
 
 # PandaStudio
 
@@ -467,7 +467,7 @@ pandastudio project.auto-reframe --id=$PID --clear=true --json
   `activePicture: [{clipId, rect}]` (`rect: null` = no bars). Expect a slight
   extra punch-in on letterboxed clips. A plain static crop (`project.set-crop`)
   on a clip that has the rect is kept inside it too.
-- **Set the 9:16 aspect FIRST** (`project.set-aspect-ratio --aspect=9:16`), then
+- **Set the 9:16 aspect FIRST** (`project.set-aspect-ratio --ratio=9:16`), then
   auto-reframe — the track is computed for the canvas aspect and is ignored if
   the aspect later changes (recompute after an aspect switch).
 - **Preview and export render the crop identically, per frame** — the preview
@@ -482,7 +482,7 @@ pandastudio project.auto-reframe --id=$PID --clear=true --json
 **Hard rules:** YouTube `privacyStatus` defaults to `unlisted` — never public without explicit user say; Instagram needs a Business/Creator account; never publish in the wrong workspace (confirm `isInActiveWorkspace`). Flows: connect → publish an export. Full detail: [`reference/publishing.md`](reference/publishing.md).
 ## Recipes — run a proven edit style
 
-When the user names a style ("TV-style explainer", "like my usual Shorts", "product demo edit"), says "like last time", or wants a repeatable look, check recipes BEFORE designing from scratch (and with NO style named on a long-form on-camera video, default to the Ali style recipe `educator-talking-head-chapters`, see "Long-form default style" below): `recipe.list --format=short|long`, `recipe.get`, `recipe.apply-style` (sets the recipe's fixed look deterministically), `recipe.render --values=...` (blanks you omit come back as "(you decide this from the video: …)" — choose them from the footage yourself; EXCEPT `fromUser` blanks like a faceless video's idea, a product name or an offer: render fails until the user gives them, so ask and never invent; `allowScript` blanks also take the user's own script via `<key>Kind: "script"`, narrated word for word), then follow the prompt, apply the fixed style exactly and verify the checklist with rendered frames. After an edit the user is happy with, offer to save it with `recipe.save`. Full detail: [`reference/recipes.md`](reference/recipes.md).
+When the user names a style ("TV-style explainer", "like my usual Shorts", "product demo edit"), says "like last time", or wants a repeatable look, check recipes BEFORE designing from scratch (and with NO style named: a long-form on-camera video defaults to the Ali style recipe `educator-talking-head-chapters`, a Short to the Shorts recipe that matches its content; see "Long-form default style" and "Short-form default" below): `recipe.list --format=short|long`, `recipe.get`, `recipe.apply-style` (sets the recipe's fixed look deterministically), `recipe.render --values=...` (blanks you omit come back as "(you decide this from the video: …)" — choose them from the footage yourself; EXCEPT `fromUser` blanks like a faceless video's idea, a product name or an offer: render fails until the user gives them, so ask and never invent; `allowScript` blanks also take the user's own script via `<key>Kind: "script"`, narrated word for word), then follow the prompt, apply the fixed style exactly and verify the checklist with rendered frames. After an edit the user is happy with, offer to save it with `recipe.save`. Full detail: [`reference/recipes.md`](reference/recipes.md).
 
 ## Memory — remember preferences across chats
 
@@ -533,6 +533,31 @@ Video editing is a creative task with hundreds of small decisions. Asking the us
 > no style was given, and offer another recipe. Does NOT apply to: Shorts /
 > vertical, `loom`, screen recordings with no camera, or when the user named
 > any style or recipe (theirs wins).
+
+> **Short-form default: pick a Shorts recipe.** When the edit is `shorts`
+> (9:16 Shorts / Reels / TikTok, including a project made by
+> `project.fork-from-shot`) and the user has NOT named a style, a recipe or a
+> reference creator, don't design from scratch: run the same cleanup first
+> (transcribe, fillers, STT fixes, bad takes, silences), read the transcript,
+> then pick the ONE Shorts recipe whose shape matches what the clip actually is,
+> and run it with `recipe.apply-style` + `recipe.render` exactly as above:
+>
+> | The clip is… | Recipe id |
+> |---|---|
+> | one blunt claim or opinion, delivered fast | `hard-truth-one-liner-short` |
+> | a numbered list of rules / tips / mistakes | `rules-listicle-cutaways-short` |
+> | a quick run through several tools / items, one line each | `rapid-fire-list-short` |
+> | a story or anecdote with a twist or payoff | `storytime-turn-short` |
+> | explaining one concept, model or framework | `framework-explainer-short` |
+> | talking about things that can be SHOWN (places, products, examples) | `split-screen-short-broll` |
+> | selling a product or offer (needs the offer from the user) | `social-ad-hook-variants` |
+> | no footage at all, only an idea or script | `faceless-short` |
+> | calm educational talk that fits none of the above (**the fallback**) | `warm-educator-short` |
+>
+> Tell the user which recipe you used and why in one line, and offer the others
+> (`recipe.list --format=short`). The user's own style, recipe or saved
+> preference (`memory.list`) always wins. Does NOT apply to long-form (Ali style
+> above) or `loom`.
 
 When the user asks to **edit / polish / clean up** a video without naming a
 specific operation, this is the intended end-to-end pipeline, in order:
@@ -889,7 +914,7 @@ Only pass un-processed clips to each operation. If every clip is already transcr
 | `transcript.find-issues` | Run after remove-fillers. Surfaces re-takes (`duplicate-take`), abandoned restarts (`false-start`), and stutters (`adjacent-repeat`) as candidates — each with the `wordIds` of the discarded attempt. **Read-only — it never edits.** **Default: keep the most recent (last) take and delete the earlier attempt** by feeding the candidate's `wordIds` into `transcript.delete-words` — **but `severity: "low"` candidates are REVIEW-class: keep them by default** (a low `false-start` = the restart diverges from the fragment, often intentional parallel structure like "one for transcription, one for outreach"). The detector already skips comma-terminated parallel list items and lone stopword "repeats" across pause tokens. Review against context first — if a repeat looks intentional (emphasis) or you can't tell which take is cleaner, ask the user which to keep rather than blind-applying. |
 | `transcript.remove-silences` | Run after the content cleanup. Runs the SAME two passes as the UI Remove Silences button and unions them: (1) transcript word-gaps (leading, between-word, trailing) and (2) ffmpeg audio-level `silencedetect` on each clip's media — pass 2 catches real dead air the transcript misses when speech-to-text invents phantom words over quiet stretches, which is why this now removes the same sections a manual click would (it previously did pass 1 only and left audio-only silence behind). Default threshold 600ms; don't hand-pick a higher value "to be safe" — that leaves dead air the user expects gone. |
 | `audio.clean` | Denoise only clips where `clipStates[i].audioCleaned === false`. Writes a sibling `.cleaned.wav`; original audio untouched. **Room echo is opt-in:** add `--echo=true` only when the user mentions echo, reverb, or a boomy/hollow room (or asks for "studio" sound). On an already-cleaned clip, `--echo=true` runs just the fast echo stage and `--echo=false` switches back instantly; `clipStates[i].echoReduced` shows the current state. |
-| `caption.set-template` (when user said "add captions" without naming a style) | Default to `glowStack` (the app's default style since 1.94; a recipe's own caption setting always wins, e.g. Ali style keeps captions off). Static styles: `classic, modern, minimal, bold, spotlight, boxed, neon, colored, editorial, glowStack` (`glowStack` = short-form headline look: a small white lead-in word stacked over big bold words in a glowing yellow-to-orange gradient, words pop in as spoken; great for Shorts/Reels talking heads) (`editorial` = magazine emphasis: the spoken word renders big + accent while the rest shrinks). **Animated, transcript-driven styles** (each word animates as it's spoken, identical in preview + export): `kineticSlam` (words slam in), `clipWipe` (wipe reveal per word), `gradientPop` (gradient text, elastic pop), `matrixDecode` (character scramble resolves), `glitchRgb` (RGB chromatic split), `blendDifference` (auto-inverts over any footage). Reach for an animated style for Shorts/TikTok energy; keep `bold`/`editorial` for long-form. |
+| `caption.set-template` (when user said "add captions" without naming a style) | Default to `glowStack` (the app's default style since 1.94; a recipe's own caption setting always wins, e.g. Ali style keeps captions off). Static styles: `classic, modern, minimal, bold, spotlight, boxed, neon, colored, coloredWords, editorial, glowStack` (`glowStack` = short-form headline look: a small white lead-in word stacked over big bold words in a glowing yellow-to-orange gradient, words pop in as spoken; great for Shorts/Reels talking heads) (`editorial` = magazine emphasis: the spoken word renders big + accent while the rest shrinks). **Animated, transcript-driven styles** (each word animates as it's spoken, identical in preview + export): `kineticSlam` (words slam in), `clipWipe` (wipe reveal per word), `gradientPop` (gradient text, elastic pop), `matrixDecode` (character scramble resolves), `glitchRgb` (RGB chromatic split), `blendDifference` (auto-inverts over any footage). Reach for an animated style for Shorts/TikTok energy; keep `bold`/`editorial` for long-form. |
 | `llm.generate-title` / `llm.generate-description` / `llm.generate-timestamps` | Generate after the edit pass. Show the user; let them say "regenerate" or "use this exact title" or edit inline. |
 | Specific zoom moments | Heuristically pick from the transcript ("you said 'click here' at 12.4s — adding a zoom"). Don't pre-ask. Iterate via preview. |
 | FX overlays (`project.add-fx`) | **NOT do-by-default.** Never add an effect on your own — not on a plain edit, not for "make it engaging". Only when the user explicitly asks for one ("add a film burn", "put grain on it"). When they ask, place it where they said and follow the restraint rules. |
@@ -1915,7 +1940,7 @@ ID=$(pandastudio project.current --json | jq -r '.data.project.id // empty')
 # $ASPECT is derived from the profile:
 #   youtube-long | linkedin | loom → 16:9
 #   shorts                         → 9:16
-pandastudio project.set-aspect-ratio --id=$ID --aspect=$ASPECT
+pandastudio project.set-aspect-ratio --id=$ID --ratio=$ASPECT
 
 # 1. PACING — the default cleanup pipeline (see "default edit pipeline" in
 #    Editorial decisions for the mandatory steps + report-counts rule). Run it

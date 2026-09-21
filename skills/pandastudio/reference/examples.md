@@ -488,8 +488,9 @@ RENDER_BUSY), then concat.
 
 ```bash
 # ── Setup ─────────────────────────────────────────────────────────
-P=$(pandastudio project.new --name="$PRODUCT Promo" --aspectRatio=16:9 --json)
+P=$(pandastudio project.new --name="$PRODUCT Promo" --json)
 ID=$(echo "$P" | jq -r '.data.id')
+pandastudio project.set-aspect-ratio --id=$ID --ratio=16:9 --json >/dev/null
 
 # Pick the kinetic product-drive track with durationMs closest to your target
 MUSIC=$(pandastudio asset.list-music --json \
