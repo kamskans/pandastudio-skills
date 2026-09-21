@@ -67,6 +67,7 @@ All accept `id` or `path`, plus optional `expectedRevision` for conflict-safe wr
 | `project.update-spotlight` | `regionId` (req), then only what changes: `startMs`, `endMs`, `kind` (spotlight\|blur), `x`/`y`/`width`/`height`, `shape` (rectangle\|ellipse), `style` (gaussian blur\|pixelate), `blurAmount`, `pixelSize`, `maskOpacity`, `roundness`, `feathering` | Edit a focus region placed with `project.add-spotlight`. |
 | `project.remove-spotlight` | `regionId` (req) | Remove a spotlight/blur region (ids under `editor.spotlightRegions[]`). |
 | `project.set-aspect-ratio` | `ratio` (16:9/9:16/1:1/4:3/3:4) | Switch project aspect ratio. |
+| `project.set-vertical-screen-layout` | `fill` (`follow` default \| `fit`), `corner` (`top-left` \| `top-right` \| `bottom-left` \| `bottom-right`) | Vertical layout for SCREEN RECORDINGS: screen fills the frame panning with the mouse (`follow`) or shows whole over a blur (`fit`); camera as a corner square. Set 9:16 first. Returns `{ followed, centered, skipped }`. |
 | `project.set-wallpaper` | `wallpaper` | Set project background wallpaper id or 'none'. |
 | `project.set-style` | `padding/shadowIntensity` (0-100, the slider percentage; 0-1 also accepted)`/borderRadius/motionBlurAmount/showBlur`, main-video frame `shape` (rounded\|circle) / `borderWidth` (0-40) / `borderColor` / `resetFrame` | Bulk-set cinematic style preset fields + the main-video frame (border ring, circle). Camera-only videos get their border here. |
 

@@ -43,6 +43,8 @@ pandastudio project.fork-from-shot --exportId="$EXPORT" --shotId="$SHOT" --json
 # → { id, path, name: "Original — Short: ...", aspectRatio: "9:16", project: {...} }
 ```
 
+**Screen recordings:** the fork's automatic fill-crop is skipped when the clip has a camera attached, so a Short forked from a screen recording starts shrunk-to-fit. Run `project.set-vertical-screen-layout --id=$NEW_PROJECT --fill=follow --corner=bottom-right` right after forking (SKILL.md "Vertical screen recording").
+
 **What the fork does to the project:**
 - **Keeps** the source's first-row timing edits: clips, trim regions (silences/fillers/bad takes), speed regions, per-clip transcribed/audioCleaned status, per-clip transcript, root transcript, cleaned-audio paths, LUT/color grade.
 - **Strips** every overlay/region row (they were sized for 16:9): zooms, FX, motion graphics, captions, transitions, lower thirds, annotations, clip-transforms (podcast/designed-segment layouts), background music, wallpaper, padding/shadow framing.

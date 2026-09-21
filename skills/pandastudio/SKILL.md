@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.159.0 -->
+<!-- version: 3.160.0 -->
 
 # PandaStudio
 
@@ -413,7 +413,26 @@ pandastudio project.set-shorts-layout --id=$PID --layout=camera-corner
 pandastudio project.set-shorts-layout --id=$PID --layout=full
 ```
 
-`camera-corner` sets the main-clip transform AND a `blur-self` backdrop together; reposition the tile afterward with `project.set-screen-transform` (`x`/`y` are canvas-fraction center offsets, `scale` the tile size). The two pieces are also independently settable: `project.set-backdrop --mode=blur-self|wallpaper` controls only the fill behind a scaled-down video (invisible while the video fills the frame). For a **screen-recording (screen+camera)** clip, don't use these — use `project.set-webcam-layout --preset=picture-in-picture`, which already gives screen-fills-with-camera-corner. The blurred self-fill renders identically in preview and export.
+`camera-corner` sets the main-clip transform AND a `blur-self` backdrop together; reposition the tile afterward with `project.set-screen-transform` (`x`/`y` are canvas-fraction center offsets, `scale` the tile size). The two pieces are also independently settable: `project.set-backdrop --mode=blur-self|wallpaper` controls only the fill behind a scaled-down video (invisible while the video fills the frame). For a **screen recording** don't use these; use the vertical screen layout below. The blurred self-fill renders identically in preview and export.
+
+### Vertical screen recording: screen fills the frame, camera in a corner
+
+For a **screen recording** (with or without a camera) in a 9:16 project, `project.set-vertical-screen-layout` is the layout: the screen is the main thing and the camera is a small square tile in a corner (the tutorial/demo Short look). Set the aspect first; the crop is tied to it.
+
+```bash
+pandastudio project.set-aspect-ratio --id=$PID --ratio=9:16
+# Screen fills the frame, cropped around the mouse and panning with it; camera bottom-right
+pandastudio project.set-vertical-screen-layout --id=$PID --fill=follow --corner=bottom-right
+# Whole screen visible, full width, over a blurred copy of itself
+pandastudio project.set-vertical-screen-layout --id=$PID --fill=fit
+# Move just the camera tile (any picture-in-picture layout, 16:9 too)
+pandastudio project.set-webcam-layout --id=$PID --corner=top-left
+```
+
+- **Pick the fill:** `follow` (default) for demos where the action is in one area at a time; it pans with the recording's cursor data (centered when there is none) and keeps the mouse in view, gliding rather than snapping. `fit` when everything on screen matters at once (a full dashboard, a side-by-side comparison), at the cost of a smaller screen.
+- **Pick the corner** so the tile doesn't cover what the video is about: bottom-right by default; move it if the UI's key controls sit there. `render-frame` a few moments to check.
+- It sets picture-in-picture, removes padding, and enlarges the tile for phones unless the user already sized it. Returns `{ followed, centered, skipped }`; a `skipped` clip wasn't cropped (read the reason).
+- Cursor-follow zooms still land on the right spot inside the crop.
 
 ### Active-speaker auto-reframe: landscape multi-person → vertical (v1.70+)
 
@@ -553,6 +572,10 @@ Video editing is a creative task with hundreds of small decisions. Asking the us
 > | selling a product or offer (needs the offer from the user) | `social-ad-hook-variants` |
 > | no footage at all, only an idea or script | `faceless-short` |
 > | calm educational talk that fits none of the above (**the fallback**) | `warm-educator-short` |
+>
+> **A Short made from a screen recording** gets the vertical screen layout first
+> (`project.set-vertical-screen-layout --fill=follow`, camera in a corner that
+> doesn't cover the action), then the recipe.
 >
 > Tell the user which recipe you used and why in one line, and offer the others
 > (`recipe.list --format=short`). The user's own style, recipe or saved
