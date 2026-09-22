@@ -65,6 +65,7 @@ only when the user asks for that look or the content clearly is a review or a
 code walkthrough AND they named no style.
 
 ### educator-pip (Ali Abdaal) — frameworks, habits, how-to
+- **Templates (app 1.98.0+):** lists/steps `numbered-slide`, short lists of things `pill-list`, products/tools `kit-product-slide` (all three as a background under a `cam-left-portrait` card), section statements `serif-statement` over the full-frame shot, diagrams `glow-steps`, stressed terms `keyword-pills` (face box from `project.detect-face`), agent demos `agent-chat`. The recipe prompt names them move by move.
 - **Workhorse layout (28–54% of frames): full-frame graphic with small PiP
   talking head** (rounded corner card, ~1/6 frame width). Face stays on
   screen ~85–90% of runtime while the graphic carries the content. In

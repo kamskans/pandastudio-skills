@@ -21,7 +21,7 @@ Recipes are grouped by **format**: `short` (vertical Shorts / Reels / TikTok) an
 | `tv-style-explainer` | long | Chapter header bar, big number callouts, camera sliding into cards and corners |
 | `product-demo-walkthrough` | long | Title card per feature, feature banner while demoing, zooms on what's discussed, takeaways card |
 | `punchy-youtube-talking-head` | long | Tight jump cuts, punch-in zooms on strong lines, keyword pops, stat cards, takeaways |
-| `educator-talking-head-chapters` | long | Friendly teaching video: step cards on the left, callouts on the right that build on the words they match, gentle zooms, soft continuous music, recap checklist that ticks off, no captions |
+| `educator-talking-head-chapters` | long | The Ali style (default long-form on-camera edit, needs app 1.98.0): you full frame at least half the time; numbered-slide / pill-list / kit-product-slide behind a cam-left-portrait card (max two in a row), serif-statement over the shot, glow-steps diagrams, keyword-pills placed with project.detect-face; three or more moves per video over 3 min, a zoom every 40 s of full frame, soft music, no captions |
 | `business-lesson-rule-slams` | long | Blunt business lesson: restarts and read-out notes cut hard, beat-by-beat punch-ins as a second angle, full-screen Rule N text slams with a thud, bold boxless captions, no music |
 | `course-lesson-chapters` | long | Title + learning goals, chapter cards, highlighted definitions, captions, recap, chapter timestamps |
 | `product-promo-from-url` | long | Footage optional: launch video from real product footage or website screenshots, camera flies into what's used, drawn cursor clicks, crisp typed close-ups, logo + line close |
