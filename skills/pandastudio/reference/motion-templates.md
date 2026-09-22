@@ -79,6 +79,12 @@ template's own palette.) All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay
 - `calm-proof-card` (5.5s) — a real screenshot floats in as a large rounded white card, then a soft highlighter sweeps one area. Slots: image, caption, highlight ("x,y,w,h" % of the card), bgColor, markColor, inkColor.
 - `calm-twin-cards` `O` (5s) — two rounded pastel cards on either side of a full-frame talking head (left, then right), for a two-sided question. Slots: left, right, leftColor, leftInk, rightColor, rightInk.
 
+**Agent / AI chat** (use this instead of hand-building a chat or agent mock-up)
+- `agent-chat` (21.4s, 9:16 and 16:9) — a Claude-style app on a phone: the prompt types in on the keyboard, a thinking line and one tool step show (collapsed to "2 steps"), then the reply streams line by line. `**asterisks**` make words bold; answer4 to answer8 render as bullets; empty answer slots are skipped. 9:16: the phone fills the frame. 16:9: the phone stands on a page at `side` right (default), left or center; add it with `--layer=background` under a `cam-left-portrait` card (side right) for the camera-card look. Keep copy close to the default lengths: the timeline is fixed at 21.4 s and longer text is cut off. Slots: **prompt**, thinking, lead, toolStep, answer1 to answer10, model, side, pageColor.
+  ```bash
+  pandastudio motion.generate --templateId=agent-chat --aspectRatio=16:9 --slots='{"prompt":"Build me a landing page for my course","toolStep":"write index.html","answer1":"Done. The page has a **hero**, three benefits and a signup form.","answer2":"","answer3":"","answer4":"","answer5":"","answer6":"","answer10":"Want me to deploy it?"}'
+  ```
+
 **Camera-card slides** (16:9 long-form, the Ali style look: a full-frame cream slide under the camera as a portrait card. Not for Shorts.)
 - `kit-product-slide` (6s) — one product or tool per beat: small eyebrow with optional logo, the name in serif, a one-line description, a screenshot on a white card, and an optional dark "Replaces" strip naming the tools it replaces (lands at `replacesAt` seconds, so it hits the word). The content fills the right side; set `cameraSide` right to mirror. Slots: **name**, description, image, eyebrow ("In the kit"), logo, replaces[{tool}] (up to 4), replacesLabel, replacesAt, cameraSide (left/right), accentColor, bgColor, inkColor, mutedColor. Use it BEHIND the camera, exactly like glow-steps with `backdrop=panel`:
   ```bash
