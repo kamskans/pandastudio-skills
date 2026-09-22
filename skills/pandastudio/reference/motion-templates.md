@@ -85,6 +85,15 @@ template's own palette.) All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay
   pandastudio motion.generate --templateId=agent-chat --aspectRatio=16:9 --slots='{"prompt":"Build me a landing page for my course","toolStep":"write index.html","answer1":"Done. The page has a **hero**, three benefits and a signup form.","answer2":"","answer3":"","answer4":"","answer5":"","answer6":"","answer10":"Want me to deploy it?"}'
   ```
 
+**Keyword pills around the speaker** (transparent, over the FULL-FRAME shot, never over a camera-card slide)
+- `keyword-pills` `O` (8s, 16:9 and 9:16) — 1 to 4 off-white serif pills (~80px) that pop in around the speaker (beside the head, at the shoulders, above), each on the word it names (`at`), and leave after `hold` seconds (default 3.2). They avoid the `face` box, the frame edges and each other, shrinking if a spot is tight. ALWAYS pass the real face box: run `project.detect-face` over the same span first. Slots: items[{text, at}], face ("x,y,width,height" 0-1), hold, pillColor, inkColor.
+  ```bash
+  FACE=$(pandastudio project.detect-face --id=$P --fromMs=$S --toMs=$E --json | jq -r '.data.face | "\(.x),\(.y),\(.width),\(.height)"')
+  pandastudio motion.generate --templateId=keyword-pills --background=transparent --slots="{\"items\":[{\"text\":\"Consistency\",\"at\":\"0.4\"},{\"text\":\"Patience\",\"at\":\"1.6\"}],\"face\":\"$FACE\"}"
+  # then project.add-motion-graphic --fromJob=... --atMs=$S --durationMs=$((E-S))  (normal layer, not background)
+  ```
+  If `found` is false the camera isn't visible there: pick another moment.
+
 **Camera-card slides** (16:9 long-form, the Ali style look: a full-frame cream slide under the camera as a portrait card. Not for Shorts.)
 - `serif-statement` `O` (3.6s, 16:9) — NOT a camera-card slide: the one line that states a section's point, large white serif (about 150 px, shrinking to fit two rows) over the full-frame shot, lower half by default. Rises in over half a second, holds, fades out; `*asterisks*` = italic accent. Add as a normal (foreground) motion graphic for about 3.6 s on the sentence itself, at most once every 30 to 60 s, never over a camera-card slide. Slots: **text**, position (lower/center/upper, keep it off the face), reveal (line/words), shade (on/off), fadeOut (on/off; off to hold for a longer region), inkColor, accentColor. For Shorts use `sh-serif-quote`.
 - `numbered-slide` (10s) — the list beat: 2 to 5 numbered points (blue, violet, coral number circles, a serif line each) with an optional small label and title. Each point takes an `at` (seconds into the graphic) so it lands on the word that starts it; with `focus` on (default) earlier points soften as the next lands. Type steps down for 4 to 5 points. Slots: items[{text, at}], title, eyebrow, focus (on/off), cameraSide (left/right), color1, color2, color3, eyebrowColor, bgColor, inkColor. Same placement as below: `--layer=background` under a `cam-left-portrait` region, started 320 ms early and ended 320 ms late (add 0.32 to every `at`).
