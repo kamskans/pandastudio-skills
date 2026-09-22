@@ -79,6 +79,15 @@ template's own palette.) All are 16:9 / 9:16 / 1:1 unless noted. `O` = overlay
 - `calm-proof-card` (5.5s) — a real screenshot floats in as a large rounded white card, then a soft highlighter sweeps one area. Slots: image, caption, highlight ("x,y,w,h" % of the card), bgColor, markColor, inkColor.
 - `calm-twin-cards` `O` (5s) — two rounded pastel cards on either side of a full-frame talking head (left, then right), for a two-sided question. Slots: left, right, leftColor, leftInk, rightColor, rightInk.
 
+**Camera-card slides** (16:9 long-form, the Ali style look: a full-frame cream slide under the camera as a portrait card. Not for Shorts.)
+- `kit-product-slide` (6s) — one product or tool per beat: small eyebrow with optional logo, the name in serif, a one-line description, a screenshot on a white card, and an optional dark "Replaces" strip naming the tools it replaces (lands at `replacesAt` seconds, so it hits the word). The content fills the right side; set `cameraSide` right to mirror. Slots: **name**, description, image, eyebrow ("In the kit"), logo, replaces[{tool}] (up to 4), replacesLabel, replacesAt, cameraSide (left/right), accentColor, bgColor, inkColor, mutedColor. Use it BEHIND the camera, exactly like glow-steps with `backdrop=panel`:
+  ```bash
+  JOB=$(pandastudio motion.generate --templateId=kit-product-slide --slots='{"name":"WritePanda","description":"Delete words to cut. Captions, zooms, and publish straight to YouTube.","image":"/path/screenshot.png","replaces":[{"tool":"Descript"},{"tool":"Opus Clip"}]}' --json | jq -r .data.jobId)
+  pandastudio project.add-clip-transform-region --id=$P --startMs=$S --endMs=$E --preset=cam-left-portrait --transitionMs=320
+  pandastudio project.add-motion-graphic --id=$P --fromJob=$JOB --atMs=$((S-320)) --durationMs=$((E-S+640)) --layer=background
+  ```
+  Grab the screenshot first (`motion.screenshot` of the product's site, or a real app capture). Don't run more than two of these back to back: return to the full-frame camera between pairs.
+
 **Hand-drawn diagram**
 - `glow-steps` `O` (5s, 16:9) — 2 to 4 steps drawn in glowing hand-drawn ink: number, label, a circle scribbled around it, arrows between. `layout` stack (down one side) or row; `side` left/center/right; `backdrop` panel (solid, full frame: use as a BACKGROUND graphic under a camera card on the other side), scrim (soft shade over footage) or none. Each step takes an optional `at` (seconds into the graphic) so it lands on the spoken word; steps can reveal out of order (raw, edit, then recipe in the middle). Slots: steps[{label, at}], layout, side, backdrop, inkColor, panelColor. The split look, speaker on the right with the steps on the left:
   ```bash
