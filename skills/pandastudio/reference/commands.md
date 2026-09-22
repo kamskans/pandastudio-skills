@@ -228,3 +228,52 @@ Floating, always-on-top overlay window that mounts the editor's WYSIWYG canvas. 
 | `window.preview` | `id` \| `path` (optional) | **v1.9.1** — open the editor focused on a project so the user can SEE what an agent is doing visually. No rendering cost beyond the existing live preview pane. Chromeless overlay variant ships in v1.9.2. |
 | `window.focus` | — | Bring the front-most app window to the foreground. (Available even when license-gated.) |
 | `window.list` | — | Every open window: `{ id, title, url, visible, focused }`. |
+
+## Details and edge cases
+
+The MCP tool descriptions are kept short to save context. These are the details they leave out.
+
+**Workspaces and projects**
+- `workspace.set-brand`: empty-string fields are dropped; an unknown `voice` value is ignored.
+- `workspace.capture-brand`: the first run downloads the HyperFrames capture CLI, so give it a long timeout.
+- `project.duplicate`: media files are shared with the source, not copied.
+- `project.rename`: the file on disk keeps its name (files are keyed by project id), so renaming is safe while the project is open.
+
+**Podcasts**
+- `project.add-podcast-clip`: guests auto-sync by audio cross-correlation; preview and export draw every participant through the N-party podcast layout.
+- `project.auto-sync-podcast --id --clipId`: cross-correlates each guest's audio against the host, stores a per-participant offset, and returns the offsets with a confidence. Use it after `add-podcast-clip --autoSync=false`, or to redo a sync.
+- `project.set-participant-offset --id --clipId --speaker=guest|guest-2|guest-3 --offsetMs`: manual nudge, ±10000 ms. Positive delays that participant; 0 clears it. The host is the reference clock. Applied in preview and export. (`project.set-webcam-offset` only reaches the first guest.)
+
+**Clips, regions and overlays**
+- `project.move-clip`: a move never drops a region. A region anchored inside a cut starts where kept content resumes. Out-of-range `toIndex` is clamped.
+- `project.split-clip`: clips always play their media from 0; an in-point is a head trim (the same as dragging a clip's left edge).
+- `project.add-audio`: `fadeOut` only applies to bounded overlays (ignored on an uncapped full-length one). Useful to crossfade the seam of a looped music bed.
+- `project.auto-reframe`: without `zoom`, each speaker's face is sized to a consistent fraction of the frame. Letterbox bars are detected once per clip and stay excluded even after `project.set-screen-transform`.
+- `project.add-motion-graphic` with `file=bundled:transition/<id>`: stamps the transition id, so it cover-fits any canvas (a 16:9 sweep fills 9:16) and carries its own sound.
+- `project.set-overlay-crop`: out-of-range values are clamped; the worst case is the whole source.
+- `project.set-overlay-chroma-key`: first enable uses similarity 0.45, smoothness 0.25, spill 0.5; `color: auto` is read from the edges of the overlay's first visible frame. Preview, render-frame and export share one keyer.
+- `project.add-mute-region` / `project.hide-captions`: regions may overlap.
+- `project.add-emoji`: each emoji asset is downloaded once, then cached.
+
+**Transcript**
+- `transcript.find-replace`: a match that crosses a deleted stretch is split at the cut: the replacement goes on the kept words and the deleted words stay as they were (listed in `splitMatches`). Result: `{ replacedCount, wordsPatched, wordsMerged, trimsChanged: false, splitMatches }`.
+- `transcript.restore-words`: a cut over a whole deleted sentence is split so the other words stay deleted; silence-removal trims are left alone. Returns `trimsRemoved` (cuts changed).
+- `transcript.insert-words`: timing fills the gap the dropped word left, sized to the local speaking rate, borrowing a few ms from the previous word when the neighbours touch.
+- `transcript.transcribe`: the job result includes `wordEditsReapplied`; each `droppedWordEdits[]` entry is `{ clipId, description, reason }` with reason `no-match`, `conflict` or `crosses-cut`.
+- `caption.set-style`: a px `fontSize` is converted to rem before the 1.0-5.0rem clamp.
+
+**Media, recording, motion**
+- `recording.start`: on a brand-new install that never recorded, the first call returns a "grant Screen Recording and retry" error rather than hanging.
+- `media.generate-image`: `referenceImagePath` also accepts an https URL. `outputName` is slugified with a timestamp appended (same for `media.image-to-video`).
+- `motion.render-html`: seek through the timeline, never `window.__hf.seek`: it skips the compositor invalidation and renders with 1-second stalls.
+- `motion.verify-frames`: frames are written to `<recordings dir>/<outputName stem>/frame-<ms>.png`. The full-res `path` is ~2 MB as base64; read `previewPath`.
+- `motion.screenshot`: `atMs` snaps to the 30 fps frame grid. `outputPath` is 1920x1080; `previewPath` is a 1280-wide copy.
+- `asset.list-luts` categories: natural, cinematic, dramatic, vintage, modern. `asset.list-music` `recommendedFor`: youtube-long, shorts, linkedin, loom.
+- `preview.show`: a single window, takes 1-2 s to boot.
+
+**Export and publishing**
+- `export.start`: reuses an editor window already open on the project, otherwise renders in a hidden one that closes afterwards. Loudness: -14 LUFS integrated / -1 dBTP by default, two-pass, video untouched; the result's `loudness` carries `preset`, `targetLufs`, `mode` (linear|dynamic) and, when skipped, `reason` (no-audio|silent|failed|unavailable).
+- `export.verify` result: `durationMs`, `expectedDurationMs`, `durationDiffMs`, `compared`, `frames[{ atMs, reason, meanDiff, worstBlockDiff, worstBlock{x,y}, match, previewPath, exportPath }]`, `skipped[]`, `audio{ expected, present, maxVolumeDb, silent, ok }`.
+- `export.set-thumbnail`: copies the file into the managed thumbnails folder; prefer `export.generate-thumbnail` when you want iteration history.
+- `export.publish-youtube`: expect roughly 30 s per 100 MB to upload. To replace a thumbnail, `export.generate-thumbnail` output is already 1280x720.
+- Preview proxies are made for 10-bit, 4:2:2/4:4:4, HDR, ProRes/DNxHD, or over-150 Mbps sources.
