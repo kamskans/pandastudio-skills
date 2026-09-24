@@ -104,6 +104,19 @@ ink        #0D1218
 background #F5F5F0  (light track) or #0A1422 (dark track)
 ```
 
+## The same tracks on real footage (native tools)
+
+The tracks also decide how you treat FOOTAGE on the timeline, not just authored
+scenes:
+
+| Track | Enter / exit (`project.set-animation`) | Footage treatment | Avoid |
+|---|---|---|---|
+| A — Creator-bright | `pop`, `slide-*` | punch-in keyframes on key lines (`project.add-motion`) | grain, vignette, dark adjustment looks |
+| B — Dark-premium | `zoom`, `fade` | light leaks / flares on black with `--blendMode=screen`; an adjustment layer with `vignette` + `grain` (+ `glow`); mask wipe reveals (`set-overlay-mask --source=shape` + keyframes) | bouncy `pop` entrances |
+| C — Product-clean | `rise`, `fade` | mask wipes, slow `push-in` on screenshots | grain, glow, chromatic aberration |
+
+One entrance family per video, same as one transition style.
+
 ## Asking the user to pick
 
 When you need to offer a choice, the prompt looks like:

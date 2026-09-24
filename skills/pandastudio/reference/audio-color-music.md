@@ -125,9 +125,85 @@ overlay (`endMs`/`maxDurationMs` set) so the end time is known; it's ignored on 
 uncapped full-length overlay. Use a fade-out on the final music region so the bed
 doesn't cut off hard, and short (~500ms) fades at a loop seam to hide the join.
 
-**Ducking music under voiceover** — use two overlays: the VO at `volume=1.0`
-and the music at `volume=0.2`. Both export through the same FFmpeg `amix`, so
-an explicit ducking automation isn't needed for simple cases.
+**Ducking music under the voice** — `project.set-audio-ducking` lowers a music
+overlay automatically while someone speaks and brings it back up in the
+pauses. The voice is the main track's transcript words plus any transcribed
+voiceover (default), or detected speech (`--source=energy`, for footage
+without a transcript). Speech is measured once per clip and stored on it; with
+a transcript it also trims each word to where it is actually voiced
+(speech-to-text stretches a sentence's last word over the pause after it). The
+ramp down (`attackMs`) finishes as the voice starts, so the first syllable is
+already clear; pauses shorter than attack + release + 400 ms stay ducked, so
+the music only surfaces in real breaks (no pumping between phrases).
+Deleted words and mute regions don't duck (nothing is heard there).
+
+```bash
+# Music bed ducked 12 dB under the voice (defaults: attack 150, release 400)
+pandastudio project.set-audio-ducking --id=$ID --regionId=audio-1 --json
+# Deeper, slower duck
+pandastudio project.set-audio-ducking --id=$ID --regionId=audio-1 \
+  --amountDb=18 --attackMs=250 --releaseMs=800 --json
+# No transcript? Duck under detected speech instead
+pandastudio project.set-audio-ducking --id=$ID --regionId=audio-1 --source=energy --json
+# Off (keeps the settings) / remove entirely
+pandastudio project.set-audio-ducking --id=$ID --regionId=audio-1 --enabled=false --json
+pandastudio project.set-audio-ducking --id=$ID --regionId=audio-1 --remove=true --json
+# Or duck from the start when adding the music
+pandastudio project.add-audio --id=$ID --audioPath=$MUSIC --volume=0.3 --ducking=true --json
+```
+
+Set the music `volume` for the pauses (e.g. 0.25-0.35); ducking takes it
+`amountDb` lower under speech. Stored as `audioOverlays[].ducking`
+(`{enabled, amountDb, attackMs, releaseMs, source}`).
+
+### Volume keyframes (automation over time)
+
+Any main-track clip (`--target=clip`) or audio overlay (`--target=audio`:
+music, voiceover, SFX) can carry a VOLUME curve: keyframes of absolute volume
+0-2 (1 = original level) with the shared easing library between them. While a
+track has keyframes they replace its static volume; fades, mute regions and
+ducking still multiply on top. Preview and export play the same curve.
+
+- **Clip keyframe times are the clip's SOURCE ms** (the transcript's clock), so
+  a keyframe stays on its sound when words are deleted or a speed region is
+  added. Map an edited time first with `timeline.edited-to-source`.
+- **Audio keyframe times are ms from the overlay's start**, so moving the
+  overlay moves its curve.
+
+```bash
+# Music: swell in over the intro, sit under the talk, rise for the outro
+pandastudio project.set-volume-keyframes --id=$ID --target=audio --regionId=audio-1 \
+  --keyframes='[{"timeMs":0,"volume":0.6},{"timeMs":4000,"volume":0.15,"easing":"linear"},{"timeMs":52000,"volume":0.15},{"timeMs":56000,"volume":0.6}]' --json
+
+# One keyframe at a time (returns keyframeId); same time = change it
+pandastudio project.add-volume-keyframe --id=$ID --target=audio --regionId=audio-1 \
+  --timeMs=30000 --volume=0.05 --easing=ease-in-out --json
+pandastudio project.remove-volume-keyframe --id=$ID --target=audio --regionId=audio-1 \
+  --keyframeId=vk-3 --json
+
+# Clip audio: dip a loud laugh (clip SOURCE ms 61200-62400) to 30%
+pandastudio project.set-volume-keyframes --id=$ID --target=clip --clipIndex=0 \
+  --keyframes='[{"timeMs":61000,"volume":1,"easing":"linear"},{"timeMs":61200,"volume":0.3,"easing":"hold"},{"timeMs":62400,"volume":1}]' --json
+
+# Clear the curve (back to the static volume)
+pandastudio project.set-volume-keyframes --id=$ID --target=audio --regionId=audio-1 --keyframes='[]' --json
+```
+
+**Media overlay videos' own sound** (a b-roll or screen clip placed as an
+overlay, unmuted with `project.update-region --regionType=overlay --regionId=<id> --muted=false`) takes the same
+automation with `--target=overlay --regionId=<mediaOverlayRegions id>`:
+volume keyframes (ms from the overlay start) and
+`project.set-audio-ducking --target=overlay --regionId=...` to sit it under
+the narration. Mute regions still silence it.
+
+Fields: `timeMs` (required), `volume` (required, 0-2), `easing` (linear | hold
+| ease-in | ease-out | ease-in-out | back | elastic | bezier |
+ease-in-out-cubic | smooth-out | smooth-pan; default ease-in-out), `bezier`
+(with easing bezier). Unknown fields, out-of-range values, two keyframes at
+one time, and times past the track's end are rejected. Stored as
+`volumeKeyframes` on the clip / audio overlay. For a simple fade at the
+overlay's start/end, `fadeIn` / `fadeOut` are still the shortest path; for a
+whole-clip level, `project.set-clip-volume`.
 
 Audio overlays are exported automatically — you don't need to do anything
 extra in `export.start`.
@@ -394,3 +470,64 @@ pandastudio project.add-clip --id=$ID --media="$MERGED" --atIndex=0 --json
 ```
 
 Omit `--atIndex` (or use a high number) to append at the end instead.
+
+### Sound design: effects timed to the action
+
+Product demos, launch videos and UI walkthroughs are carried by sound effects
+(and a voiceover), not by a song. Bundled ids (`asset.list-sounds`, use as
+`bundled:sound/<id>`):
+- Typing: `keyboard-key-1` / `-2` / `-3` (one per typed character, vary them),
+  `keyboard-space`, `keyboard-enter` (sending a prompt), `keyboard-typing-fast`
+  / `keyboard-typing-steady` (bursts to cut to length when text isn't animated
+  per letter), `typewriter-typing` (retro/editorial looks only).
+- Clicks and UI: `mouse-click` (every cursor click), `ui-tick` (UI appears, an
+  item checks off), `marker-strike` (something crossed out), `message-pop`.
+- Movement: `swoosh-fast` ONLY on scene changes and when a card or panel flies
+  away. Never one per camera move or blur cut: about one per 8-10 s, never two
+  within a second. Too many swooshes is the most common mistake.
+- Endings: `noise-riser` leading into `logo-impact` on the frame the logo lands.
+- Bed: `room-tone` very quiet under everything so there's no dead silence.
+
+Workflow:
+1. Get exact action times from the source: the scene's GSAP timeline when you
+   authored it, otherwise rendered frames around each click, type and cut.
+2. Use bundled sounds first. Only when nothing fits,
+   `media.generate-sound-effect --prompt="…" --durationMs=…` (one sound per
+   call). Don't generate whooshes: generated ones often come back musical.
+3. Place each with `project.add-audio --startMs=<action frame>`. Effects well
+   under the voice (duck them while it speaks); no voice lines over typing
+   close-ups; lines never overlap.
+4. Export and check levels (`volumedetect` on a typing stretch, a voice line
+   and the loudest hit) before calling it done.
+
+### Loudness normalisation on export (on by default)
+
+Every export's FINAL mix (voice + music + SFX + overlay audio) is normalised to
+a standard loudness with a two-pass EBU R128 measurement; the video stream is
+copied untouched.
+
+| Setting | Target | Use for |
+|---|---|---|
+| `streaming` (default, `true`, `-14`) | -14 LUFS integrated, -1 dBTP true peak | YouTube, Shorts, TikTok, Instagram, Spotify video, LinkedIn |
+| `podcast` (`-16`) | -16 LUFS, -1 dBTP | Apple Podcasts / podcast hosts, audio-first uploads |
+| `off` (`false`) | mix left as is | only when the user mastered the audio elsewhere |
+
+```bash
+# Per project (saved; the Export dialog shows it too):
+pandastudio project.set-export-settings --id=$ID --normalizeLoudness=podcast
+# Per export (overrides the project setting for this one render):
+pandastudio export.start --id=$ID --quality=high --normalizeLoudness=streaming --json
+```
+
+The `job.wait` result carries `loudness`: `{ preset, targetLufs, applied,
+inputLufs, outputLufs, outputTruePeakDbtp, mode, reason }`. `mode: "linear"` =
+one clean gain change; `"dynamic"` = gentle limiting was needed to reach the
+target without clipping. When `applied` is false, `reason` says why: `no-audio`
+(video-only export), `silent` (boosting would only amplify hiss), `failed`
+(measurement or apply pass errored: the export still completed with the audio
+as mixed; surface it), `unavailable` (media engine not installed). Tell the
+user the before/after ("normalised from -23.4 to -14.0 LUFS"). Don't pre-boost
+clip volumes (`project.set-clip-volume`) to make a quiet recording loud;
+normalisation does that on the whole mix. Relative balance still matters: keep
+music under the voice (ducking or overlay volume), then let normalisation set
+the overall level.

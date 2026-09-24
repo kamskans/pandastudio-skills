@@ -243,6 +243,21 @@ export and raise the bed, not the effects, if it comes out quiet. Captions stay 
 already on screen.
 Export with `export.start`, then `export.verify` before handing it over.
 
+## On the timeline: finishing a rendered film
+
+The film renders as one clip; the finish happens in the project with native
+tools (SKILL.md "Which tool for which moment"):
+- **Voiceover + music:** place the VO with `project.add-audio --transcribe=true`,
+  the bed with `--ducking=true` (not hand-drawn volume dips), `--fadeOut` on the
+  last music region.
+- **Sound design:** clicks, typing and one swoosh per scene change, timed to
+  the frames (audio-color-music.md "Sound design").
+- **Light leaks / flares** shot on black go on top with `--blendMode=screen`;
+  one grade over everything is an adjustment layer, not a per-frame CSS filter.
+- **Real screenshots or footage inside the film** can be overlays with
+  keyframes (`set-keyframes --target=overlay`) when the move must be exact and
+  editable later, instead of a re-render.
+
 ## Craft index
 
 | Need | Read |

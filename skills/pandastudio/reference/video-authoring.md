@@ -677,7 +677,7 @@ pandastudio project.add-designed-segment \
 - The camera is cover-cropped to fill its half (a 16:9 host center-crops to a clean portrait fill — correctly proportioned, no letterbox). The panel's opaque edge IS the visual split line; let the camera sit behind it.
 - Match the panel's opaque width to `cameraRatio`: ratio 55 → panel 45% (864px), ratio 50 → panel 50% (960px). Mirror the x-origin for `cameraSide=left` (panel on the right).
 - Use the **slower overlay pacing** from `motion-philosophy.md` §1.6 — the viewer is split-attention between host and panel.
-- **9:16 Shorts:** render the panel **full-frame 1080×1920** and use `--cameraSide=top` or `bottom` — the split is horizontal (panel band over host band). The premium panels `paper-panel` and `vox-side-panel` are aspect-aware: render either at `--aspectRatio=9:16` and it reflows into a top/bottom band. `cameraSide` is the band opposite the panel's `side` slot; keep the panel's own ratio (`paper-panel` 55, `vox-side-panel` 50). See SKILL.md "Editing a Short".
+- **9:16 Shorts:** render the panel **full-frame 1080×1920** and use `--cameraSide=top` or `bottom` — the split is horizontal (panel band over host band). The premium panels `paper-panel` and `vox-side-panel` are aspect-aware: render either at `--aspectRatio=9:16` and it reflows into a top/bottom band. `cameraSide` is the band opposite the panel's `side` slot; keep the panel's own ratio (`paper-panel` 55, `vox-side-panel` 50). See shorts.md.
 
 This stays entirely in the live compositor: the host footage is full-quality and scrubbable, nothing is baked. You can still layer a `project.add-zoom` on the host within the same window if a beat needs emphasis.
 

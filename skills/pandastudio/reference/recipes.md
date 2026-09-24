@@ -21,7 +21,7 @@ Recipes are grouped by **format**: `short` (vertical Shorts / Reels / TikTok) an
 | `tv-style-explainer` | long | Chapter header bar, big number callouts, camera sliding into cards and corners |
 | `product-demo-walkthrough` | long | Title card per feature, feature banner while demoing, zooms on what's discussed, takeaways card |
 | `punchy-youtube-talking-head` | long | Tight jump cuts, punch-in zooms on strong lines, keyword pops, stat cards, takeaways |
-| `educator-talking-head-chapters` | long | The Ali style (default long-form on-camera edit, needs app 1.98.0): you full frame at least half the time; numbered-slide / pill-list / kit-product-slide behind a cam-left-portrait card (max two in a row), serif-statement over the shot, glow-steps diagrams, keyword-pills placed with project.detect-face; three or more moves per video over 3 min, a zoom every 40 s of full frame, soft music, no captions |
+| `educator-talking-head-chapters` | long | The Ali style (default long-form on-camera edit, needs app 1.98.0): you full frame at least half the time; numbered-slide / pill-list / kit-product-slide behind a cam-left-portrait card (max two in a row), serif-statement over the shot, glow-steps diagrams, keyword-pills placed with project.detect-face; three or more moves per video over 3 min, a zoom every 40 s of full frame, soft music, no captions; on 2.0 also chapter titles behind the presenter and one adjustment look for asides |
 | `business-lesson-rule-slams` | long | Blunt business lesson: restarts and read-out notes cut hard, beat-by-beat punch-ins as a second angle, full-screen Rule N text slams with a thud, bold boxless captions, no music |
 | `course-lesson-chapters` | long | Title + learning goals, chapter cards, highlighted definitions, captions, recap, chapter timestamps |
 | `product-promo-from-url` | long | Footage optional: launch video from real product footage or website screenshots, camera flies into what's used, drawn cursor clicks, crisp typed close-ups, logo + line close |
@@ -30,6 +30,8 @@ Recipes are grouped by **format**: `short` (vertical Shorts / Reels / TikTok) an
 | `warm-educator-short` | short | Calm premium educator Short: sh-serif-hook-title in the first 2 s, Boxed pill captions, one sh-serif-quote on the key sentence, sh-icon-badge-band cutaways, sh-annotated-card for walked-through screens, gentle punch-ins, soft music |
 | `faceless-short` | short | No footage: hook-first 30 to 50 s story, one AI image per beat with slow zooms, cloud or local AI narrator, big Bold captions, quiet cinematic music |
 | `faceless-youtube-explainer` | long | No footage: narrated story in 10 to 20 s beats over one AI image each with slow zooms, 2.5 s title card, Modern captions, music bed |
+
+Starter prompts name the 2.0 native moves where they fit (behind-the-presenter titles, caption moves, keyframed punch-ins, speed ramps, adjustment layers, audio ducking) and say "skip if the command doesn't exist", because the same catalog serves older apps. On 2.0, do them; on an older app, skip them silently.
 
 Shorts recipes follow the short-form grammar measured across popular educator, business and podcast Shorts: no preamble (speech by 2.5 s), something visible changes every 3 to 8 s, graphics in the top ~40%, captions at chest height, faces never covered, end on the payoff.
 

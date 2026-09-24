@@ -43,7 +43,7 @@ pandastudio project.fork-from-shot --exportId="$EXPORT" --shotId="$SHOT" --json
 # → { id, path, name: "Original — Short: ...", aspectRatio: "9:16", project: {...} }
 ```
 
-**Screen recordings:** the fork's automatic fill-crop is skipped when the clip has a camera attached, so a Short forked from a screen recording starts shrunk-to-fit. Run `project.set-vertical-screen-layout --id=$NEW_PROJECT --fill=follow --corner=bottom-right` right after forking (SKILL.md "Vertical screen recording").
+**Screen recordings:** the fork's automatic fill-crop is skipped when the clip has a camera attached, so a Short forked from a screen recording starts shrunk-to-fit. Run `project.set-vertical-screen-layout --id=$NEW_PROJECT --fill=follow --corner=bottom-right` right after forking (see "Vertical screen recording" below).
 
 **What the fork does to the project:**
 - **Keeps** the source's first-row timing edits: clips, trim regions (silences/fillers/bad takes), speed regions, per-clip transcribed/audioCleaned status, per-clip transcript, root transcript, cleaned-audio paths, LUT/color grade.
@@ -215,3 +215,117 @@ interrupt at ~30s → payoff line as a
 big emphasis title → end on the result. Cut anything that doesn't earn its
 second; aim for a visible change every 2–4 seconds.
 
+
+## 9:16 layouts: which one for which footage
+
+| Footage in a 9:16 project | Verb |
+|---|---|
+| Camera-only, one person | `project.set-shorts-layout --layout=full` (or `camera-corner` over a blurred copy of itself) |
+| Screen recording (with or without camera) | `project.set-vertical-screen-layout` |
+| Landscape, more than one person (talk show, interview, podcast panel) | `project.auto-reframe` |
+| Single stationary talking head, fine-tune the crop | `project.set-focal-point` |
+
+### Shorts layout: full-frame vs camera-corner-over-blur
+
+For a **camera-only** clip in a 9:16 project, `project.set-shorts-layout` is the
+one-click layout picker:
+
+```bash
+# Camera shrinks to a draggable bottom-right tile over a blurred copy of itself
+pandastudio project.set-shorts-layout --id=$PID --layout=camera-corner
+# Camera fills the frame (clears the transform + backdrop)
+pandastudio project.set-shorts-layout --id=$PID --layout=full
+```
+
+`camera-corner` sets the main-clip transform AND a `blur-self` backdrop
+together; reposition the tile afterward with `project.set-screen-transform`
+(`x`/`y` are canvas-fraction center offsets, `scale` the tile size). The two
+pieces are also independently settable: `project.set-backdrop
+--mode=blur-self|wallpaper` controls only the fill behind a scaled-down video
+(invisible while the video fills the frame). For a **screen recording** don't
+use these; use the vertical screen layout below. The blurred self-fill renders
+identically in preview and export.
+
+### Vertical screen recording: screen fills the frame, camera in a corner
+
+For a **screen recording** (with or without a camera) in a 9:16 project,
+`project.set-vertical-screen-layout` is the layout: the screen is the main thing
+and the camera is a small square tile in a corner (the tutorial/demo Short
+look). Set the aspect first; the crop is tied to it.
+
+```bash
+pandastudio project.set-aspect-ratio --id=$PID --ratio=9:16
+# Screen fills the frame, cropped around the mouse and panning with it; camera bottom-right
+pandastudio project.set-vertical-screen-layout --id=$PID --fill=follow --corner=bottom-right
+# Whole screen visible, full width, over a blurred copy of itself
+pandastudio project.set-vertical-screen-layout --id=$PID --fill=fit
+# Move just the camera tile (any picture-in-picture layout, 16:9 too)
+pandastudio project.set-webcam-layout --id=$PID --corner=top-left
+```
+
+- **Pick the fill:** `follow` (default) for demos where the action is in one
+  area at a time; it pans with the recording's cursor data (centered when there
+  is none) and keeps the mouse in view, gliding rather than snapping. `fit` when
+  everything on screen matters at once (a full dashboard, a side-by-side
+  comparison), at the cost of a smaller screen.
+- **Pick the corner** so the tile doesn't cover what the video is about:
+  bottom-right by default; move it if the UI's key controls sit there.
+  `render-frame` a few moments to check.
+- It sets picture-in-picture, removes padding, and enlarges the tile for phones
+  unless the user already sized it. Returns `{ followed, centered, skipped }`; a
+  `skipped` clip wasn't cropped (read the reason).
+- Cursor-follow zooms still land on the right spot inside the crop.
+
+### Active-speaker auto-reframe: landscape multi-person → vertical (v1.70+)
+
+When you crop a **landscape source with more than one person** (a talk show,
+interview, podcast panel, any director-cut footage) into 9:16, a single static
+cover-crop lands on the gap between people in wide shots and off-face in
+close-ups of whoever isn't centered. `project.auto-reframe` is a **tracked
+virtual camera** (the Opus Clip / Vizard approach):
+
+1. **Shot detection** (ffmpeg scene cuts) segments the source.
+2. **Dense face tracking** — MediaPipe FaceLandmarker (bundled, offline)
+   samples ~7fps, with adaptive tiling so small/far faces in wide shots are
+   still found. Detections are associated into per-person tracks.
+3. **Audio active-speaker** — on multi-person shots it frames **whoever is
+   talking** (mouth-open × speech-energy), not the biggest face.
+4. **Smoothed camera** — the crop *pans* to follow the subject within a shot
+   (dead-band hold + safe-zone clamp so the face never leaves frame) and
+   *cuts* at shot boundaries.
+
+```bash
+# Reframe every landscape clip — tracks + follows the active speaker.
+pandastudio project.auto-reframe --id=$PID --json
+# → { reframed: [{clipId, shots, shotsWithFace}], skipped: [...], activePicture: [{clipId, rect}] }
+# One clip only, or tune shot sensitivity / punch-in:
+pandastudio project.auto-reframe --id=$PID --clipId=clip-1 --threshold=0.3 --minShotMs=500 --zoom=1.3 --json
+# Revert to the plain static cover-crop:
+pandastudio project.auto-reframe --id=$PID --clear=true --json
+```
+
+- **The right verb (NOT `project.set-focal-point`)** whenever a landscape source
+  with multiple/alternating speakers is cut to 9:16. `set-focal-point` sets ONE
+  static point for the whole clip, correct only for a single, stationary
+  talking head.
+- **Async + needs a renderer** (bundled offline detection). It opens a hidden
+  editor for the pass; allow a couple of minutes for a few-minute source. Skips
+  clips already matching the canvas aspect (reported under `skipped`).
+- **`--zoom`**: omit for the default ADAPTIVE punch-in (each speaker's face
+  sized to a consistent fraction of frame); a fixed value (e.g. `1.3`) forces a
+  uniform punch-in on every shot.
+- **Letterboxed sources are handled automatically.** On its first run per clip
+  it detects the real picture area and stores it as `activePictureRect` (0–1
+  source fractions). Every crop stays inside it, in preview and export,
+  including after you move the video with `project.set-screen-transform`; a
+  plain `project.set-crop` on a clip with the rect is kept inside it too
+  (`rect: null` = no bars). Expect a slight extra punch-in on letterboxed clips.
+- **Set the 9:16 aspect FIRST**, then auto-reframe: the track is computed for
+  the canvas aspect and ignored if the aspect later changes (recompute after an
+  aspect switch).
+- **Preview and export render the crop identically, per frame.** Verify from
+  the EXPORTED mp4 across a close-up, a pan, AND a wide two-shot (render-frame
+  is fine too, but the export is the source of truth near shot cuts).
+- Also in the editor as **"Track speakers"** (Video → Layout).
+- v1 limitation: one subject per shot — a *held* two-shot where two people
+  banter frames the dominant talker.

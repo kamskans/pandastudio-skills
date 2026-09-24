@@ -30,7 +30,7 @@ AUDIO=$(echo "$RES" | jq -r '.data.audioPath')
 DUR=$(echo "$RES" | jq -r '.data.durationMs')
 
 # Place it on the timeline (startMs positions it; pass the returned durationMs)
-pandastudio project.add-audio --id="$PID" --path="$AUDIO" --startMs=0 --durationMs=$DUR
+pandastudio project.add-audio --id="$PID" --audioPath="$AUDIO" --startMs=0 --durationMs=$DUR --transcribe=true
 
 # Cloud — pass a Replicate model explicitly:
 pandastudio media.generate-narration \
@@ -54,6 +54,46 @@ pandastudio media.generate-narration \
 - **Licensing note:** the local path is fully permissive — Kokoro weights are
   Apache-2.0 and the sidecar links misaki-rs built without its espeak fallback,
   so no GPL `espeak-ng` is compiled in.
+
+### The user's OWN voice, and the user's cloned voice
+
+- **Their own voice, recorded:** when the user wants to narrate themselves
+  ("I'll talk over it", a silent screen recording), don't generate TTS: point
+  them to the editor's **Audio tab → Record voiceover**. The preview plays from
+  the playhead while their mic records; pausing cuts the gap; the take lands as
+  a normal audio overlay (`voiceover-*.wav`, in `project.read` under
+  `audioOverlays[]`). With "Transcribe for captions" on (default), its words
+  merge into the transcript like `project.add-audio --transcribe`. You can't
+  record their voice yourself.
+- **Their cloned voice:** `--model=elevenlabs-direct` uses the user's OWN
+  ElevenLabs account (pass the voice name or voice_id; needs ElevenLabs
+  connected in Settings → Integrations).
+
+### Always `--transcribe=true` when placing a VOICEOVER
+
+Audio overlays are never transcribed otherwise (`transcript.transcribe` only
+walks main-track clips), so a narration-driven video ends up with NO
+transcript: no captions and no way to read back what was said. The flag
+transcribes the narration and merges its words into the project transcript at
+the overlay's position. It returns a `transcribeJobId`; `job.wait` on it before
+`caption.toggle` or any transcript verb, and CHECK the job status: it fails
+loudly (instead of merging nothing) when the audio has no recognisable speech.
+Other edits while it runs are safe (the merge re-reads and retries). The words
+belong to that overlay: `project.update-region` moving it moves them,
+`project.remove-audio` removes them. `audioPath` must be an existing absolute
+file (a missing/empty path → `audio_file_invalid`; check the variable isn't
+empty). Do NOT pass it for music or ambience.
+
+```bash
+NARR=$(pandastudio media.generate-narration --text="..." --json | jq -r '.data.audioPath')
+OUT=$(pandastudio project.add-audio --id=$ID --audioPath="$NARR" --startMs=0 --transcribe=true --json)
+pandastudio job.wait --id=$(echo "$OUT" | jq -r '.data.transcribeJobId') --json
+pandastudio caption.toggle --id=$ID --enabled=true   # now has words to render
+```
+
+For a from-scratch promo with narration, generate the VO FIRST and time each
+scene to its line (TTS runs longer than you'd guess; see promo-and-mg-videos.md
+"Audio: decide voiceover & music FIRST").
 
 ## B-roll generation (Replicate gpt-image-2)
 
@@ -212,3 +252,65 @@ pandastudio project.set-webcam-layout --id=$ID --preset=picture-in-picture \
 
 Tell the user the presenter is AI-generated and that platforms may require a
 disclosure label.
+
+## Faceless videos — the full pipeline
+
+A "faceless" video is **narration carrying the story over AI-generated IMAGES
+that DEPICT each beat**, with slow Ken-Burns motion. No face, no camera (the
+format behind history/mystery/educational channels). Each scene MUST be a real
+image that SHOWS the beat ("the cyclops" → *a one-eyed giant in a torch-lit
+cave*, NOT a card with the word "Cyclops"). The words belong in the voiceover.
+Motion-graphic text scenes are the WRONG tool here; use them only for an
+optional title card or a lower-third stat.
+
+1. **Break the topic into beats.** One clear VISUAL idea per beat (~8–20s of
+   narration). A 3–5 min video is ~12–20 beats.
+2. **Write the narration line** for the beat.
+3. **Generate the narration** → `media.generate-narration` (local Kokoro by
+   default). ONE beat per call (~40–60 words): Kokoro caps a single call around
+   ~25s, so long scripts get truncated. Grab its `durationMs`.
+4. **Generate the IMAGE** → `media.generate-image` with a vivid, LITERAL visual
+   prompt (subject, setting, lighting, mood, no on-screen words). 16:9 → `3:2`,
+   9:16 → `2:3`. **Keep one art style across every image** (state it in every
+   prompt, e.g. "cinematic oil-painting, warm dramatic light").
+5. **Ken-Burns it as the next beat** → `media.image-to-video --id=$PID
+   --imagePath=<img> --durationMs=<beat narration + ~400ms> --aspectRatio=9:16
+   --zoom=in` (or `--zoom=out`, optional `--pan=left|right|up|down`). With
+   `--id` the still becomes the next main-track IMAGE CLIP (kind `image`,
+   filling the frame) and the zoom / pan a keyframed motion region over it: the
+   engine draws the full-resolution image every frame (nothing baked) and both
+   stay editable (the clip: `project.set-clip-duration`, move / split / remove;
+   the move: Motion keyframes or `project.set-keyframes --target=main
+   --regionId=<regionId>`). Returns `clipId`, `regionId` and `startMs`.
+   `--aspectRatio` sets the project frame on the first beat (16:9, 9:16, 1:1,
+   4:5); `--atIndex` inserts instead of appending. Alternate `in`/`out` across
+   beats. (Only reach for a `motion.render-html` Ken-Burns shell for a bespoke
+   CSS treatment — grain, parallax layers, vignette animation.)
+   Without `--id` the verb BAKES an MP4 and returns `videoPath` (feed it to
+   `project.add-clip --media=<videoPath>`); `--bake=true` with `--id` when the
+   user wants the file itself. A still WITHOUT a move is
+   `project.add-clip --media=<img> --durationMs=<ms>` (fills the frame;
+   `--fill=false` frames it like a video).
+6. **Lay the narration under it** → `project.add-audio --audioPath=…
+   --startMs=<the beat's startMs>`.
+7. **Polish (expected):** a quiet music bed (`asset.list-music` →
+   `project.add-audio --ducking=true` at low volume, e.g. 0.15), burned captions
+   (faceless viewers often watch muted; transcribe the narration with
+   `--transcribe=true`), maybe ONE title card at the top.
+8. **Export** (16:9 for YouTube, 9:16 for a faceless short).
+
+**Timing rule:** each scene's length = its narration length; place each beat's
+narration at the `startMs` the verb returned (beats carry the +400ms tail, so
+never sum raw narration lengths). If Replicate isn't connected, image
+generation is unavailable: say so and offer bundled templates as a lesser
+fallback, or ask them to connect Replicate (Settings → Integrations →
+Connectors).
+
+```bash
+# One beat (9:16) — repeat per beat.
+IMG=$(pandastudio media.generate-image --prompt="a one-eyed giant in a torch-lit cave, cinematic oil-painting, warm dramatic light" --aspectRatio=2:3 --json | jq -r '.data.imagePath')
+NARR=$(pandastudio media.generate-narration --text="In the cave of the cyclops, Odysseus faced a giant who ate men whole." --voice=am_michael --json)
+DUR=$(echo "$NARR" | jq -r '.data.durationMs'); WAV=$(echo "$NARR" | jq -r '.data.audioPath')
+START=$(pandastudio media.image-to-video --id="$PID" --imagePath="$IMG" --durationMs=$((DUR + 400)) --aspectRatio=9:16 --zoom=in --json | jq -r '.data.startMs')
+pandastudio project.add-audio --id="$PID" --audioPath="$WAV" --startMs=$START --endMs=$((START + DUR)) --volume=1
+```

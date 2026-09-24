@@ -36,9 +36,20 @@ pandastudio project.add-speed --id=$ID --startMs=60000 --endMs=240000 --speed=40
 # spans at 4 or below. Retime or change speed later with project.update-region
 # --regionType=speed --regionId=speed-1 --speed=8.
 
-# Drop a text annotation
+# Drop a text annotation. x/y are the box's TOP-LEFT corner in % of the
+# frame, NOT its centre (width/height are % too; defaults w=30 h=20; omit
+# both x and y to centre the box). To centre a box of width w: x = 50 - w/2,
+# or pass --anchor=center and give the centre (add-annotation only;
+# update-region x/y stay top-left). Keep x + width <= 100 and y + height <= 100;
+# the result returns the resolved top-left `position`, `size` and `warnings`
+# when the box runs past an edge: fix those, then check with render-frame.
 pandastudio project.add-annotation --id=$ID --startMs=2000 --endMs=4000 \
-  --type=text --text="Look here →" --x=50 --y=30
+  --type=text --text="Look here →" --x=35 --y=30 --width=30 --height=12
+# Same box, by its centre
+pandastudio project.add-annotation --id=$ID --startMs=2000 --endMs=4000 \
+  --type=text --text="Look here →" --anchor=center --x=50 --y=36 --width=30 --height=12
+# Annotations always draw over the presenter: a title that goes BEHIND the
+# person is a motion graphic + project.set-overlay-mask --behindPerson=true.
 
 # Switch aspect ratio (incl. 9:16 for Shorts)
 # A camera-only project whose source aspect differs from the new ratio is auto
@@ -204,7 +215,7 @@ pandastudio project.set-clip-style --id=$ID --clipId=clip-2 --padding=18 --borde
 # `speaker` field — "host" (speaker 1 / mediaPath) or "guest" (speaker 2 /
 # webcamPath). Read those spans, split the clip where the active speaker
 # changes, then set each section's layout to that speaker's full-frame:
-#   1) pandastudio transcript.get --id=$ID            # words carry speaker
+#   1) pandastudio transcript.get --id=$ID --format=words   # words carry speaker
 #   2) pandastudio project.split-clip ... at each speaker-change boundary
 #   3) pandastudio project.set-clip-layout --clipId=<section> --preset=podcast-host-full
 #      (or podcast-guest-full when the guest is talking)
@@ -238,3 +249,241 @@ pandastudio project.duplicate-region --id=$ID --regionType=zoom --regionId=zoom-
 pandastudio project.set-export-settings --id=$ID --quality=source --format=mp4
 ```
 
+
+## Clips: add, move, split, insert, remove, delete
+
+- `project.new --withMedia='["/a.mp4","/b.mp4"]'` creates a project pre-loaded;
+  clip durations are FFmpeg-probed.
+- `project.duplicate --id` (or `--path`) makes an EXACT copy (every edit,
+  transcript, aspect ratio) with a fresh id, a `<name> (copy)` name and a new
+  `.pandastudio` file; media is shared, the source untouched. Returns
+  `{ id, path, name }`. Use to try a variant edit.
+- `add-clip` (`--atIndex=0` prepends), `move-clip`, `split-clip`, `remove-clip`
+  all carry every region (trims, speeds, zooms, overlays, captions, anchors)
+  with the clip it sits on; nothing is dropped by a move.
+- **Insert mid-recording = split, then add:** `timeline.edited-to-source
+  --editedMs=<playhead>` returns `clipId` + `clipSourceMs`; `project.split-clip
+  --clipId=<clipId> --atSourceMs=<clipSourceMs>` returns `rightClipIndex`;
+  `project.add-clip --media=<file> --atIndex=<rightClipIndex>`. `split-clip`
+  never changes the output: the left half ends at the split point, the right
+  half covers the clip's full media with a head trim over the part the left
+  half plays (clips play media from 0; in-points are head trims). Don't delete
+  that head trim unless you want the right half to replay the start.
+- **`project.delete` is permanent — no trash** and needs the user's
+  confirmation in PandaStudio (ask in chat first). By default it removes only
+  the project file and KEEPS the source recording; `--deleteRecording=true`
+  also deletes the original recording file(s) (irreversible, only when the user
+  explicitly asks to delete the footage). Returns `deletedRecordings`.
+- `project.read` shapes: clips at `mainTrack.clips[]` (each has
+  `sourceDurationMs`, no per-clip `durationMs`; use `clipStates[]` for a
+  normalized view), motion-graphic / transition overlays at
+  `editor.mediaOverlayRegions[]`, audio overlays at TOP-LEVEL
+  `project.audioOverlays[]` (not under `editor`), plus `aspectRatio`,
+  `editedDurationMs` (post-trim), `sourceDurationMs`, `totalTrimmedMs`,
+  `trimCount`.
+
+## Smart cursor hide (drawn cursor, screen recordings)
+
+`project.set-style --cursorHideIdle=true [--cursorIdleSeconds=2]` fades the
+enlarged cursor (`cursorScale > 0`) out after it has been still for N seconds
+(0.5-10, default 2) and back in just before it moves; clicks count as activity.
+`--cursorHideDuringZoom=true` also fades it out while a zoom is in (it follows
+the zoom's ease). Both default OFF, including on new projects. Idle time is
+measured on the EDITED timeline: a trimmed pause doesn't count, a speed-up
+shortens it, and a cut where the cursor jumps shows it again. Preview,
+render-frame and export fade on the same frames. Use idle-hide for
+talking-over-a-screen videos where the cursor sits parked; leave
+hide-during-zoom off when a zoom follows the cursor and the viewer needs to see
+what it points at. UI: Video tab > Cursor size box.
+
+## Focus regions: spotlight, blur, pixelate (v1.50.0+)
+
+`project.add-spotlight --atMs=<ms> --durationMs=<ms> [--kind=spotlight|blur]` —
+a focus rect over the video. `kind=spotlight` (default) DIMS everything outside
+the rect; `kind=blur` BLURS everything inside it (hide an email, username or
+other sensitive detail). Rect: `--x --y --width --height` as 0..1 fractions of
+the video (default a centred half-size box, `x=y=0.25 width=height=0.5`). `--roundness` (px corner radius,
+default 16), `--feathering` (px soft edge, default 12; alias `--feather`).
+Spotlight: `--maskOpacity` 0..1 (surround darkness, default 0.6). Blur:
+`--blurAmount` px (default 12). The rect tracks content through zooms. `atMs`
+is EDITED time (no anchor arg).
+
+- **Edit / delete (v1.85.0):** `project.update-spotlight --regionId=<id>
+  [--startMs --endMs --kind --x --y --width --height --roundness --feathering
+  --maskOpacity --blurAmount --style --pixelSize --shape --source --keyframes]`
+  patches only what you pass; `project.remove-spotlight --regionId=<id>`
+  deletes it. Ids: `editor.spotlightRegions[].id`.
+- **Pixelate + oval:** `--style=blur|pixelate` (blur kind only; default gaussian),
+  `--pixelSize=<px>` (mosaic block at a 1080p reference, 4..120, default 16),
+  `--shape=rectangle|ellipse` (ellipse = the oval inscribed in the rect,
+  roundness ignored; works for spotlights too). `--style=pixelate` with no
+  `--kind` implies `kind=blur`. Reach for PIXELATE for privacy (emails, account
+  IDs, API keys, phone numbers, license plates): a gaussian blur on large text
+  can stay half-legible; a 16+ px mosaic can't be read back. Use
+  `--pixelSize=24`+ on big text, `--shape=ellipse` for faces. Example:
+  `project.add-spotlight --atMs=4000 --durationMs=6000 --style=pixelate
+  --pixelSize=20 --x=0.1 --y=0.08 --width=0.3 --height=0.05`. The mosaic grid
+  is anchored to the region's corner and grows with zooms, so it covers the
+  same content in preview, render-frame and export. `project.apply-edit-plan`
+  add-blur / add-spotlight ops accept `style`, `pixelSize` and `shape` too.
+- **Moving subject (2.0):** `project.track-focus-face --regionId=<spotlightId>`
+  makes a blur follow a face; `update-spotlight --source=person` masks a
+  spotlight / blur to the presenter. See native-motion.md "Masks".
+- **Privacy-blur flow:** `render-frame` → read the PNG → locate the text →
+  `add-spotlight --kind=blur` with converted coords (see "Seeing frames"
+  below) → `render-frame` again to verify → export.
+
+## Speaker background: blur, remove, studio image, outline (v3.69.0+)
+
+`project.add-background-effect --mode=blur|remove|image [--atMs --durationMs |
+--startMs --endMs] [--strength=<px>] [--backgroundImage=<studioId|path>
+--backgroundFit=cover|contain] [--outline --outlineWidth --outlineColor
+--outlineShadow] [--matteContract --matteFeather] [--anchorSourceMs]` — AI
+PERSON SEGMENTATION on the camera video for the region's span, a timeline
+region like a zoom (draggable, trimmable, source-anchored, rebases on
+trims/speeds). CAMERA / TALKING-HEAD footage only. Bundled on-device model (no
+network); preview and export match. Duration defaults to 5000ms.
+
+- `mode=blur` keeps the speaker sharp and blurs everything behind (video-call
+  style; `--strength` px sigma at 1080p, default 18).
+- `mode=remove` cuts the background away so the project wallpaper shows
+  through — pair with `set-wallpaper`, OR a **background-layer media overlay**
+  to put an IMAGE/VIDEO behind the speaker (the Shorts look):
+  `add-motion-graphic --file=<img/video> --layer=background` (or flip an
+  existing overlay with `update-region --regionType=overlay
+  --layer=background`; UI: right-click → "Send behind video").
+- `mode=image` is the **virtual studio**: it composites the speaker over a
+  STUDIO PLATE. Bundled ids: `warm-creator` (default, soft warm key),
+  `tech-rgb` (cool RGB rim), `neutral-grey`, `podcast-warm` (warm tungsten),
+  `daylight-airy`, `gradient-gel` (magenta/teal), `cinematic-dark` (dramatic
+  side) — or an absolute/`file://`/`data:` image. `--backgroundFit=cover`
+  (default) or `contain`. Pick a plate lit like the footage. No outline by
+  default.
+- **Matte tuning:** `--matteContract=<px>` > 0 pulls the person edge INWARD
+  (kills a background fringe), < 0 pushes it out (−60..60); `--matteFeather`
+  softens it (0..60). Apply to blur AND remove.
+- **`--outline`** is a colored keyline + drop shadow hugging the person (the
+  VOX magazine-cutout look). **ON by default for `mode=remove`** (v3.80.0); pass
+  `--outline=false` for a bare cutout. Off for `mode=blur` unless passed.
+  `--outlineWidth` px@1080p (default 36), `--outlineColor` (default `#ffffff`),
+  `--outlineShadow` (default true). Pair remove + outline with a cream
+  wallpaper for the reference look.
+- Regions: `editor.backgroundEffectRegions[]` (`.outline =
+  {enabled,width,color,shadow}`); retime/restyle with
+  `update-region --regionType=background-effect [--startMs --endMs --mode
+  --strength --backgroundImage --backgroundFit --outline --outlineWidth
+  --outlineColor --outlineShadow --matteContract --matteFeather]`, delete with
+  `remove-region --regionType=background-effect`. Batchable in
+  `apply-edit-plan` as `{op:'add-background-effect',atMs,durationMs,mode,...}`.
+  2.0: `amount` keyframes fade it in/out (`set-keyframes
+  --target=background-effect`).
+
+## Green screen (chroma key)
+
+**On an overlay (v3.153.0, app 1.94+):** `project.set-overlay-chroma-key
+--regionId=<overlay-id> [--color=auto|#RRGGBB] [--similarity=0-1]
+[--smoothness=0-1] [--spill=0-1] [--enabled=false]` removes a flat-colour
+backdrop from an IMAGE or VIDEO media overlay (a presenter on green, stock
+footage on green, a UI element on a flat colour). Add the footage first with
+`add-motion-graphic --file=<video>`, then key it.
+
+**On the MAIN video or the CAMERA (v3.183.0, app 2.0+):**
+`project.set-clip-chroma-key --clipId=<clip-id> [--target=screen|camera]
+[--color=auto|#RRGGBB] [--similarity] [--smoothness] [--spill]
+[--keepCard=true] [--enabled=false]` keys a main-track clip with the same
+keyer. `--target=screen` (default) keys the main video (a camera-only video
+filmed on green, a screen recording, a still): the keyed area shows the
+project wallpaper / gradient / backdrop and background-layer overlays
+(`set-wallpaper` / `add-motion-graphic --layer=background`). `--target=camera`
+keys the clip's camera layer (PiP card, side-by-side tile, camera-full
+section): the presenter stands directly on the screen recording. A keyed
+camera drops its card box (black underlay, shadow, border ring, rounded
+corners); `--keepCard=true` keeps the frame with the keyed person inside.
+
+Shared rules:
+- `--color` defaults to `auto` on first enable: read from the edges of the
+  first shown frame, which keys a real (duller than #00FF00) screen without
+  tuning; `detectedColor` says what it found, a `warning` means detection
+  failed and the standard chroma green `#00B140` was used.
+- Defaults: similarity 0.45 (1 = as far from the key as grey is), smoothness
+  0.25 (soft edge), spill 0.5 (removes the green tint on edges). Omitted
+  settings keep their current value, so nudge one at a time.
+- ALWAYS check with `render-frame`: backdrop patches or a green halo left →
+  raise `--similarity` by 0.05; edges, hair or green-ish clothing eaten →
+  lower it. `--enabled=false` removes the key.
+- Main/camera: key first, then the clip's grade (`set-clip-lut` /
+  `set-clip-color`, same `--target`) grades the person only. Works with zooms,
+  reframe, layouts, masks, behind-the-person graphics (the person mask is keyed
+  too) and speaker background. With the `blur-self` backdrop a keyed main video
+  stands on the wallpaper instead. Fade the key with `keyStrength` keyframes:
+  `add-motion --target=frame` (main video) or `--target=webcam` (camera), and
+  `set-keyframes --target=overlay` for overlays. Not for multi-party podcast
+  grids (3+ tiles).
+- Stored as `mediaOverlayRegions[].chromaKey`, `mainTrack.clips[].chromaKey`
+  and `clips[].webcamChromaKey` (`{color,similarity,smoothness,spill,keepCard?}`).
+  Preview, render-frame and export share one keyer.
+- NOT `add-background-effect`: that finds a PERSON with AI and can't cut out a
+  flat-colour backdrop or a non-person subject.
+- UI: select the overlay → Green screen → On; for clips, Video tab → Green
+  Screen (Screen / Camera toggle; On detects the colour, Detect re-reads it).
+
+## Seeing frames: render-frame, render-sheet, detect-face, export.verify
+
+- **`project.render-frame --atMs=<ms> [--width=<px>] [--outPath=<png>]
+  [--detectFaces=true]`** composites the preview frame at that edited time and
+  returns `{ path, width, height, timeMs, maskRect }`. The PNG size does NOT
+  depend on the editor window: by default the export resolution capped to a
+  1920 long edge (1080x1920 for 9:16, 1920x1080 for 16:9); `--width`
+  overrides (64-3840 per edge; pass ~540 to just eyeball). Layout, overlays,
+  captions, grade, background effect, the camera at the captured moment
+  (custom sections, any transition length) and blur/spotlight regions are
+  drawn identically to the preview. `clampedFrom` appears when `atMs` was
+  outside the video. A vision model should `read` the returned `path`.
+- **Placing a focus region from an image:** `maskRect` is the video content
+  rect as 0..1 fractions of the image, the SAME space as spotlight x/y/w/h.
+  Convert an image box (ix,iy,iw,ih): `x=(ix-maskRect.x)/maskRect.width`,
+  `y=(iy-maskRect.y)/maskRect.height`, `width=iw/maskRect.width`,
+  `height=ih/maskRect.height`. Prefer an un-zoomed moment for placement.
+- **`project.render-sheet --fromMs --toMs --count --cols`** returns one contact
+  sheet (cell k = frame k, row-major): the cheap way to check a whole span or
+  an animation.
+- **`project.detect-face --fromMs --toMs`** samples the FINAL composited frames
+  (layout, crop, zoom applied) and returns `face` {x,y,width,height} as 0..1
+  fractions of the frame (the union across samples, so head movement is
+  covered) plus `median`. A small picture-in-picture card is searched on the
+  camera's own frame and mapped into the output (`via: "camera"`). A range past
+  the end is cut to the last frame (`clampedToMs`); samples outside are
+  `outOfRange: true`. `found:false` = no visible face. Use it before placing
+  anything that must not cover the speaker (keyword pills, side labels).
+- **Missing media is reported, not hidden.** If an overlay, motion graphic,
+  wallpaper image or screen-share file can't be read, `render-frame` and
+  `export.start` still render but return `warnings` naming the files. Tell the
+  user; re-generate or re-import before exporting.
+- **`export.verify --exportId=<id>`** (async, job.wait; alias `export.check`)
+  compares the finished MP4 with the editor preview: picture length vs the
+  edit, sound present and in step, and editor-vs-export frame pairs at even
+  moments plus inside every layout section. Read `summary` and look at
+  `sheetPath` (editor left, export right, red outline = difference) before
+  telling the user the export is good. Frames are judged perceptually against
+  what H.264 alone does to the same frame; a flagged frame's `reasons` name
+  what differs and `worstBlock` where. Same as "Check against editor" on the
+  export page.
+
+## Reset and duplicate
+
+- **`project.clear-edits`** — one atomic call wipes every region + audio
+  overlays + turns captions off (keeps clips, transcript, aspect ratio;
+  `--full=true` also resets LUT/crop/webcam/wallpaper). Use it for "start
+  over"; do NOT loop `project.remove-region` (that removes ONE region by
+  `--regionType` + `--regionId`).
+- **`project.duplicate-region --regionType=<type> --regionId=<id> [--atMs=<ms>]`**
+  copies a placed region with every setting under a new id. Types: `zoom |
+  speed | annotation | fx | overlay | clip-transform | background-effect |
+  spotlight | audio-overlay | motion | adjustment` (not `trim`). Without
+  `--atMs` the copy lands right after the original; `--atMs` is EDITED ms,
+  except for `speed` (SOURCE ms like trims). A region in a link group (a
+  designed segment's panel + camera transform) is duplicated with its peers
+  into a NEW group. Zooms and speed regions can't overlap their own kind, so
+  the copy moves to the first gap that fits (`shiftedMs`) or fails. Returns
+  `{ regionId, startMs, endMs, shiftedMs, created[] }`. Same as Cmd/Ctrl+D
+  (Cmd/Ctrl+C then V pastes at the playhead).

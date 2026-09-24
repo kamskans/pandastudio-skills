@@ -63,6 +63,21 @@ pandastudio project.add-transition --id=$PROJECT \
 | `light-sweep` | bright bar wipes across | A clean directional wipe — moving to a new location/topic with momentum. |
 | `film-burn` | organic fire bloom | A warm, filmic, vintage scene change — storytelling/cinematic pieces. |
 | `glitch` | digital RGB tearing | Tech/edgy/energetic content — a deliberately abrupt, modern cut. |
+| `scribble` | hand-drawn scribble on, then clears | Whiteboard / hand-drawn pieces. Authored at 2200ms: pass `--durationMs=2200` to keep its beats intact. |
+
+- **`atMs` is EDITED (output) time and add-transition has NO `anchorSourceMs`**
+  (unlike add-zoom / add-motion-graphic). With only a source-time value (a
+  transcript word's `startMs`), convert first with `timeline.source-to-edited
+  --sourceMs=N`. Always prefer `asset.list-transitions` over this static list.
+- A transition bridges a CUT between two clips; mid-clip it has nothing to
+  mask. To mark a new visual layer entering over one clip, use an overlay with
+  its own entrance (`set-animation`, a light-sweep overlay) instead.
+- FX overlays take `--blendMode` (default `screen`) and `--opacity`; 13 bundled
+  ids (`asset.list-fx`): film-burn, light-leak, light-flare, lens-flare-sweep,
+  light-streaks, bokeh-drift, prism-leak, dust-scratches, film-grain,
+  vhs-static, embers, snow-drift, film-flash; `--speed=0.25–4` adjusts loop
+  speed (default 1). FX are explicit-request-only (never on a plain edit, not
+  even for "make it engaging").
 
 > Picking by vibe: clean/corporate → `fade-black`/`fade-white`; energetic/social
 > → `flash`/`glitch`; cinematic/story → `film-burn`/`light-sweep`. Pick ONE
@@ -71,7 +86,9 @@ pandastudio project.add-transition --id=$PROJECT \
 
 ### FX overlays — `project.add-fx`
 
-A looping texture overlay over a clip span (screen/lighten/add/normal blend).
+A looping texture overlay over a clip span. FX are shot on black and default to
+`screen` blend (black drops out); `--blendMode` takes any of the 17 layer blend
+modes (see native-motion.md "Blend modes"), `--opacity` 0..1.
 `--speed=0.25–4` scales the loop speed (default 1). Discover ids + defaults with
 `asset.list-fx`. The 13 bundled effects, grouped by what they're FOR:
 

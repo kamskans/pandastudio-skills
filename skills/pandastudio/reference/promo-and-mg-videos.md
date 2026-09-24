@@ -55,6 +55,10 @@ a silent video. Once decided, the order of operations matters:
 - `project.add-audio` honors `--fadeIn`/`--fadeOut` (ms); the export mixer applies
   them. Put a fade-out on the final music region so the bed doesn't cut off hard.
 
+**Mixing the audio:** duck the bed under the VO with `project.set-audio-ducking`
+(or `project.add-audio --ducking=true`) instead of keyframing the music by
+hand; use volume keyframes only for a deliberate swell (intro, logo hit).
+
 ---
 
 ## ❌ The #1 promo failure — the templated slideshow

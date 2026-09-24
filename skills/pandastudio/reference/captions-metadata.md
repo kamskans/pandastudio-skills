@@ -17,7 +17,11 @@ pandastudio caption.set-style --id=$ID --fontFamily="Georgia"
 pandastudio caption.set-style --id=$ID --uppercase=true
 ```
 
-Templates: `classic | modern | minimal | bold | spotlight | boxed | neon | colored | editorial | glowStack` (plus the animated styles). New projects default to `modern`. Captions read words from the project's merged transcript — so you must transcribe first.
+Static templates: `classic | modern | minimal | bold | spotlight | boxed | neon | colored | coloredWords | editorial | glowStack`. New projects default to `glowStack` (since 1.94); when the user says "add captions" without naming a style, use `glowStack` unless a recipe or destination profile sets another (a recipe's caption setting always wins, e.g. Ali style keeps captions off).
+
+**Animated, transcript-driven styles** (each word animates as it's spoken, identical in preview + export): `kineticSlam` (words slam in), `clipWipe` (wipe reveal per word), `gradientPop` (gradient text, elastic pop), `matrixDecode` (character scramble resolves), `glitchRgb` (RGB chromatic split), `blendDifference` (auto-inverts over any footage). Reach for an animated style for Shorts/TikTok energy; keep `bold` / `editorial` for long-form.
+
+**Moving captions for a span (2.0):** `caption.move --whileRegionId=<overlayId> --positionY=62` lifts the captions clear of a lower third / camera card for exactly its span and eases back (or `--atMs --durationMs`, plus `--offsetX`, `--size`). **Hiding them for a span:** `project.hide-captions --startMs --endMs` (alias of `project.add-caption-region`); `project.show-captions --regionId` removes the hide. See native-motion.md "Captions that move". Captions read words from the project's merged transcript — so you must transcribe first.
 
 - `glowStack` is the short-form headline look: the first word of each caption sits small and white on top, and the rest renders big in heavy Poppins with a glowing yellow-to-orange gradient; each word pops in as it's spoken. Use `--wordsPerLine` 3-4 so each caption reads as lead-in + key phrase. `caption.set-style --highlightColor` swaps the gradient for a solid accent.
 - `editorial` is a magazine-emphasis style: the word being spoken RIGHT NOW renders large (and takes an accent color) while the rest of the line shrinks, so one big word sweeps across the line in time with the speech. Best with short `--wordsPerLine` (4-6) so each line reads as a headline. Great for talking-head explainers and punchy hooks.

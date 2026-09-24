@@ -2,6 +2,133 @@
 
 # Motion graphics: backgrounds, designed segments, template catalog
 
+## The template workflow
+
+```bash
+# 1. ALWAYS discover first — templates + editable slots (runtime source of truth).
+#    Also returns registryBlocks (~38 slot-less standalone compositions: effects,
+#    overlays, flowcharts, code snippet, beat-driven cuts): render a block's
+#    htmlPath with motion.render-html (templates.md "Hyperframes registry blocks").
+pandastudio motion.list --json          # MCP: motion_list
+
+# 2. Pick the template that fits THIS beat, render it with your text/colors +
+#    a background mode. Don't hardcode one template for every insert.
+JOB=$(pandastudio motion.generate --templateId=<TEMPLATE_ID> \
+  --slots='{ ...the chosen template's slots from motion.list... }' \
+  --aspectRatio=16:9 --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$JOB" --json
+
+# 3. Add the rendered clip (at the playhead by default; atMs to place it).
+pandastudio project.add-motion-graphic --id="$PROJECT" --fromJob="$JOB" --durationMs=4000
+```
+
+- **Editable everything** — text, colors, list items and images are `slots`;
+  pass only the ones you change. `motion.list` returns each slot's key, type
+  (`string` / `color` / `list` / `image`) and default.
+- **Image slots** take an **absolute file path** (project media or a
+  `media.generate-image` output); the renderer stages it. `image-showcase` is
+  the dedicated one (a screenshot/photo on a 3D-tilted card, 16:9 + 9:16);
+  `vox-side-panel` has a small photo slot. Example:
+  `--slots='{"image":"/abs/screenshot.png","headline":"Ship faster.","eyebrow":"SEE IT IN ACTION"}'`.
+- **`--fromJob`, NOT `--file`, for render outputs** — pass the render `jobId`
+  (after `job.wait`); the server resolves the path. `--file` is only for
+  external uploads and **must be quoted**: render outputs live under
+  `…/Application Support/…` (a space); an unquoted path truncates and silently
+  produces a dead overlay (on the timeline, never renders).
+- **Placement** — `atMs` re-times it; anchor to a transcript word with
+  `--anchorSourceMs`.
+- **Default SFX** — every primitive that places an animated callout attaches a
+  stinger by default. Don't pass `soundUrl` to "set the default"; omit it.
+  Override only when the user asks, or `--soundUrl=none` (MCP: `null`) for a
+  silent callout (text/emphasis overlays: three cards shouldn't click at the
+  viewer).
+
+  | Verb | Default | Notes |
+  |---|---|---|
+  | `project.add-motion-graphic` | `bundled:sound/mouse-click` | Since v1.36.0; every motion graphic, custom MP4/WebM, designed-segment panels. |
+  | `project.add-designed-segment` | `bundled:sound/mouse-click` | Inherits from add-motion-graphic. |
+  | `project.add-zoom` | `bundled:sound/swoosh-fast` | |
+  | `project.add-lower-third` | `bundled:sound/mouse-click` | Inherits the motion-graphic default. |
+  | `project.add-fx` | none | FX often carry their own audio. |
+
+  `asset.list-sounds` lists other bundled sound ids.
+
+## Lower thirds: one call
+
+`project.add-lower-third --name="…" --title="…" --atMs=<ms> [--templateId=lt-*]
+[--enter --exit]` — ONE async call that renders the nameplate (default
+`lt-vox-marker`) AND places it as a transparent overlay. Returns `{ jobId }`;
+`job.wait` resolves once the region is placed. Pass `--anchorSourceMs` when
+atMs comes from a transcript word. lt-* designs animate their own entrance:
+give them only an `--exit`. With captions on, lift them clear for the lower
+third's span: `caption.move --whileRegionId=<its overlay id> --positionY=62`.
+(The pre-2.95 CSS designs + `--designType` are gone.)
+
+## Editing a graphic that's already placed
+
+Every overlay placed from a `motion.generate` job, an inline-`--html`
+`motion.render-html` job, `project.add-lower-third`, or the editor's Graphics
+panel carries `generatedFrom` in `project.read` (`kind: "template"` with
+`templateId` + `slots` + `background`, or `kind: "html"` with the markup). To
+fix a typo, change a title, swap a color or switch to glass, **re-render in
+place instead of deleting and regenerating**:
+
+```bash
+JOB=$(pandastudio project.update-motion-graphic --id="$PROJECT" --overlayId=overlay-3 \
+  --slots='{"headline":"Record, edit, publish"}' --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$JOB" --json | jq '.data.job.result'
+```
+
+- Template graphics: pass only the slots that change (merged over
+  `generatedFrom.slots`), and/or `--background=solid|transparent|glass`.
+- HTML graphics: pass `--html` with the full new markup (start from
+  `generatedFrom.html`).
+- Timing, position, size, SFX, anchor and link group are untouched. The old
+  render stays on disk.
+- No `generatedFrom` (an imported file, or an older graphic): the verb fails
+  clearly; render a new one and replace it.
+- An `--htmlPath` render isn't editable (its relative assets can't be
+  replayed); use inline `--html` + `--assets` when edits may follow.
+- The user can do the same: select the graphic → Settings → **Edit graphic** →
+  **Update graphic**.
+
+## GIFs, animated emoji and looping overlays
+
+- **GIF / animated WebP / APNG:** `project.add-motion-graphic
+  --file=/path/reaction.gif` converts it to a looping transparent WebM, so it
+  animates in preview AND export. Still images place as image overlays.
+- **Animated emoji:** `project.add-emoji --id=$ID --emoji=🔥 --atMs=4200
+  --durationMs=2500 --x=78 --y=30 --size=22 [--enter=pop --exit=fade]` places a
+  looping Google Noto animated emoji (downloaded once, cached). Find one with
+  `asset.list-emoji --query=laugh`. Sparingly, for reactions and emphasis in
+  Shorts, never over the speaker's face.
+- **Loop any video overlay:** `project.update-region --regionType=overlay
+  --regionId=<id> --loop=true` repeats it for the whole window (default: play
+  once, hold the last frame). Looping overlays play without their own sound.
+
+## Video templates (storyboards): a whole video, not one overlay
+
+When the user wants a **finished short video** (a channel intro, an episode
+open, a lesson opener) rather than a single overlay, use a **storyboard** — a
+multi-scene video template you fill in once:
+
+1. `motion.list-storyboards` → every storyboard: its id, `audience`
+   (youtube | podcaster | course) and its `params` (the brief — text + color
+   fields; color fields default to the workspace brand kit).
+2. `motion.generate-storyboard --storyboardId=<id> --params='{…}'` → renders
+   each scene and concatenates them into ONE MP4. Returns a `jobId`. Omitted
+   color params fall back to the brand kit (`workspace.set-brand`); omitted
+   **required** text params fail fast, so read the brief first.
+3. `job.wait` → then `project.add-motion-graphic --fromJob`.
+
+Storyboards render N scenes sequentially, so set a generous `job.wait`
+timeout. Scene joins are hard cuts (transitions live inside each scene's own
+animation). Prefer a storyboard over hand-composing several `motion.generate`
+calls when one fits the brief.
+
+
+## Backgrounds, designed segments and the template catalog
+
 ### Background modes (`--background`)
 
 | Mode | Output | Use |

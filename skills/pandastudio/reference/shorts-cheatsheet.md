@@ -41,7 +41,7 @@ Conventions that save round-trips:
   differently moments later, that's the editor — re-read the project,
   re-apply ONCE, and if it persists REPORT it to the user ("please close
   the editor or pause editing") instead of fighting a write war.
-- Zoom depth→scale: 1=1.25x, 2=1.5x (house default), 3=2.0x… Prefer depth 2.
+- Zoom depth→scale: 1=1.25x, 2=1.5x (house default), 3=1.8x, 4=2.2x, 5=3.5x, 6=5.0x. Prefer depth 2.
 - Transcript pacing: fetch the transcript ONCE, build your full beat map in
   one pass (cuts + zoom beats + graphic slots + payoff), THEN execute. Do not
   re-derive timings per edit.
@@ -119,7 +119,7 @@ transcript.delete-words.
 ```
 ps_ transcript.get 
 ```
-Optional: `--id=<string>` `--path=<string>`
+Optional: `--id=<string>` `--path=<string>` `--fromMs=<number>` `--toMs=<number>` (edited-time window) `--format=compact|text|words|full` (default compact; `words` = flat list with both time bases, `text` = readable edited-time lines)
 
 ### `transcript.search`
 Find every occurrence of a phrase in the merged transcript. Returns matches with their word IDs (so you can delete them or jump to them).
@@ -306,7 +306,7 @@ ps_ audio.probe
 Optional: `--id=<string>` `--path=<string>` `--clipId=<string>` `--noiseDb=<number>` `--minSilenceSec=<number>`
 
 ### `export.start`
-Render the project to MP4 via the same Tier-3 PixiJS pipeline the editor's Export Video button uses. Agent exports route through an editor BrowserWindow (the existing one if it's already on this project, otherwise a hidden one spawned for the duration of the render). Async — returns { jobId, outputPath }; poll job.wait. Output lands at outputPath; defaults to <project-name>.mp4 in the recordings dir.
+Render the project to MP4 on the native render engine the editor's Export Video button uses (no editor window needed). Async — returns { jobId, outputPath }; poll job.wait. Output lands at outputPath; defaults to <project-name>.mp4 in the recordings dir.
 
 ```
 ps_ export.start 
@@ -337,6 +337,38 @@ ps_ project.add-motion-graphic --id=$ID --file=/path/office.jpg \
 Same anchors keep the pair glued through later trims. mode=blur needs no
 underlay (it blurs the real background). Without an underlay, remove shows
 the project wallpaper. Works identically in preview and export.
+
+## 2.0 moves for Shorts (when: SKILL.md "Which tool for which moment")
+
+```bash
+# Captions out of the way while a top card / lower graphic is up, then back
+ps_ caption.move --id=$ID --whileRegionId=<overlayId> --positionY=30
+ps_ caption.move --id=$ID --atMs=<ms> --durationMs=<ms> --positionY=78 --size=0.85
+
+# Punch-in on the payoff line: a keyframed move (snappier than a zoom region,
+# no zoom SFX). Slow push with a preset, or a snap with your own keyframes
+# (timeMs from the region start)
+ps_ project.add-motion --id=$ID --atMs=<ms> --durationMs=4000 --preset=push-in --anchorSourceMs=<word ms>
+ps_ project.add-motion --id=$ID --atMs=<ms> --durationMs=1200 \
+  --keyframes='[{"timeMs":0,"scale":1,"easing":"back"},{"timeMs":220,"scale":1.3},{"timeMs":1200,"scale":1.25}]'
+
+# B-roll / demo stretch on the main track: ease into 3x and back (SOURCE ms)
+ps_ project.add-speed --id=$ID --startMs=<srcStart> --endMs=<srcEnd> --speed=3 \
+  --rampIn='{"durationMs":500}' --rampOut='{"durationMs":500}'
+
+# Big hook word BEHIND the speaker's head (overlay placed first)
+ps_ project.set-overlay-mask --id=$ID --regionId=<overlayId> --behindPerson=true
+
+# Reaction / emphasis card that pops in and fades out
+ps_ project.set-animation --id=$ID --regionType=overlay --regionId=<overlayId> --enter=pop --exit=fade
+
+# Freeze on the turn of a story (adds holdMs to the output)
+ps_ project.add-freeze-frame --id=$ID --sourceMs=<word ms> --holdMs=1200
+```
+
+Caps for a ≤60s Short: at most one behind-the-person title (the hook), one
+freeze, one reverse; punch-ins replace zooms on the same beat (never both);
+speed ramps only on footage with no speech you need.
 
 ## Verification gotchas
 

@@ -52,8 +52,9 @@ below are measured, not vibes. `shorts-styles.md` is the sibling file for
 - **LF8 — Segmentation is IN-EDIT, chapter markers optional.** All 9 videos
   segment visually; only Ali also populates YouTube chapters. Boundary
   treatments (pick per recipe): full-frame numbered title card (2–4s), a
-  scorecard/checklist pivot graphic, or a persistent incrementing corner
-  tag. If you publish YouTube chapters, remember `llm.generate-timestamps`
+  scorecard/checklist pivot graphic, a persistent incrementing corner
+  tag, or (on-camera, 2.0) the chapter title set BEHIND the presenter
+  over the full-frame shot, which keeps the face on screen. If you publish YouTube chapters, remember `llm.generate-timestamps`
   returns SOURCE-time — remap through the trim map first.
 
 ## 2. Recipes (pick by content, mirror of the shorts recipes)
@@ -82,6 +83,10 @@ code walkthrough AND they named no style.
 - Diagrams over raw screenshots: rebuild UIs as clean mock cards.
 - Ending: verbal bridge, then the video's longest hold (30–60s single-take)
   is allowed HERE.
+- **2.0 moves (house rules on top of the measured grammar):** chapter titles
+  as big type behind the presenter (§3b) instead of a cream card when the face
+  should stay up; an adjustment layer for asides and flashbacks; if the user
+  insists on captions, `caption.move` for every lower third's span.
 
 ### product-review (MKBHD) — reviews, comparisons, "should you buy"
 - **Alternation engine: talking head ↔ product b-roll on a 20–40s period**
@@ -93,6 +98,9 @@ code walkthrough AND they named no style.
 - Credit-tag every borrowed clip (small diagonal source tag).
 - Verdict = the longest hold (32–55s), placed 72–92%. Ending liturgy:
   recap → question to comments → sign-off, speech to within 6s of end.
+- 2.0: long product b-roll takes can speed-ramp (ease into 2–4× and back)
+  instead of a hard cut; the spec card and credit tags enter with
+  `set-animation` (`rise` / `fade`), never `pop`.
 
 ### dev-explainer (Fireship) — code, tools, technical deep-dives
 - **No talking head (0% of frames). Voiceover over: additive flat diagrams
@@ -109,6 +117,9 @@ code walkthrough AND they named no style.
   carries them; don't cut away mid-command.
 - Ending: hard stop, fixed sign-off, final frame is a gag beat. Zero
   endscreen.
+- 2.0: meme / stock punctuation can be a freeze frame with a desaturating
+  adjustment layer, or a 1–2s reverse ("rewind that") on a terminal moment;
+  once each per video at most.
 
 ## 3. Devices that transfer from shorts (same commands)
 
@@ -122,6 +133,44 @@ upgrade slots); lower thirds at first mentions (long-form only — shorts ban
 them); zooms 3–6/min ON transcript beats with `anchorSourceMs`, never on a
 grid; sponsor reads keep the house grammar (mid-roll ~50% mark is the norm,
 and it may be the video's longest unbroken shot).
+
+## 3b. 2.0 moves in long-form (when, how often)
+
+House rules, not measured in the study; they sit inside LF2/LF3 (they count as
+visual changes) and never override a law. How to call each: SKILL.md "Which
+tool for which moment" and `native-motion.md`.
+
+**They are part of the plan, not optional.** On on-camera long-form, plan for
+EACH chapter one title (behind the presenter where the frame allows) and at
+most one other move from the table, unless a recipe or the user forbids it.
+Write them into the beat map with the rest of the graphics, then place them.
+After each one, `project.render-frame` at its midpoint (or `render-sheet` for a
+range) and look at it; this overrides any "don't render" rule about
+motion_screenshot.
+
+- **Chapter title behind the presenter.** On-camera footage, at a chapter
+  boundary or the one line that states the video's thesis, over the
+  full-frame shot: `motion.generate --templateId=transitions-3d
+  --slots='{"lead":"","emphasis":"<1–2 words>","trail":""}'` (one huge word,
+  transparent) → `job.wait` → `project.add-motion-graphic --fromJob`
+  (2–4 s) → `project.set-overlay-mask --regionId --behindPerson=true` so the
+  head passes in front of it → `project.render-frame` at its midpoint: the
+  head covers only part of the word and the word still reads. One per chapter
+  at most, never over a camera-card slide. Annotations can't go behind the
+  presenter; if the render fails, skip the move rather than substituting an
+  annotation.
+- **Asides and flashbacks → one adjustment layer.** "Back in 2019…", a
+  tangent, a hypothetical: `project.add-adjustment` over exactly that span
+  (e.g. `--saturation=-0.5 --vignette=0.4 --fadeInMs=300 --fadeOutMs=300`).
+  One look for every aside in the video, so the viewer learns what it means.
+- **Lower thirds with captions on.** Long-form keeps captions off (LF4); if
+  the user insists on them, lift them for each lower third's span with
+  `caption.move --whileRegionId=<lower-third overlay>`.
+- **Screen demos inside a long-form.** A slow stretch (install, render,
+  loading) → speed ramp, not a jump cut, when nobody is talking over it.
+- **Restraint:** at most one behind-the-presenter title per chapter, one
+  adjustment look per video, no 2.0 move stacked on a graphic, and the face
+  full frame for at least half the runtime still holds.
 
 ## 4. Verification + speed
 

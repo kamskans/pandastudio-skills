@@ -2,13 +2,61 @@
 
 # Custom motion graphics: HTML authoring + render verbs
 
+## Pass the HTML INLINE — never write a file first
+
+`motion.render-html` (MCP: `motion_render_html`) accepts the whole composition
+as an **inline `html` string**: `motion_render_html({ html: "<!doctype html>…",
+durationMs, aspectRatio })`. Author the HTML in your response and hand it to
+`html`. Do **NOT** save it to a path and pass `htmlPath`: the in-app PandaStudio
+agent has **no `write`, `edit` or `bash` tool** (deliberately), so a "write the
+file" plan fails with a tool error. `htmlPath` is only for the CLI path, where
+a shell already wrote the file. Local assets (images/fonts) ride along via
+`assets` (absolute paths, referenced by basename in the HTML). If you catch
+yourself reaching for `write` to make a motion graphic, stop: pass `html`
+inline, or use a bundled template (`motion.generate`).
+
+## Authored graphics — your repertoire is bigger than the gallery
+
+The templates are the **UI gallery**: fixed-structure, slot-fill. You can also
+**author content-specific graphics** that can't be slot-templated because what
+they show depends on what's being discussed. **A first-class capability, not a
+last resort.** Build them as transparent overlays with `motion.render-html`;
+they composite over the host exactly like an overlay template.
+
+**Explainer videos are the prime case.** The moment the speaker explains *how
+something works, connects, or flows* — an architecture, a pipeline, a request
+lifecycle, a hierarchy, a before→after, a trend over time — a custom **animated
+diagram, flowchart or chart** beats a bullet list or a title card. The
+`flowchart` template handles a simple linear sequence; **anything richer you
+author yourself.**
+
+- **Animated diagram / flowchart** — a data-driven SVG that builds as the
+  speaker talks: boxes + arrows that draw on in sequence, a branching tree, a
+  request flowing through services, a layered architecture stack, a cyclic
+  loop. Reveal each node/edge in time with the narration so it assembles.
+- **Chart / data viz** — bars growing, a line plotting, a metric counting, a
+  donut filling, when the point is a trend or a structural comparison (one
+  headline number → `stat-reveal` / `vox-stat`).
+- **Logo / brand-card row** — N rounded white cards, each a logo, popped in
+  over the lower third, for "we use X, Y, Z" / tool / partner mentions.
+- **Image / screenshot showcase** — real images via `--assets` in a framed or
+  tilted card.
+- **Icon / emoji concept callout** — a glyph + short label punched on a concept.
+- **Reuse a template's shell, swap text → graphics** — the lower-band card, the
+  side panel, the depth stack, with logos / images / an animated SVG where the
+  text would go.
+
+Copy-able recipes live in [`examples.md`](examples.md); the authoring contract
+(page shell, deterministic seek, transparent overlays) is in
+[`motion-philosophy.md`](motion-philosophy.md).
+
 ## Custom motion graphics — HTML authoring (when the content needs a visual no template captures)
 
 Use the bundled templates for what they cover (titles, lower-thirds, stat
 reveals, comparisons, side panels) — they're faster and already designed. But
 **author your own when the beat needs a content-specific visual the gallery
 can't express** — most often an **explainer diagram, flowchart, architecture, or
-chart** (see "Authored graphics" above), and also bespoke one-offs, unusual
+chart** (see "Authored graphics" above in this file), and also bespoke one-offs, unusual
 layouts, or brand-specific 3D. Authoring is a core skill here, not an admission
 of defeat: an explainer that draws the system it's describing beats one that
 lists it. Prefer a template when one genuinely fits; author confidently when

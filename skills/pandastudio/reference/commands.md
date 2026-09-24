@@ -4,6 +4,51 @@ The canonical list lives at `pandastudio commands --json` (run it — the regist
 
 Every command takes args as `--key=value` flags. Object/array values must be JSON: `--slots='{"a":1}'`.
 
+## Argument shape
+
+Flags are **scalars** (`--name=value`) or **JSON** (`--slots='{"title":"x"}'`).
+Anything starting with `{` or `[` is parsed as JSON; `true` / `false` / numbers
+auto-coerce; strings stay strings. Unknown arguments are rejected with the
+valid list (they used to be silently dropped). `patch: {...}` is accepted by
+every update verb and flattened into top-level args.
+
+**JSON without shell quoting (always works, and the only safe way on Windows):**
+- `--keyframes=@keyframes.json` reads one argument's value from a file (JSON if
+  it parses, otherwise the text). A literal leading `@` is written `@@`.
+- `--args-file=args.json` (or `pandastudio <verb.noun> @args.json`) reads ALL
+  arguments as one JSON object; `--args-stdin` reads it from stdin. Flags on
+  the command line override the file.
+- `--dry-run` prints the exact `{command,args}` that would be sent, without
+  calling the app: use it when an argument error looks wrong.
+- `--json` returns the raw `{ ok, data, error, details }` envelope (use it
+  whenever you parse or chain); `--no-launch` fails instead of auto-launching
+  the app.
+
+**Windows:** cmd.exe and Windows PowerShell 5.1 strip the double quotes inside
+a JSON argument, so `--keyframes=[{"timeMs":0}]` arrives as `[{timeMs:0}]`. The
+CLI detects that and stops with `looks like JSON that the shell changed`
+(nothing is sent). Write the JSON to a file and pass `--key=@file.json` or
+`--args-file=file.json`. Inline only if you must: cmd.exe
+`"--keyframes=[{\"timeMs\":0}]"`, Windows PowerShell 5.1
+`'--keyframes=[{\"timeMs\":0}]'`, PowerShell 7.3+ `'--keyframes=[{"timeMs":0}]'`.
+`pandastudio --help-windows` prints this. The command on Windows is
+`pandastudio.exe` (install paths with spaces work); `'C:\Users\…' is not
+recognized` means an old `pandastudio.cmd`: update PandaStudio.
+
+## Error model
+
+Every response: `{ ok: boolean, data?, error?, details? }`. HTTP 4xx/5xx =
+transport problem (CLI exits ≥ 1 to stderr). HTTP 200 + `ok: false` = handler
+error (CLI exits 1 with `error: <msg>`). Useful codes: `license_required` /
+`trial_expired` (show the license activation flow), `unknown command` (typo:
+run `pandastudio commands`), `invalid or out-of-tree project path` (project
+paths must live under the recordings dir), `UNKNOWN_ARGUMENT`,
+`revision_conflict`, `confirmation_required` / `confirmation_declined` /
+`confirmation_unavailable` / `confirmation_timeout` (destructive verbs). A
+connection error auto-launches PandaStudio and waits up to 60 s; `invalid or
+missing bearer token` means `~/.config/pandastudio/{token,port}` rotated
+mid-flight: wait 2 s and retry once.
+
 ## system.*
 
 | Command | Args | Purpose |
@@ -23,13 +68,13 @@ Project files are JSON on disk under the user's recordings dir. All paths are va
 | Command | Args | Purpose |
 |---|---|---|
 | `project.list` | `allWorkspaces` (bool, default false), `sortBy` (modifiedAt\|createdAt\|name), `order`, `limit`, `query` | Projects in the active workspace (or all, with `allWorkspaces=true`), newest-first: `{ id, revision, path, name, clipCount, modifiedAt, createdAt, sizeBytes, workspaceId }`. Top-level response also returns `currentWorkspaceId`. |
-| `project.locate` | `id` (req) | Look up a project's owning workspace WITHOUT reading the body. Returns `{ id, filePath, workspaceId, workspaceName, isInActiveWorkspace }`. Pre-flight check before any edit/export/publish on a bare project id — prevents publishing to the wrong client's YouTube channel. See SKILL.md "Workspaces" §"When given a project id with no other context". |
+| `project.locate` | `id` (req) | Look up a project's owning workspace WITHOUT reading the body. Returns `{ id, filePath, workspaceId, workspaceName, isInActiveWorkspace }`. Pre-flight check before any edit/export/publish on a bare project id — prevents publishing to the wrong client's YouTube channel. See projects-and-transcription.md "When given a project id with no other context". |
 | `project.read` | `id` \| `path` | Full JSON. **Pass back `project.revision` as `expectedRevision` on save.** |
 | `project.show` | `id` \| `path` (or no args) | Resolve to path + summary. With no args, returns recordingsDir + userDataDir. |
 | `project.new` | `name` (req), `withMedia` (string\[\] or comma-list of paths) | Create v3 project; if `withMedia` set, FFmpeg-probes each video and adds it as a clip. |
 | `project.save` | `id` \| `path`, `project` (req), `expectedRevision` (optional) | Overwrite. Returns `{ ok:false, details:{ code:"revision_conflict" } }` if expectedRevision is stale. |
 | `project.delete` | `id` \| `path` | Permanent delete (no trash). |
-| `project.open` | `id` \| `path` (optional) | Open editor focused on this project. |
+| `project.open` | `id` \| `path` (optional) | Open the editor on this project. An editor already showing another project switches to it in place (saving that project's pending edits first; the agent chat stays). Returns `mode`: `refreshed` (was already open), `switched`, `created` (new window) or `recreated` (the editor didn't answer and was reopened). |
 
 ### Edit primitives (no schema knowledge required)
 
@@ -43,27 +88,44 @@ All accept `id` or `path`, plus optional `expectedRevision` for conflict-safe wr
 | `project.set-clip-webcam` | `clipId` \| `clipIndex`, `webcam` (path, `''` removes), `audio` (auto\|camera\|keep) | Attach, replace or remove a clip's camera video (makes it a Screen + camera clip that follows the project camera layout). For camera footage made elsewhere, e.g. a Seedance AI presenter. The camera layer plays muted; `audio=auto` muxes the camera's sound into a copy of a silent main video (then re-transcribe). Warns when lengths differ. Not for podcast clips. |
 | `project.move-clip` | `clipId`, `toIndex` | Reorder a clip on the main track. Every region moves with the clip it sits on (a trim spanning two clips is cut at the boundary, each piece follows its clip), so zooms/trims/etc. stay attached to the same content. Never drops a region. |
 | `project.split-clip` | `clipId`, `atSourceMs` (clip's own source time; `timeline.edited-to-source` → `clipSourceMs`) | Split a clip in two without changing the output. Left keeps the id and ends at the split; right (`rightClipId`, `rightClipIndex`) covers the full media with a head trim over the left's part. Anchors/trims after the split move with the right half; transcript words divide at the split. |
-| `project.add-motion-graphic` | `file` or `fromJob`, `durationMs`, `atMs` (optional, defaults to end-of-timeline), `muted` (default true), `volume` (0–1), `loop` | Drop an MP4/WebM (typically from `motion.generate`) as a media-overlay region; a `fromJob` render keeps its source so it stays editable. Animated GIF / WebP / APNG files are converted to a looping transparent WebM. An overlay VIDEO's own audio is muted by default; pass `muted=false` to hear it in preview and export. Timeline mute regions still silence it. |
+| `project.add-motion-graphic` | `file` or `fromJob`, `durationMs`, `atMs` (optional, defaults to end-of-timeline), `muted` (default true), `volume` (0–1), `loop`, `blendMode` (default normal) | Drop an MP4/WebM (typically from `motion.generate`) as a media-overlay region; a `fromJob` render keeps its source so it stays editable. Animated GIF / WebP / APNG files are converted to a looping transparent WebM. An overlay VIDEO's own audio is muted by default; pass `muted=false` to hear it in preview and export. Timeline mute regions still silence it. `blendMode` composites it over the video (screen/add drop black, multiply drops white, overlay/softLight lay a texture in); see native-motion.md "Blend modes". |
 | `project.set-overlay-chroma-key` | `regionId` (req), `color` (`auto` default \| `#RRGGBB`), `similarity`, `smoothness`, `spill` (0–1), `enabled` (false removes) | Green screen on an image/video overlay: removes a flat-colour backdrop. `auto` detects the colour from the frame edges. Check with `render-frame`. |
+| `project.set-volume-keyframes` | `target` (`clip`\|`audio`\|`overlay`), `clipId`/`clipIndex` (clip) or `regionId` (audio / overlay; `overlayId` alias), `keyframes` (`[{timeMs, volume 0–2, easing?}]`, `[]` clears) | Replace a volume curve. Clip times are clip SOURCE ms; audio / overlay times are ms from the overlay start. |
+| `project.add-volume-keyframe` | same target args, `timeMs`, `volume` (0–2), `easing` | Add or update one volume keyframe (same time merges). |
+| `project.remove-volume-keyframe` | same target args, `timeMs` | Remove the volume keyframe at that time. |
+| `project.set-audio-ducking` | `regionId` (audio overlay, or a media overlay with `target=overlay`; `overlayId` alias), `amountDb`, `attackMs`, `releaseMs`, `source` (`transcript`\|`energy`), `enabled`, `remove` | Lower music (or an overlay video's sound) under the voice automatically. |
+| `project.set-clip-chroma-key` | `clipId` (req), `target` (`screen` default \| `camera`), `color` (`auto` default \| `#RRGGBB`), `similarity`, `smoothness`, `spill` (0–1), `keepCard` (camera only), `enabled` (false removes) | Green screen on a main-track clip: the main video (wallpaper / background overlays show through) or its camera layer (the person stands on the screen; no card box unless `keepCard`). Keyed before the clip's grade. Check with `render-frame`. |
 | `project.set-overlay-crop` | `regionId` (req), `x`, `y`, `width`, `height` (0–1 of the overlay SOURCE; omit or pass 0,0,1,1 to clear) | Crop an image/video/graphic overlay's source pixels: cut black bars off B-roll, take the centre of a wide clip for a vertical short. |
 | `project.set-overlay-backdrop-blur` | `regionId` (req), `strength`, `tint` | Frosted-glass blur of whatever is under an overlay, shaped by the overlay's alpha (use a transparent overlay; opaque ones show nothing). |
 | `project.set-region-sound` | `regionId` (req), `regionType` (req: `zoom` \| `motionGraphic` \| `fx`), `soundUrl` (req; `none` removes), `soundVolume` | Swap, add or mute the sound effect on a placed zoom, motion graphic or FX. |
 | `project.update-motion-graphic` | `overlayId` (req), `slots` (template), `background` (`solid`\|`transparent`\|`glass`), `html` (HTML graphics) | **Async.** Re-render a placed generated graphic with edits, in place (timing, position, sound kept). Needs `generatedFrom` on the overlay. |
 | `project.add-emoji` | `emoji` (req: 🔥, `1f525` or `fire`), `atMs`, `durationMs` (default 3000), `x`/`y` (center %, default 50), `size` (height %, default 25), `soundUrl` | **Async.** Place a looping Google Noto animated emoji overlay. Discover with `asset.list-emoji`. |
-| `project.update-region` | `regionType`, `regionId`, then only the fields to change | Patch a placed region in place. For `regionType=overlay` this includes `x`/`y`/`width`/`height`, `layer`, `muted` (the overlay video's own audio) and `volume` (0–1). |
+| `project.update-region` | `regionType`, `regionId`, then only the fields to change | Patch a placed region in place. For `regionType=overlay` this includes `x`/`y`/`width`/`height`, `layer`, `opacity`, `blendMode` (`normal` or null clears it), `muted` (the overlay video's own audio) and `volume` (0–1); `fx` and `adjustment` take `blendMode` too. |
 | `project.duplicate-region` | `regionType` (zoom/speed/annotation/fx/overlay/clip-transform/background-effect/spotlight/audio-overlay), `regionId`, `atMs?` | Copy a region with all its settings and a new id, right after the original or at `atMs` (EDITED ms; SOURCE ms for speed). Link groups copy as a new group. Zooms/speed shift to the next free gap (`shiftedMs`) or fail when none fits. |
 | `project.center-camera-on-face` | `clipId?` (default: every clip with a camera), `stepMs?` (default 500), `clear?` | **Async.** Keep the presenter's face centred in the camera card: detects the face through the camera video and stores a smoothed face track that preview, render-frame and export follow. `clear=true` removes it. |
 | `project.set-clip-color` | `clipId` (req), `target` (`screen` default \| `camera`), `preset` (`flat-footage` \| `none`), `brightness`, `contrast`, `saturation`, `warmth` (each −1..1, 0 = unchanged), `reset` | Color-correct a clip BEFORE any LUT look. `flat-footage` fixes flat, washed-out camera footage (log / flat picture profiles). Merges with the current correction; `reset=true` or `preset=none` clears. Same result in preview and export. |
 | `project.add-lower-third` | `name` (req), `title`, `atMs` (req), `templateId` (default `lt-vox-marker`), `slots`, `anchorSourceMs` | **Async.** Renders an `lt-*` nameplate template and places it as a transparent overlay in one call. Returns `{ jobId }`; `job.wait` resolves once placed. |
 | `project.add-transition` | `transitionId` (bundled) OR `file`, `atMs` (req, the cut time), `durationMs` (default 1000) | Place a scene-change transition centered on a cut. Discover ids via `asset.list-transitions`. |
-| `project.add-fx` | `fxId` (bundled) OR `src` (custom URL/path), `atMs`, `durationMs`, `speed` (0.25–4, default 1) | Drop an FX overlay. Bundled FX inherits blend mode + opacity from the manifest. `speed` sets the loop playback rate. |
+| `project.add-fx` | `fxId` (bundled) OR `src` (custom URL/path), `atMs`, `durationMs`, `speed` (0.25–4, default 1), `blendMode`, `opacity` | Drop an FX overlay. Bundled FX inherits blend mode + opacity from the manifest; `blendMode` / `opacity` override them. `speed` sets the loop playback rate. |
 | `project.add-zoom` | `atMs`, `durationMs`, `depth` (1-6, default **2** = 1.5× soft modern), `focusX/Y` (0-1), `soundUrl` (default `bundled:sound/swoosh-fast`) | Highlight a UI moment with a zoom region. Ships with a default swoosh SFX; pass `soundUrl=none` to silence. |
 | `project.add-clip-transform-region` | `startMs`, `endMs`, `preset` (`custom` with `screenX`/`screenY`/`screenScale` and/or `webcamCx`/`webcamCy`/`webcamScale` moves the video or camera for just that window, any recording / `cam-bottom-half` / `cam-top-half` / `cam-right-portrait` / `cam-left-portrait` / `cam-bottom-right-quarter` / `cam-bottom-left-quarter` / 16:9 splits `cam-{left,right}-{50,55}` / 9:16 Shorts splits `cam-{top,bottom}-{50,55}`), `transitionMs` (default 320), `cameraFit` (`layout-guest-full` on screen + camera: `fill` default, no card chrome \| `centered` over `backgroundColor`, default `#F4F0E8`) | Time-bounded layout transform on the main video clip — shrink camera to make room for a motion graphic during an explainer beat. **Camera-only / user-uploaded recordings only — never on screen recordings.** See video-authoring §5b. |
 | `project.add-trim` | `startMs`, `endMs` | Cut a section the exporter skips. |
 | `project.apply-edit-plan` | `plan` (JSON array string), `expectedRevision?` | BATCH: apply many timeline ops in ONE call, atomically (all-or-nothing). Ops: `add-trim`, `add-zoom`, `add-speed`. ALWAYS prefer this over sequential add-* calls when executing a beat map. |
 | `project.render-sheet` | `fromMs?`, `toMs?`, `count?` (default 12, max 24), `cols?` (default 4), `outPath?` | ONE call → tiled contact-sheet PNG of N verified preview frames across a range (row-major; cell k = `frames[k]`). THE pacing/motion verification tool — replaces N render-frame calls. |
-| `project.add-speed` | `startMs`, `endMs` (source ms), `speed` (0.25 to 100, 0.01 steps) | Speed up or slow down a span. 8 to 100 timelapses installs/renders/loading. Regions faster than 4 play silent in preview and export. |
-| `project.add-annotation` | `startMs`, `endMs`, `type` (text/figure), `text`, `x/y/width/height` (%) | Drop text or figure annotation on canvas. |
+| `project.add-speed` | `startMs`, `endMs` (source ms), `speed` (0.25 to 100, 0.01 steps), `rampIn?` / `rampOut?` (`{durationMs (source ms), speed? (default 1), easing?}`), `preservePitch?` (default true) | Speed up or slow down a span; with ramps it EASES into and out of the speed. 8 to 100 timelapses installs/renders/loading. Regions faster than 4 play silent in preview and export. Returns `regionId`. |
+| `project.add-reverse` | `startMs`+`endMs` (source) or `atMs`+`durationMs` (edited), `speed?` (default 1), `audio?` (`mute` default \| `reverse`) | Play the span backwards in the same output time (constant speed; no ramps / freeze / overlap). Returns `regionId`, `startMs`, `endMs` (a speed region with `reverse: true`). |
+| `project.add-freeze-frame` | `atMs` (edited) or `sourceMs`, `holdMs` (100..60000 output ms) | Hold one frame, then continue. Adds holdMs to the video. Returns `regionId` (a speed region with `freezeMs`). |
+| `project.add-speed-ramp` | `startMs`, `endMs` (source ms), `fromSpeed`, `toSpeed`, `easing?`, `preservePitch?` | Eased A to B speed ramp over the span. Returns `regionId`. |
+| `project.add-motion` | `target?` (`screen`\|`camera`\|`webcam`\|`frame`), `atMs`, `durationMs?`, `keyframes` (array) or `preset` (`push-in`\|`pull-out`\|`slide-in-left/right/up/down`\|`fade-in`\|`fade-out`\|`spin-in`\|`pop-in`\|`shake`), `anchorSourceMs?` | Keyframe-animate the MAIN video (x/y fraction of canvas, scale, rotation deg, opacity 0-1, easing). Returns `regionId`. See reference/native-motion.md. |
+| `project.convert-to-keyframes` | `regionId` (a zoom) or `startMs` + `endMs` | Bake zooms (incl. cursor-follow) and camera tracks over the span into one editable camera track. Returns `regionId`, `keyframes`, `removedZoomIds`. |
+| `project.set-overlay-mask` | `regionId` (the overlay; `overlayId` alias), `source` (`shape`\|`person`\|`layer`\|`none`) or `behindPerson`, shape: `shape` `x` `y` `width` `height` `roundness`; layer: `matteOverlayId` `mode`; `invert` `feather` `expand` `keyframes` | Mask an overlay; behindPerson puts it behind the presenter. |
+| `project.track-focus-face` | `regionId`, `stepMs?`, `padding?`, `smoothing?` | Focus region follows a face (writes keyframes). |
+| `project.set-keyframes` | `target` (`main`\|`overlay`\|`annotation`\|`adjustment`), `regionId`, `keyframes` (array; `[]` clears an overlay, annotation or adjustment layer) | Replace a motion region's, overlay's, annotation's or adjustment layer's keyframe track. Only for motion `set-animation` can't express; entrances and exits are `project.set-animation` / `--enter` `--exit`. |
+| `project.add-keyframe` | `target`, `regionId`, `timeMs`, any of `x`/`y`/`scale`/`rotation`/`opacity` (motion) or effect values `lookIntensity`/`amount`/`blur`/`saturation`/... (adjustment), `easing`/`bezier` | Add one keyframe (same `timeMs` merges). Returns `keyframeId`. |
+| `project.remove-keyframe` | `target`, `regionId`, `keyframeId` | Remove one keyframe. |
+| `project.add-adjustment` | `atMs`, `durationMs` (both default to the clip with `clipId`), any of `exposure` `contrast` `saturation` `temperature` `tint` (-1..1), `blur` (0..60 px@1080p), `vignette` `grain` `glow` (0..1), `chromaticAberration` (0..20 px@1080p), `look` (LUT id) + `lookIntensity`, `correction` / `correctionPreset=flat`, `clipId` + `layer` (`screen`\|`camera`), `keyframes`, `fadeInMs?`, `fadeOutMs?`, `blendMode?` | Adjustment layer: effect stack over everything beneath it (not captions), or over one clip's screen / camera layer. Returns `regionId`. |
+| `project.update-adjustment` | `regionId`, any effect (0 / null removes), `look` (null removes), `lookIntensity`, `correction`, `clipId` (null = whole frame), `layer`, `keyframes` (`[]` clears), `fadeInMs`, `fadeOutMs`, `blendMode` (null / normal clears) | Edit an adjustment layer. |
+| `project.add-annotation` | `startMs`, `endMs`, `type` (text/figure), `text`, `x/y/width/height` (%; x/y = the box's TOP-LEFT corner, not its centre: centre a box of width w with x = 50 - w/2, keep x + width ≤ 100; omit x and y to centre it), `anchor` (`top-left` default \| `center`: x/y give the box centre), `enter`/`exit`. Returns the resolved top-left `position`, `size`, and `warnings` when the box runs past a frame edge | Drop text or figure annotation on canvas (always in front of the presenter; behind-the-person titles are motion graphics). |
 | `project.update-spotlight` | `regionId` (req), then only what changes: `startMs`, `endMs`, `kind` (spotlight\|blur), `x`/`y`/`width`/`height`, `shape` (rectangle\|ellipse), `style` (gaussian blur\|pixelate), `blurAmount`, `pixelSize`, `maskOpacity`, `roundness`, `feathering` | Edit a focus region placed with `project.add-spotlight`. |
 | `project.remove-spotlight` | `regionId` (req) | Remove a spotlight/blur region (ids under `editor.spotlightRegions[]`). |
 | `project.set-aspect-ratio` | `ratio` (16:9/9:16/1:1/4:3/3:4) | Switch project aspect ratio. |
@@ -143,7 +205,7 @@ The editorial primitive that makes PandaStudio PandaStudio. Every operation that
 | Command | Args | Purpose |
 |---|---|---|
 | `transcript.transcribe` | `id` \| `path`, `clipId` (optional) | **Async.** Run Parakeet TDT 0.6B on each clip's audio. Returns `{ jobId }`. Re-transcribing a clip keeps its word fixes (find-replace / insert-words / app edits): the job result reports `wordEditsReapplied`, `wordEditsDropped`, `droppedWordEdits[]`. |
-| `transcript.get` | `id` \| `path` | Merged edited-time transcript: every word with `id`, `text`, `startMs`, `endMs`. Use `id`s as input to `delete-words`. |
+| `transcript.get` | `id` \| `path` (default: open project), `fromMs`/`toMs` (EDITED-timeline window), `format` (`compact` default \| `text` \| `words` \| `full`) | `compact`: segments with words as `[id, text, startMs (source), editedStartMs\|null]`, ids shortened to a unique prefix. `text`: `"[m:ss.s] segment text"` lines in edited time, cut words left out (best for reading/planning). `words`: flat `words[]` with full ids and both time bases (use for jq scripts). `full`: the old `{words[], segments[]}` shape. Ids (full or prefix ≥4 chars) feed `delete-words` / `restore-words` / `insert-words`; unknown or ambiguous ids fail. |
 | `transcript.delete-words` | `id` \| `path`, `wordIds` (string[]) | Translate word IDs into trim regions. Coalesces adjacent deletions. |
 | `transcript.remove-fillers` | `id` \| `path`, `includeRepeats` (bool, default true) | Auto-detect filler words ('um','uh','you know',…) plus back-to-back repeats. Bulk-trims them. |
 | `transcript.search` | `id` \| `path`, `query` | Find a phrase across the merged transcript. Returns matches with their word IDs. |
@@ -169,8 +231,8 @@ The editorial primitive that makes PandaStudio PandaStudio. Every operation that
 
 | Command | Args | Purpose |
 |---|---|---|
-| `export.verify` | `exportId` \| (`exportPath` + project `id`/`path`) \| project only (newest export), `samples?` (default 8, max 24), `meanThreshold?` (0.05), `blockThreshold?` (0.2) | **Async.** Check an export matches the editor preview: picture length vs the edit (2-frame tolerance), sound present / not silent / same length as the picture, and editor-vs-export frame pairs at even moments plus inside every layout section's edges and near the end. Result `{ ok, summary[], durationOk, mismatches, frames[{atMs, reason, meanDiff, worstBlockDiff, match}], audio{ok, lengthDiffMs, silent}, sheetPath }`. Run it after every export you hand over. |
-| `export.start` | `id` \| `path`, `outputPath` (optional), `quality` (`draft \| standard \| high \| ultra`), `normalizeLoudness` (optional: `streaming` \| `podcast` \| `off`, or `true`/`false`, `-14`/`-16`; default = the project setting, streaming) | **Async.** Render the project to MP4 via the same Tier-3 PixiJS pipeline the editor's Export Video button uses (v1.24+). Reuses an open editor if it's already on the target project, otherwise spawns a hidden editor window for the duration of the render. Returns `{ jobId, outputPath }`. Honours every region/style/caption/FX/motion-graphic in the project. The final mix is loudness-normalised (two-pass, -14 LUFS / -1 dBTP by default); the job result's `loudness` reports input/output LUFS or why it was skipped. |
+| `export.verify` | `exportId` \| (`exportPath` + project `id`/`path`) \| project only (newest export), `samples?` (default 8, max 24), `ssimFactor?` (2), `blockMargin?` (0.08), `colorFloor?` (0.025) | **Async.** Check an export matches the editor preview: picture length vs the edit (2-frame tolerance), sound present / not silent / same length as the picture, and editor-vs-export frame pairs at even moments plus inside every layout section's edges and near the end. Frames are compared perceptually (luma SSIM + region colour) against a re-encode baseline of the same preview frame at the export's own quantizer, so fine detail that H.264 roughens is not a mismatch; a wrong moment, a missing overlay or a colour shift is. Result `{ ok, summary[], durationOk, mismatches, frames[{atMs, reason, ssim, worstBlockSsim, worstBlockColor, baseline{qp,ssim,worstBlockSsim}, match, reasons[]}], audio{ok, lengthDiffMs, silent}, sheetPath }`. Run it after every export you hand over. |
+| `export.start` | `id` \| `path`, `outputPath` (optional), `quality` (`draft \| standard \| high \| ultra`), `normalizeLoudness` (optional: `streaming` \| `podcast` \| `off`, or `true`/`false`, `-14`/`-16`; default = the project setting, streaming) | **Async.** Render the project to MP4 on the native render engine the editor's Export Video button uses (no editor window needed). Returns `{ jobId, outputPath }`. Honours every region/style/caption/FX/motion-graphic in the project. The final mix is loudness-normalised (two-pass, -14 LUFS / -1 dBTP by default); the job result's `loudness` reports input/output LUFS or why it was skipped. |
 | `export.list` | — | Every entry in the export library, newest-first. |
 | `export.get` | `id` | Read a single library entry. |
 | `export.update` | `id`, `patch` | Patch fields like generatedTitle. |
@@ -209,7 +271,7 @@ Floating, always-on-top overlay window that mounts the editor's WYSIWYG canvas. 
 | `preview.hide` | — | Close the overlay. |
 | `preview.list` | — | `{ open, size?, position?, url? }` — what's visible right now. |
 
-## workspace.* / youtube.* (the rest: SKILL.md "Workspaces", reference/publishing.md)
+## workspace.* / youtube.* (the rest: reference/projects-and-transcription.md "Workspaces", reference/publishing.md)
 
 | Command | Args | Purpose |
 |---|---|---|
@@ -252,6 +314,7 @@ The MCP tool descriptions are kept short to save context. These are the details 
 - `project.add-motion-graphic` with `file=bundled:transition/<id>`: stamps the transition id, so it cover-fits any canvas (a 16:9 sweep fills 9:16) and carries its own sound.
 - `project.set-overlay-crop`: out-of-range values are clamped; the worst case is the whole source.
 - `project.set-overlay-chroma-key`: first enable uses similarity 0.45, smoothness 0.25, spill 0.5; `color: auto` is read from the edges of the overlay's first visible frame. Preview, render-frame and export share one keyer.
+- `project.set-clip-chroma-key`: same defaults and `auto` detection (the clip's or camera's first frame). A camera key needs a clip with a camera. `keyStrength` keyframes on an `add-motion --target=frame` (main) / `--target=webcam` (camera) track fade it.
 - `project.add-mute-region` / `project.hide-captions`: regions may overlap.
 - `project.add-emoji`: each emoji asset is downloaded once, then cached.
 
@@ -265,6 +328,10 @@ The MCP tool descriptions are kept short to save context. These are the details 
 **Media, recording, motion**
 - `recording.start`: on a brand-new install that never recorded, the first call returns a "grant Screen Recording and retry" error rather than hanging.
 - `media.generate-image`: `referenceImagePath` also accepts an https URL. `outputName` is slugified with a timestamp appended (same for `media.image-to-video`).
+- `media.image-to-video`: with `--id`/`--path` it places the still natively: an image clip (kind image) with a keyframed motion region, or with `atMs` a cutaway image overlay; returns `{ mode: "native", placement, clipId?, regionId, startMs, endMs }`. Without a project, or with `--bake=true`, it writes an MP4 and returns `{ mode: "baked", videoPath }`. See `reference/native-motion.md` "Still image clips and Ken Burns".
+- `project.add-clip --media=<image> --durationMs=<ms> [--fill=false]`: a still as a main-track image clip. `project.set-clip-duration --clipId --durationMs`: how long it shows.
+- `preview.seek --atMs [--id]`: moves the open editor's playhead to an edited time and waits until it lands (returns `landedMs`).
+- `project.set-animation --regionType=annotation|overlay --regionId --enter --exit`: enter / exit transitions (fade, pop, rise, zoom, slide-*). `caption.move`: caption placement track over a span.
 - `motion.render-html`: seek through the timeline, never `window.__hf.seek`: it skips the compositor invalidation and renders with 1-second stalls.
 - `motion.verify-frames`: frames are written to `<recordings dir>/<outputName stem>/frame-<ms>.png`. The full-res `path` is ~2 MB as base64; read `previewPath`.
 - `motion.screenshot`: `atMs` snaps to the 30 fps frame grid. `outputPath` is 1920x1080; `previewPath` is a 1280-wide copy.
@@ -273,7 +340,7 @@ The MCP tool descriptions are kept short to save context. These are the details 
 
 **Export and publishing**
 - `export.start`: reuses an editor window already open on the project, otherwise renders in a hidden one that closes afterwards. Loudness: -14 LUFS integrated / -1 dBTP by default, two-pass, video untouched; the result's `loudness` carries `preset`, `targetLufs`, `mode` (linear|dynamic) and, when skipped, `reason` (no-audio|silent|failed|unavailable).
-- `export.verify` result: `durationMs`, `expectedDurationMs`, `durationDiffMs`, `compared`, `frames[{ atMs, reason, meanDiff, worstBlockDiff, worstBlock{x,y}, match, previewPath, exportPath }]`, `skipped[]`, `audio{ expected, present, maxVolumeDb, silent, ok }`.
+- `export.verify` result: `durationMs`, `expectedDurationMs`, `durationDiffMs`, `compared`, `baselineMode` (`reencode` or `fixed`), `frames[{ atMs, reason, ssim, worstBlockSsim, worstBlockColor, meanColor, meanDiff, worstBlock{x,y}, baseline{qp, ssim, worstBlockSsim, worstBlockColor}, limits, frameOffset, match, reasons[], previewPath, exportPath }]`, `skipped[]`, `audio{ expected, present, maxVolumeDb, silent, ok }`. `reasons` say in words what differs (a region's shape/content, its colour, the whole frame); `worstBlock` points at it.
 - `export.set-thumbnail`: copies the file into the managed thumbnails folder; prefer `export.generate-thumbnail` when you want iteration history.
 - `export.publish-youtube`: expect roughly 30 s per 100 MB to upload. To replace a thumbnail, `export.generate-thumbnail` output is already 1280x720.
 - Preview proxies are made for 10-bit, 4:2:2/4:4:4, HDR, ProRes/DNxHD, or over-150 Mbps sources.

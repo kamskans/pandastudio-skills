@@ -274,7 +274,7 @@ pandastudio project.set-wallpaper --id=$ID --wallpaper=gradient-night
 pandastudio window.preview --id=$ID
 echo "Preview opened — give the user a moment to scrub."
 
-# Step 12: EXPORT. Routes through the same Tier-3 renderer the UI uses
+# Step 12: EXPORT. Runs on the same render engine the UI export uses
 # (reusing an open editor on the project, or spawning a hidden one).
 EXPORT_JOB=$(pandastudio export.start --id=$ID --quality=high --json \
   | jq -r '.data.jobId')

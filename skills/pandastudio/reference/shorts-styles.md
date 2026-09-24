@@ -77,12 +77,16 @@ short feel amateur, regardless of styling.
   room feel; trims land BETWEEN beats, never inside sentences. If the user
   asks for "clean/polished speech", flip it: `transcript.remove-fillers`.
 - **L6 — Zoning.** Never cover a face, and never let captions and graphic
-  text occupy the same zone at the same time. CRITICAL CONSTRAINT: caption
-  position is ONE GLOBAL value for the whole timeline (`caption.set-style
-  --positionY`) — you cannot move or hide captions for a time range. So the
-  caption band is RESERVED AIRSPACE: pick it FIRST, then design every text
-  graphic, hook card, and band composition to stay out of it for the entire
-  video. A center-zone text card with captions at 60% WILL collide — put
+  text occupy the same zone at the same time. The caption band is ONE base
+  value for the whole timeline (`caption.set-style --positionY`), so treat it
+  as RESERVED AIRSPACE: pick it FIRST, then design every text graphic, hook
+  card, and band composition to stay out of it. When a graphic genuinely
+  needs that zone for a few seconds, move the captions for exactly its span
+  instead of redesigning the graphic: `caption.move --whileRegionId=<overlay>
+  --positionY=<clear zone>` (eases away and back, 2.0), or hide them for the
+  span with `project.hide-captions --startMs --endMs` when the graphic IS the
+  words (a full-frame card that repeats the line). At most ~2 caption moves per
+  short; a caption that keeps jumping is its own distraction. A center-zone text card with captions at 60% WILL collide — put
   the card's text in the top ~40% or size/position it clear of the caption
   band. Caption position is also FOOTAGE-DEPENDENT: the recipe values
   (50–66%) assume the face in the upper third; on center-framed or tight
@@ -163,7 +167,7 @@ the other big time sink.
 ID=<project id>                      # from fork-from-shot or project.locate
 pandastudio project.set-aspect-ratio --id=$ID --ratio=9:16   # if not already
 pandastudio transcript.transcribe --id=$ID --json            # async → job.wait
-pandastudio transcript.get --id=$ID --json > /tmp/words.json # word-level timing
+pandastudio transcript.get --id=$ID --format=words --json > /tmp/words.json # word-level timing
 ```
 
 From `/tmp/words.json` build the **beat map** — the editorial skeleton every
@@ -219,6 +223,14 @@ pandastudio caption.set-template --id=$ID --templateId=bold
 pandastudio caption.set-style --id=$ID --wordsPerLine=3 --positionY=85   # percent from top (0-100)
 ```
 
+**2.0 moves for this recipe:** the act-change punch-in can be a keyframed
+move instead of a zoom region when you want a snap with no swoosh
+(`project.add-motion --keyframes` scale 1 → 1.3 over ~220 ms, `easing:back`,
+settling at 1.25; never both on one beat). When a top-band card's text dips
+into the caption band for a beat, `caption.move --whileRegionId` for that
+card only. A tool / product name can pop in with `project.set-animation
+--enter=pop --exit=fade` on its label overlay.
+
 The **rapid-list** variant (10 items / 34s — the easiest stunning short to
 automate): no captions at all; a per-item overlay (logo + name + use-case) IS
 the caption; swap on each item's first word; title card 0–2s; end on the last
@@ -239,6 +251,12 @@ the 2021 clone-look (no ALL-CAPS walls, no emoji, no meme inserts, no b-roll).
 | Chapter pill (listicle variant) | incrementing "N. CATEGORY" pill per item — payoff every ~4.2s (see §11: stateful-overlay fallback) |
 | Audio | faint bed for listicles; live/raw formats keep room audio; `keepFillers=on`, keep [laughter] |
 
+The slow drift on a long beat can also be `project.add-motion --preset=push-in
+--durationMs=<beat length>` (a keyframed push, no zoom SFX). The hook claim
+may go BEHIND the speaker's head once (`set-overlay-mask --behindPerson=true`
+on the hook-word overlay), only if the recipe's no-graphics rule is relaxed
+by the user.
+
 ## 6. Recipe: podcast-clip (DOAC style)
 
 Two-person conversation → vertical clip. Our most defensible recipe:
@@ -251,7 +269,7 @@ not cropped-guesswork.
 | Hook | enter mid-conversation at 0.0s + title banner naming the payoff, auto-out by ~5.5s (`motion.generate` overlay, white bg / black caps) |
 | Switching | camera follows the speaking participant (`project.set-clip-layout` / podcast layout transforms per section — see visual-edits.md §podcast) |
 | Reaction cutaways | 1–1.5s of the NON-speaker at reaction moments, speaker's audio continues |
-| Long holds | >12s single-speaker → break with alternating punch-ins every 5–6s (`project.add-zoom`, alternate framing) |
+| Long holds | >12s single-speaker → break with alternating punch-ins every 5–6s (`project.add-zoom`, alternate framing, or `project.add-motion` keyframes for a snap without the swoosh) |
 | Captions | `wordsPerLine` 1–3, bold + stroke, `positionY` 85; per-speaker color when available (§11) |
 | Branding | persistent top corner chip (show logo / guest-name strap) via overlay graphic |
 | End card | 1.5–2s restating the title (SKIP on emotional/serious clips — match register, L5 spirit) |
@@ -272,7 +290,7 @@ continuous zoom-journeys are deferred — see gaps G7.)
 |---|---|
 | Face time | bookends only: hook on-camera 0.5–2s, then visuals; 1.5–3s face cut-ins at pivots; face closes the CTA |
 | Hook | curiosity claim spoken at 0.0s over the face; first visual J-cuts in by 2s; first NUMBER on screen by 4–5s |
-| Visuals | B-roll/graphics segments 1.75–2.2s per cut; every segment names ONE new thing |
+| Visuals | B-roll/graphics segments 1.75–2.2s per cut; every segment names ONE new thing. A long B-roll or demo take on the main track gets a speed ramp (`project.add-speed --speed=3 --rampIn --rampOut`, or `add-speed-ramp` for a timelapse build) instead of a hard cut, only where no needed speech plays; stills become Ken Burns image clips (`media.image-to-video --id`) |
 | Stat callouts | promote key numbers to center-screen pills persisting 2–3s (`motion.generate` stat template, one accent color for the WHOLE video) |
 | Captions | small ALL-CAPS, single line, bottom-center (`positionY` 85), on 100% of frames incl. b-roll; NO per-word emphasis |
 | End | spoken cliffhanger CTA + subscribe pill ("to find out how, subscribe") |
@@ -336,8 +354,10 @@ this fires MID-VIDEO.
   emphasis mechanism per L4 — match the caption highlight color), paper /
   brand-neutral background. One card style per video.
 - **Zoning:** the card's typography must stay clear of the caption band
-  (captions are global and keep rendering over the card — L6). Compose the
-  type in the upper ~60% with the reserved band left quiet.
+  (captions keep rendering over the card — L6). Compose the type in the upper
+  ~60% with the reserved band left quiet, or, when the card repeats the
+  spoken line verbatim, hide the captions for the card's span
+  (`project.hide-captions`).
 - **Entrance:** house sweep + camera-click (it's an animated-graphic
   entrance); the card itself renders with `--soundUrl=none`.
 

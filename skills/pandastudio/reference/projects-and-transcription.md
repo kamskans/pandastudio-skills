@@ -1,6 +1,125 @@
 <!-- Part of the pandastudio skill. Detail relocated from SKILL.md for progressive disclosure. -->
 
-# Projects: folders, rename, transcription
+# Projects: workspaces, brand kit, folders, rename, transcription
+
+## Workspaces (v1.19+)
+
+Every `project.*` / `export.*` / `motion.*` / `caption.*` / `audio.*` query
+operates inside the **active workspace** (`workspace.current`). Agencies keep
+clients in separate workspaces so credentials, exports and YouTube connections
+never cross-contaminate.
+
+```bash
+# Right after system.status: the workspace context
+pandastudio workspace.list --json | jq '.data | { current: .currentWorkspaceId, count: (.workspaces | length), cap: .limit }'
+# limit.max: 1 = Starter plan or Trial, 3 = Creator, null = Team (unlimited)
+
+# Switch (confirm with the user first if it's not the workspace they opened)
+WS=$(pandastudio workspace.list --json | jq -r '.data.workspaces[] | select(.name == "ACME Agency — Client A") | .id')
+pandastudio workspace.switch --id=$WS --json
+
+# Create (agencies: one workspace per client)
+pandastudio workspace.create --name="ACME Agency — Client A" --switchTo=true --json
+# Plan cap hit → { ok:false, error:"Your Starter plan allows 1 workspace…",
+#   details:{ code:"workspace_limit_reached", upgradeTo:"Creator" } }
+# Tell the user to upgrade at writepanda.ai/#pricing; do NOT retry.
+
+# Rename
+pandastudio workspace.rename --id=$WS --name="Client A (2027)" --json
+```
+
+**Deleting (destructive, needs the user's confirmation in PandaStudio):** call
+`workspace.contents` first so you can show what will be lost, ask in chat, then
+`workspace.delete`. Projects' on-disk `.pandastudio` files stay, only the
+library rows disappear. YouTube-published videos stay on YouTube; only the
+local connection + cache go.
+
+```bash
+pandastudio workspace.contents --id=$WS --json | jq '.data.counts'
+# { "projectCount": 12, "exportCount": 4, "publishedVideoCount": 3 }
+pandastudio workspace.delete --id=$WS --json
+```
+
+### When given a project id with no other context
+
+Run `project.locate` FIRST, before any read/edit/export/publish:
+
+```bash
+RES=$(pandastudio project.locate --id=$PID --json)
+# { "data": { "id", "filePath", "workspaceId", "workspaceName": "Client A", "isInActiveWorkspace": false } }
+if [ "$(echo "$RES" | jq -r '.data.isInActiveWorkspace')" != "true" ]; then
+  # STOP. Ask: "This project lives in workspace 'Client A', current is '<X>' — switch?"
+  :
+fi
+```
+
+`project.read` resolves a project from any workspace, but
+`export.publish-youtube`, `media.generate-image`, `export.generate-thumbnail`
+and `youtube.list-accounts` use the **active workspace's** credentials: editing
+project A while workspace B is active and then publishing puts the video on
+Client B's channel. Every `project.read` also carries `workspaceId`,
+`workspaceName`, `isInActiveWorkspace`, but `project.locate` is cheaper (no
+body). After an explicit `workspace.switch`, re-run any pre-flight that depends
+on workspace state (license check, YouTube account list, connector check).
+
+## Project-look defaults (v1.49.1+)
+
+Save a workspace's preferred **look** once so every NEW project and fresh
+recording starts from it. Covers background (`wallpaper`), `captionSettings`
+and `editorDefaults` (padding, shadow, corner radius, blur). The editor exposes
+it as "Save as default for new projects".
+
+```bash
+pandastudio workspace.get-project-defaults --json          # null = none set
+pandastudio workspace.set-project-defaults \
+  --defaults='{"wallpaper":"/wallpapers/wallpaper5.jpg","captionSettings":{"enabled":true,"templateId":"editorial"},"editorDefaults":{"padding":18,"borderRadius":8}}' \
+  --json                                                    # any subset; unknown fields dropped
+pandastudio workspace.set-project-defaults --defaults=null --json   # clear
+```
+
+Use for "use this background for all my videos" / "always start new projects
+with these captions". It doesn't retro-edit existing projects.
+
+## Brand kit — set it, or auto-capture it from a URL (v1.84+)
+
+The workspace brand kit (colors primary/accent/ink/background, display/body
+fonts, logo, voice) feeds brand-aware captions, motion graphics, lower thirds
+and thumbnails. Read it with `workspace.get-brand`.
+
+```bash
+# Manual: set any subset.
+pandastudio workspace.set-brand --brand='{"name":"Acme","colors":{"primary":"#2563EB","ink":"#111827","background":"#FFFFFF"},"typography":{"display":"Inter"}}' --json
+
+# Auto: pull the real brand off a website (HyperFrames capture, classifies the
+# site's colors/fonts/logo, MERGES into the kit; hand-set fields survive).
+# ASYNC; the first run downloads the capture CLI, so use a long timeout.
+JOB=$(pandastudio workspace.capture-brand --url=https://acme.com --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$JOB" --timeoutMs=300000 --json | jq '.data.job.result.brand'
+
+# Capture WITHOUT touching the workspace kit (a client's or competitor's site,
+# or a promo for a product that isn't the user's brand):
+JOB=$(pandastudio workspace.capture-brand --url=https://acme.com --apply=false --maxScreenshots=4 --json | jq -r '.data.jobId')
+pandastudio job.wait --id="$JOB" --timeoutMs=300000 --json \
+  | jq '.data.job.result | {brand, logo: .captured.logoPath, og: .captured.ogImagePath, shots: [.captured.screenshots[].path]}'
+```
+
+Reach for `workspace.capture-brand` when the user says "use my brand", "make it
+match my site", or you're onboarding a client and only have a URL. Needs
+network. The classified brand is a starting point; apply corrections with
+`workspace.set-brand`.
+- **`--apply=false`** returns `{ applied:false, brand }` and leaves the active
+  kit alone (default `true` = merge). Don't overwrite the user's brand with
+  someone else's site.
+- **Logo**: `captured.logoPath` is the site's real mark — header logo, else a
+  non-glyph logo SVG, else the apple-touch-icon, else the SVG favicon, else the
+  og:image (`captured.logoSource` says which). Inline UI icons are never
+  chosen. A text-only wordmark site gets its app icon; set the wordmark font
+  via typography instead.
+- **Screenshots**: `captured.screenshots[]` are real 1920×1080 viewport PNGs of
+  the live page (hero first, then down the page; `--maxScreenshots` 0–12,
+  default 4). Use them in promos (`motion.render-html --assets=<path>` /
+  `<img src="screenshot-1.png">`) instead of drawing a fake UI.
+  `captured.ogImagePath` is the site's social card.
 
 ## Organising projects with folders (v1.26.9+)
 
@@ -110,6 +229,32 @@ pandastudio system.set-transcription-language --language=chinese --json
 - Language hint is locked, not auto-detected, when Whisper is active. If the user picks "chinese" and then transcribes a Japanese file, the output is garbage. Match the setting to the actual source language.
 - `system.set-transcription-language` only writes the setting — it does not download the Whisper model. The download is a Settings-UI-only action because it streams ~1.1 GB and surfaces a progress modal.
 
+## Transcription provider: local vs cloud
+
+**When the language is one the on-device models are weak at, say so before
+you edit.** Parakeet (English + 25 European languages) and Whisper are good
+enough to cut against. Whisper is NOT good at Tamil, Telugu, Kannada or
+Malayalam, and the transcript is the foundation everything else stands on:
+captions, `transcript.remove-fillers`, `transcript.remove-silences`, shorts
+detection and any edit-by-text all inherit its mistakes.
+
+`system.get-transcription-provider` reports who transcribes: `local` (default),
+`deepgram` (Nova-3) or `elevenlabs` (Scribe), plus `ready` saying which cloud
+providers have a key. Both cloud providers transcribe those languages properly
+for roughly a penny a minute.
+
+```bash
+pandastudio system.get-transcription-provider --no-launch --json
+```
+
+If the user works in one of those languages on `local`, tell them the
+transcript will be rough and that Settings → Transcription can switch to a
+cloud provider. **Do not switch it yourself without asking**:
+`system.set-transcription-provider` sends their audio to a third party and
+bills their account there. Ask, then switch if they say yes. If a cloud
+provider is set but has no key, transcription silently falls back to local, so
+check `ready` before assuming the good path ran.
+
 ## Smooth preview for heavy camera footage
 
 Some camera footage can't be decoded in real time, so the editor preview stutters however light the edit is: 10-bit or 4:2:2/4:4:4 video, HDR, ProRes / DNxHD / CineForm / MPEG-2, or anything above 150 Mbps (for example 4K 50fps H.264 4:2:2 10-bit intra from Sony cameras, ~480 Mbps).
@@ -158,12 +303,14 @@ JOB=$(pandastudio transcript.transcribe --id=$ID --json | jq -r '.data.jobId')
 
 # 3. Wait for the job, then pull the transcript with word-level timestamps.
 pandastudio job.wait --id=$JOB --json
-pandastudio transcript.get --id=$ID --json
+pandastudio transcript.get --id=$ID --format=words --json
 ```
 
-`transcript.get` returns `{ language, wordCount, segmentCount, words[], segments[] }`. Each
-`segment` has `{ id, text, startMs, endMs, words[] }`; each `word` has `{ text, startMs,
-endMs, editedStartMs, editedEndMs }`. **All times are milliseconds.**
+`transcript.get --format=words` returns a flat `words[]`; each word has `{ id, text,
+startMs, endMs, editedStartMs, editedEndMs, speaker? }`. `--format=full` gives the old
+`{ language, wordCount, segmentCount, words[], segments[] }` shape; the default `compact`
+format and `--format=text` (edited-time `[m:ss.s]` lines) are for reading, and
+`--fromMs/--toMs` (edited ms) limit any format to a window. **All times are milliseconds.**
 
 ### ⚠ Which time base to use — this decides whether the subtitles are in sync
 
@@ -198,7 +345,7 @@ fixes the user made (brand/product names via `transcript.find-replace`). Require
 edited time base:
 
 ```bash
-pandastudio transcript.get --id=$ID --json > /tmp/t.json
+pandastudio transcript.get --id=$ID --format=words --json > /tmp/t.json
 # Format cues from words[] using editedStartMs/editedEndMs (skip null = trimmed).
 ```
 
@@ -211,7 +358,7 @@ edited/source reasoning at all:
 EID=$(pandastudio project.new --name="srt-tmp" --withMedia="/abs/path/export.mp4" --json | jq -r '.data.id')
 JOB=$(pandastudio transcript.transcribe --id=$EID --json | jq -r '.data.jobId')
 pandastudio job.wait --id=$JOB --json
-pandastudio transcript.get --id=$EID --json    # startMs/endMs are already export-relative
+pandastudio transcript.get --id=$EID --format=words --json    # startMs/endMs are already export-relative
 ```
 
 **Which to use:** prefer Route A when the source project is available — it costs no second
