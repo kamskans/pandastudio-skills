@@ -196,8 +196,8 @@ watch-through is where the algorithm starts pushing it).
        --atMs=2000 --json
      ```
      The panel `side` (top/bottom) and `cameraSide` are **opposites** — panel
-     `top` ⇒ `cameraSide bottom`. Prefer the premium panels over the plainer
-     `split-panel`, exactly as you do for 16:9. **The host band keeps the face
+     `top` ⇒ `cameraSide bottom`. Use the same premium panels
+     as for 16:9. **The host band keeps the face
      centered automatically** (the editor face-detects vertical talking-head
      clips and sets a focal point the cover-crop biases toward); override with
      `project.set-focal-point` if needed.

@@ -5,10 +5,15 @@ teaser, an app or company launch, an animated explainer. Screenshots, a logo, a 
 camera clip can appear inside it, but graphics carry the film. For a promo cut from a screen
 recording of someone using the product, see the `product-promo-from-url` recipe instead.
 
-What makes these look produced rather than generated is craft, not effects. PandaStudio bundles
-HyperFrames' launch-video craft (Apache-2.0) and its catalog of ~390 motion components. Read the
-craft through `motion.craft`, build each beat as its own frame composition that mounts catalog
-components, and render the whole film in one pass with `motion.render-film`.
+**The house standard comes first:** [promo-and-mg-videos.md](promo-and-mg-videos.md) sets the beat
+structure, the motion grammar (word-by-word blur reveals with ghost text, depth of field and rack
+focus, a camera that never stops, morph continuity, micro-interactions, sound on actions), the
+brand-derived visual system and the mandatory verification checklist. Build with the `lf-kit.js`
+primitives ([saas-launch-film.md](saas-launch-film.md)). This doc adds the second toolbox:
+HyperFrames' launch-video craft (Apache-2.0), its catalog of ~390 motion components and
+`motion.render-film` for one-pass assembly with built-in transitions. Use the catalog for a named
+look the kit lacks, and adapt it to the grammar; where the craft docs and the house standard
+disagree, the house standard wins.
 
 ## The shot grammar: one world, one camera
 
@@ -40,8 +45,9 @@ Build it that way:
   off as the camera lands; holds are perfectly sharp.
 - **Type is punctuation, not the backbone.** One or two full-bleed lines between
   sections, and the end card. If the film is mostly typography, it is a slideshow.
-- **The end card earns its glow.** Dark ground, the mark and wordmark together, the URL
-  in a lit pill.
+- **The end card mirrors the logo beat.** On the brand's own ground, the mark and wordmark
+  together, a two-part tagline, the CTA in a pill, the URL, real integration icons popping in
+  (`LF.endCard`).
 
 Anti-patterns that make it read as generated: a grid of feature cards; every beat
 centred; one idea per frame with a transition between; text that states benefits the
@@ -85,13 +91,14 @@ moves on. Other chat shapes: `chat-thread`, `notes-typing`, `typed-prompt`,
 
 Read `motion.craft --id=motion-language` once per film. In short:
 
-1. **Smooth beats bouncy.** Long-tail `power3` (or `expo.out` on a fast arrival) settles. No
-   `back.out`, `elastic`, `bounce` as a default. Overshoot only when explicitly playful.
+1. **Smooth beats bouncy.** Long-tail `expo.out`/`quint.out` arrivals, `whoosh` camera dollies.
+   No `elastic` or `bounce`; a slight `back.out` only on small pops (icons, chips, pills).
 2. **Reveal on the voiceover cue, in the back half.** At t=0 a frame shows only what the voice is
    saying then. Each further line, card or number arrives when the voice names it. Never dump the
    whole frame in the first quarter and then freeze: that is the slideshow look.
-3. **No lazy breathing, no slow drifting camera in the back half.** A still, finished frame beats
-   a frame kept "alive" by pulsing scale or a creeping pan. Subtle jitter is the only aliveness.
+3. **No lazy breathing.** No pulsing scale or looping glow to keep a frame "alive". What keeps a
+   hold alive is the house camera: a slow, deliberate linear push (2-5%) toward what the viewer
+   should read, with everything else racked out of focus.
 
 Plus the seek-safe core every frame must obey: one paused GSAP timeline, no `repeat: -1`/`yoyo`,
 no `Math.random`/`Date.now`, `fromTo` entrances, no CSS transitions or `@keyframes` for motion.
@@ -234,14 +241,18 @@ need no generation: `launch-pulse` (confident, carries the cut) and `quiet-launc
 more considered), both ~33s, so repeat them for a longer film. `media.generate-music` writes a
 custom one when neither fits ("restrained modern tech underscore, 96 bpm, soft pulsing synth,
 minimal percussion, no vocals"), and `--model=musicgen --reference=` matches a track the user
-already has. Never lift the audio from a reference video; match its character instead. Sound design (bundled `asset.list-sounds`): `noise-riser` into `logo-impact` on the logo
-landing, `swoosh-fast` only on zoom-through / whip / wipe transitions (about one per 8 to 10 s),
-`ui-tick` for list items and checks, `mouse-click` for cursor clicks, `keyboard-*` under typed
-prompts. With no voiceover the bed sits forward (it is the floor of the mix, not a whisper) and the
-effects sit under it. Aim for about -18 LUFS with true peak at -1 dBFS or lower; check with the
-export and raise the bed, not the effects, if it comes out quiet. Captions stay off: the type is
+already has. Never lift the audio from a reference video; match its character instead. Sound design: follow the sound map in
+[`audio-color-music.md`](audio-color-music.md#sound-design-the-sound-map) (a riser into a logo
+sting on the logo landing, a whoosh only on zoom-through / whip / wipe transitions, about one per
+8 to 10 s, taps for list items and checks, clicks for cursor clicks, a key per typed character)
+and place every cue in one `project.add-sound-cues --group=sfx` call, each one on its event's frame.
+With no voiceover the bed sits forward (it is the floor of the mix, not a whisper) and the
+effects sit under it. The export normalises to about -14 LUFS with true peak at -1 dBTP; check
+the export's loudness and, if the effects sound buried after normalisation, lower the bed rather
+than raising the effects. Captions stay off: the type is
 already on screen.
-Export with `export.start`, then `export.verify` before handing it over.
+Export with `export.start`, then `export.verify`, then run the mandatory checklist in
+promo-and-mg-videos.md before handing it over.
 
 ## On the timeline: finishing a rendered film
 

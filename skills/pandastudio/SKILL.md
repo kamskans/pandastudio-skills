@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.186.0 -->
+<!-- version: 3.192.0 -->
 
 # PandaStudio
 
@@ -35,14 +35,22 @@ description: Edit videos in PandaStudio — a desktop video editor for YouTube, 
 >   the default (`motion.list` → `motion.generate` → `job.wait` →
 >   `project.add-motion-graphic --fromJob`). Custom HTML only when no template
 >   fits. See "Motion graphics".
-> - **Mode B — a video built FROM SCRATCH** (promo, explainer, intro/outro,
->   teaser, CTA; no source clip): default to hand-authored scenes via
->   `motion.render-html`, NOT templates (they read generic on a hero asset).
->   Load [`reference/promo-and-mg-videos.md`](reference/promo-and-mg-videos.md)
->   first, then author from `reference/motion-philosophy.md`. **Product launch /
->   feature reveal / teaser films:** load
->   [`reference/launch-video.md`](reference/launch-video.md) (`motion.craft`,
->   the ~390-item `motion.catalog`, `motion.render-film`). Whiteboard /
+> - **Mode B — a video built FROM SCRATCH** (promo, launch, teaser, app ad,
+>   explainer, intro/outro, CTA; no source clip): hand-authored scenes via
+>   `motion.render-html`, NOT templates. **Every one follows the house
+>   standard, the launch-film grammar:** load
+>   [`reference/promo-and-mg-videos.md`](reference/promo-and-mg-videos.md)
+>   (beats, motion grammar, brand system, mandatory verification checklist)
+>   and build with the `lf-kit.js` primitives in
+>   [`reference/saas-launch-film.md`](reference/saas-launch-film.md) (word
+>   reveals, rack focus, camera, app-from-screenshots, montage, real brand
+>   icons, callout, count-up, end card). The recipes built on it:
+>   `motion-graphics-launch` (Product launch film: no footage, from the
+>   website; the old id `saas-launch-film` resolves to it),
+>   `product-promo-from-url` (the user's screen recording inside the kit) and
+>   `product-demo-walkthrough` (a calm feature tour). Engine contract:
+>   `reference/motion-philosophy.md`. Catalog / `motion.render-film` for named
+>   looks: [`reference/launch-video.md`](reference/launch-video.md). Whiteboard /
 >   hand-drawn / sketch briefs, or an abstract concept to draw:
 >   [`reference/whiteboard-style.md`](reference/whiteboard-style.md). Templates
 >   as the backbone of Mode B only for a deliberately quick draft or when the
@@ -349,7 +357,7 @@ and the doc named in the row.
 
 | The moment | Reach for | Not |
 |---|---|---|
-| Chapter title or the video's key claim, speaker full frame on camera | 1. `motion.generate --templateId=transitions-3d --slots='{"lead":"","emphasis":"FOCUS","trail":""}'` (3D Editorial Title: one huge word on a transparent background; `lead`/`trail` are small optional lines, pass `""` or their defaults show) 2. `job.wait --id=<jobId>` 3. `project.add-motion-graphic --fromJob=<jobId> --atMs --durationMs=2000–4000` 4. `project.set-overlay-mask --regionId=<overlayId> --behindPerson=true` (the head passes in front) 5. `project.render-frame --atMs=<midpoint>`. Annotations (`project.add-annotation`) cannot go behind the presenter. If the template render fails, skip the move rather than substituting an annotation. | a card that hides the face; an annotation as the title |
+| Chapter title or the video's key claim, speaker full frame on camera | `project.add-title-behind --text="FOCUS" --atMs [--style=3d\|bold\|serif --durationMs=2000–4000]` then `job.wait --id=<jobId>`: ONE call renders 1–3 huge words, sets them at head height from face detection and places them behind the presenter (the head passes in front); the result has `regionId` and the `face` box used. Then `project.render-frame --atMs=<midpoint>`. No face in that span fails with a clear message: pick a moment with the presenter full frame, don't force it. Annotations cannot go behind the presenter; if the verb fails, skip the move rather than substituting an annotation. | a card that hides the face; an annotation as the title |
 | Dull stretch: setup, install, B-roll, a demo with no speech you need | `project.add-speed --speed=2–4 --rampIn --rampOut` (eases 1x → fast → 1x) or `project.add-speed-ramp` for a timelapse build | a hard cut that loses context; speeding up talk |
 | Lower third, camera card or top graphic sitting where captions are | `caption.move --whileRegionId=<overlayId> --positionY=<clear zone>` for exactly its span | moving the global caption position |
 | Mood shift, flashback, aside, "imagine…", emphasis beat | `project.add-adjustment` over that span with `--fadeInMs/--fadeOutMs` (desaturate, cool, vignette, grain, blur); ONE look per meaning | a different LUT per clip |
@@ -636,7 +644,9 @@ give you.
   `add-designed-segment` / `add-lower-third` = mouse-click; `--soundUrl=none`
   silences one; `project.set-region-sound` retunes a placed one.
 - **Lower thirds:** `project.add-lower-third --name --title --atMs` renders AND
-  places in one async call (default `lt-vox-marker`).
+  places in one async call, in the project's aspect (default `lt-vox-marker`;
+  also `lt-glass-card`, `lt-minimal-line`, `lt-bold-bar`, `lt-logo-name` with a
+  logo, `lt-duo` for two speakers).
 - **Focus regions:** `project.add-spotlight` (dim outside / `--kind=blur` /
   `--style=pixelate` for privacy, `--shape=ellipse` for faces),
   `update-spotlight`, `remove-spotlight`, `track-focus-face` for a moving face.
@@ -687,14 +697,17 @@ footage; custom HTML is for briefs no template fits.
    recurring functional element (the same lower-third style per person).
 4. **Never misuse a purpose-specific template:** `stat-reveal` → a real number;
    `comparison` → exactly two things; `flowchart` → an actual sequence;
-   `key-takeaways` → a list; `yt-lower-third` → introducing a person/channel.
+   `list` → a real list; charts → real data; `yt-lower-third` → introducing a person/channel.
 5. **Camera-only / imported footage → lead with a PREMIUM designed segment**
    (`paper-panel` or `vox-side-panel` via `project.add-designed-segment`),
-   alternating side and content; `split-panel` is the plainer fallback.
+   alternating side and content.
    `kind === "screen"` → cursor zooms, no splits.
-6. **Reach for the featured templates first** (`featured: true`): workhorses
-   `paper-panel`, `vox-side-panel`, `vox-marker`; hooks when the content gives
-   them `vox-stat` (a real number), `vox-quote`, `vox-annotation`.
+6. **Find templates by job, not by scrolling**: `motion.list --query="…"`,
+   `--family=…`, `--aspect=…` (families, search and the retired policy:
+   [`reference/motion-templates.md`](reference/motion-templates.md)). Featured
+   ones (`featured: true`) are the best starting points. Retired templates are
+   hidden; if a render returns a `warnings` entry naming a replacement, tell the
+   user and use the replacement.
 7. **Text isn't your only option:** logos, screenshots and animated diagrams
    are authored graphics (below).
 
@@ -704,20 +717,26 @@ Generic = any beat · Purpose = only when the content matches. Vary across the v
 
 | What's happening | Reach for | Class |
 |---|---|---|
-| Open / chapter / section title | `creator-card`, `transitions-3d`, `grain-overlay`, `transitions-destruction`, `caption-parallax-layers` (vary per section); on camera footage (2.0) also big type behind the presenter | Generic |
-| Explainer beat, host on camera / imported footage | **`paper-panel`** or **`vox-side-panel`** designed segment (`split-panel` = plainer fallback) | Generic workhorse |
-| Hero reveal / intro / "ways to use it" recap | `parallax-zoom`, `parallax-unzoom` | Semi-generic |
-| Introduce a person / channel / "subscribe" | `yt-lower-third` or `project.add-lower-third` (`lt-*`) | Purpose |
-| A real number / metric / result | `stat-reveal`, `vox-stat` | Purpose — numbers only |
-| "Here are the N things…" / recap | `key-takeaways` | Purpose |
-| This vs that / before vs after | `comparison` | Purpose |
+| Open / chapter / section title | `creator-card`, `transitions-3d` (Bold title; vary its `style` per section: `3d`, `bold`, `serif`, `kinetic`), `calm-statement` (full-frame); on camera footage (2.0) also `project.add-title-behind` (big type behind the presenter, one call) | Generic |
+| Explainer beat, host on camera / imported footage | **`paper-panel`** or **`vox-side-panel`** designed segment | Generic workhorse |
+| Introduce a person / channel / "subscribe" / "follow me" | `project.add-lower-third` (`lt-*`) for a name; `yt-lower-third` (subscribe / like / bell) or `social-follow` (`platform=`) for the CTA | Purpose |
+| A real number / metric / result | `stat-reveal`, `vox-stat` (full frame), `count-up` (over the footage) | Purpose — numbers only |
+| Progress toward a goal | `progress-bar` (bar or ring) | Purpose |
+| "Here are the N things…" / steps / recap | `list` (style numbers / pills / checks) | Purpose |
+| This vs that / before vs after | `comparison` (two things side by side, with a verdict) or `before-after` (a slider wipe between two pictures) | Purpose |
+| Social proof: a customer quote · viewer comments · pricing | `testimonial` · `yt-comment-card` · `pricing` | Purpose |
+| Closing frame / call to action / subscribe at the end | `end-card` | Purpose |
 | A simple linear process | `flowchart` | Purpose |
 | How something WORKS / connects / flows | **author an animated diagram** | Authored — the explainer workhorse |
-| A trend / chart / data viz | **author a chart** | Authored |
+| A trend / chart / data viz | `bar-chart`, `line-chart` (label/value rows); **author a chart** for anything else | Purpose / Authored |
+| "Look at this" / point at a spot on screen | `callout` (circle / box / arrow at x,y) | Purpose |
+| Countdown / launch / timer | `countdown` (3-2-1 or m:ss) | Purpose |
 | A CONCEPT that must be DRAWN, or "whiteboard / hand-drawn / sketch" | whiteboard style ([`reference/whiteboard-style.md`](reference/whiteboard-style.md)) | Authored |
+| Channel / brand intro or outro (only when asked) | `logo-intro`, `logo-outro` (brand-kit logo + colours) | Purpose |
 | Talking-head OPENER (topic in the first 10–30s) | `caption-editorial-emphasis` | Default for `kind === "camera"` |
 | ONE thesis sentence / pull-quote | `caption-editorial-emphasis` | Purpose — 2–3 per video max |
-| Logos / tools / partners · a screenshot | author a graphic, or `image-showcase` for one screenshot | Authored |
+| A quote from a named person | `serif-statement` with `attribution` | Purpose |
+| Logos / tools / partners · a screenshot · the app itself | author a graphic, `image-showcase` for one screenshot, or `app-showcase` for the app big in a browser / Mac / phone frame | Authored |
 
 ### Authored graphics — your repertoire is bigger than the gallery
 
@@ -762,7 +781,9 @@ Re-render in place, don't delete and regenerate:
 When no template fits, author HTML against the HyperFrames contract: one paused
 GSAP timeline registered at `window.__timelines[<data-composition-id>]`, root
 `data-composition-id` / `data-width` / `data-height` / `data-duration` (in
-SECONDS), no `repeat:-1`, no `Math.random`. Read
+SECONDS), no `repeat:-1`, no `Math.random`. It moves with the house grammar
+(blur word reveals, rack focus, camera push; the `lf-kit.js` primitives work
+over footage too, on a transparent render). Read
 [`reference/motion-philosophy.md`](reference/motion-philosophy.md) +
 [`reference/motion-recipes.md`](reference/motion-recipes.md) first; render
 verbs (`motion.render-html`, `motion.screenshot` pre-flight, `motion.concat`,
@@ -795,6 +816,16 @@ realistic AI presenter with its own voice (one take ≤30s; describe the person,
 the line in double quotes; never add narration on top), used as a camera-only
 clip or attached with `project.set-clip-webcam`. `media.import --url` brings in
 any remote file. Detail: [`reference/media-generation.md`](reference/media-generation.md).
+
+**Online video (YouTube, Vimeo, archive.org, ...)** →
+`media.download-url --url [--format=audio] [--startMs --endMs]
+[--addToProject=$PID --as=clip|overlay|audio]` (async: `job.wait`; returns
+`path, title, durationMs, uploader`). Only download what the user owns or has
+the rights to use (their own uploads, Creative Commons, public domain, licensed
+footage); if it's unclear, ask them first. "Make a short from this video" =
+download (just the part you need with startMs/endMs), `project.new
+--withMedia=<path>`, then the usual transcribe + Shorts flow. Detail:
+media-generation.md "Downloading online video".
 
 ## Faceless videos — image-driven, voiceover-led
 
@@ -866,8 +897,12 @@ clips, 0–2), mute a stretch without cutting the picture
 (`project.set-audio-ducking --regionId [--amountDb --source=transcript|energy]`),
 volume automation (`project.set-volume-keyframes --target=clip|audio|overlay`,
 `add-volume-keyframe`, `remove-volume-keyframe`), bundled / generated music
-(`asset.list-music`, `media.generate-music`), SFX (`asset.list-sounds`,
-`media.generate-sound-effect`) and colour (`project.set-clip-color
+(`asset.list-music`, `media.generate-music`), SFX (~190 bundled:
+`asset.list-sounds --category=ui|notification|motion|digital|impact|typing|outcome|ambience`
+or `--tag`; place many timed cues in one call with `project.add-sound-cues
+--group=sfx --cues='[{"sound":"ui-click-soft-1","atMs":1200,"volume":0.5}]'`,
+re-run with the same group to replace them; `media.generate-sound-effect` only
+when nothing fits) and colour (`project.set-clip-color
 --preset=flat-footage` first, then `project.set-clip-lut`; `--target=camera`
 grades the camera separately). Detail + sound design + loudness:
 [`reference/audio-color-music.md`](reference/audio-color-music.md).
@@ -905,6 +940,11 @@ WHEN: "Which tool for which moment" above. HOW:
   chromaticAberration, LUT `look`, `correction`, `--clipId [--layer=camera]`,
   keyframes, fades); clip grades and adjustment layers are one effect library.
   `--blendMode` on overlays, FX and adjustments.
+- **Text behind you:** `project.add-title-behind --text --atMs [--style=3d|bold|serif
+  --durationMs --accentColor --position=auto|top|center --animation --behind=false]`,
+  async (`job.wait` → `regionId`, `face`, `y`). Edit the words, style, colour or
+  length later with `project.update-motion-graphic --overlayId --slots='{"text":"…"}'
+  [--durationMs]`. Graphics tab: template "Text behind you".
 - **Masks:** `project.set-overlay-mask --behindPerson=true | --source=shape|person|layer|none`
   (+ `invert`, `feather`, `expand`, keyframes); `project.track-focus-face`;
   `update-spotlight --source=person`; `update-region --motionBlur`.
@@ -930,15 +970,22 @@ Detail: [`reference/captions-metadata.md`](reference/captions-metadata.md).
 ## Export — produce the final MP4
 
 `export.start --id --quality=draft|standard|high|ultra [--outputPath]
-[--normalizeLoudness]` (async; `job.wait` with a long timeout) renders
-everything in the project on the native engine (720p / 1080p / 1080p / 4K;
-aspect from the project) and returns `{ outputPath, durationMs, width, height,
-frameRate, loudness }`. The final mix is loudness-normalised to -14 LUFS by
+[--normalizeLoudness] [--frameRate=30|60|source|auto]` (async; `job.wait` with
+a long timeout) renders everything in the project on the native engine (720p /
+1080p / 1080p / 4K; aspect from the project) and returns `{ outputPath,
+durationMs, width, height, frameRate: { fps, setting, reason }, loudness }`.
+Frame rate: the project setting defaults to `auto` = 30 fps, or the sources'
+rate (60) when every main-track clip is a 50+ fps render (motion graphics
+rendered with `--frameRate=60`) and none is a screen / camera recording. Set
+60 for smooth scrolling or cursor motion in a screen recording, `source` to
+keep 24 / 25 / 50 fps camera footage at its own rate. 60 fps costs about 1.5x
+the file size. The final mix is loudness-normalised to -14 LUFS by
 default (`podcast` = -16, `off`); tell the user the before/after, and don't
 pre-boost clip volumes. Surface every `warning`. Then `export.verify
 --exportId` before calling it good. The export library: `export.list`,
 `export.get`, `export.update`, `export.delete` (confirmed), `export.set-details`;
-per-project defaults with `project.set-export-settings`. Loudness detail:
+per-project defaults with `project.set-export-settings` (`--quality`,
+`--normalizeLoudness`, `--frameRate=auto|30|60|source`). Loudness detail:
 audio-color-music.md.
 
 ## Video editing playbook — end-to-end recipe (per destination)
@@ -1049,7 +1096,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   add-keyframe, remove-keyframe, convert-to-keyframes, set-animation,
   set-overlay-mask, track-focus-face, add-adjustment, update-adjustment,
   set-clip-color, set-clip-lut (native-motion.md, audio-color-music.md)
-- **project**, audio — add-audio, remove-audio, set-clip-volume,
+- **project**, audio — add-audio, add-sound-cues, remove-audio, set-clip-volume,
   set-audio-ducking, set-volume-keyframes, add-volume-keyframe,
   remove-volume-keyframe (audio-color-music.md)
 - **project**, check and export settings — render-frame, render-sheet,
@@ -1106,8 +1153,9 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - [`reference/motion-recipes.md`](reference/motion-recipes.md) — ~30 seek-safe motion patterns, transitions, determinism guardrails.
 - [`reference/easing.md`](reference/easing.md) — easing dictionary.
 - [`reference/examples.md`](reference/examples.md) — multi-step recipes and long-form motion-graphics authoring examples.
-- [`reference/promo-and-mg-videos.md`](reference/promo-and-mg-videos.md) — the design bar for from-scratch promos (load FIRST for any promo / teaser / explainer from scratch).
+- [`reference/promo-and-mg-videos.md`](reference/promo-and-mg-videos.md) — THE house standard for every promo / motion-graphics video: beats, launch-film grammar, brand system, mandatory verification (load FIRST).
 - [`reference/launch-video.md`](reference/launch-video.md) — launch and promo films with the HyperFrames craft, catalog and `motion.render-film`.
+- [`reference/saas-launch-film.md`](reference/saas-launch-film.md) — the launch-film recipe and the `lf-kit.js` kit with a snippet per primitive.
 - [`reference/whiteboard-style.md`](reference/whiteboard-style.md) — the whiteboard / hand-drawn explainer design system.
 - [`reference/house-style.md`](reference/house-style.md) — neutral design tracks when the brand kit is partial.
 - [`reference/video-authoring.md`](reference/video-authoring.md) — 9:16 camera-only, 9:16 screen + PiP, 16:9 side-overlay authoring modes, safe zones, audio sync, frame verification.

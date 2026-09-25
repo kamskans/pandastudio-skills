@@ -66,7 +66,7 @@ only when the user asks for that look or the content clearly is a review or a
 code walkthrough AND they named no style.
 
 ### educator-pip (Ali Abdaal) — frameworks, habits, how-to
-- **Templates (app 1.98.0+):** lists/steps `numbered-slide`, short lists of things `pill-list`, products/tools `kit-product-slide` (all three as a background under a `cam-left-portrait` card), section statements `serif-statement` over the full-frame shot, diagrams `glow-steps`, stressed terms `keyword-pills` (face box from `project.detect-face`), agent demos `agent-chat`. The recipe prompt names them move by move.
+- **Templates (app 1.98.0+):** lists/steps `list` with style=numbers, short lists of things `list` with style=pills (both cameraSide=left), products/tools `kit-product-slide` (all three as a background under a `cam-left-portrait` card), section statements `serif-statement` over the full-frame shot, diagrams `glow-steps`, stressed terms `keyword-pills` (face box from `project.detect-face`), agent demos `agent-chat`. The recipe prompt names them move by move.
 - **Workhorse layout (28–54% of frames): full-frame graphic with small PiP
   talking head** (rounded corner card, ~1/6 frame width). Face stays on
   screen ~85–90% of runtime while the graphic carries the content. In
@@ -150,11 +150,10 @@ motion_screenshot.
 
 - **Chapter title behind the presenter.** On-camera footage, at a chapter
   boundary or the one line that states the video's thesis, over the
-  full-frame shot: `motion.generate --templateId=transitions-3d
-  --slots='{"lead":"","emphasis":"<1–2 words>","trail":""}'` (one huge word,
-  transparent) → `job.wait` → `project.add-motion-graphic --fromJob`
-  (2–4 s) → `project.set-overlay-mask --regionId --behindPerson=true` so the
-  head passes in front of it → `project.render-frame` at its midpoint: the
+  full-frame shot: `project.add-title-behind --text="<1–2 words>" --atMs
+  [--durationMs=2000–4000]` → `job.wait` (one call: renders the huge word, sets
+  it at head height from the face and puts it behind the presenter so the head
+  passes in front of it) → `project.render-frame` at its midpoint: the
   head covers only part of the word and the word still reads. One per chapter
   at most, never over a camera-card slide. Annotations can't go behind the
   presenter; if the render fails, skip the move rather than substituting an

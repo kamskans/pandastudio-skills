@@ -226,22 +226,13 @@ for a hard-coded default look. Authoring contract:
   guardrails. Pick 2-4 per scene and compose them. Read when you need a proven
   pattern for a specific beat rather than inventing motion from scratch.
 
-**Quality gate.** The **user is the final reviewer** of every render.
-Do NOT auto-call `motion.screenshot` or `motion.verify-frames` as part
-of your normal authoring flow — the human will open the MP4 in the
-editor and catch any issue in two seconds, faster and more reliably
-than the agent can. Your job is to author the composition with care,
-walk the brand checklist textually before rendering (colors derived
-from `brand.colors`, fonts from `brand.typography`, voice matches
-`brand.voice`, logo from `brand.logoPath` when on screen), then render
-and hand off. If the user comes back saying "scene 3 is broken" or
-"the color's wrong," fix it and re-render — don't pre-emptively burn
-turns inspecting frames.
-
-`motion.screenshot` and `motion.verify-frames` are still available as
-tools for when the user explicitly asks ("preview scene 2 at the 3-second
-mark," "show me 8 frames across the timeline"). Just don't reach for
-them on your own.
+**Quality gate.** Verify before you hand off: `motion.screenshot` at each reveal before
+rendering, then frames of the render (`motion.verify-frames`) and, for a
+multi-scene video, the whole film (`project.render-sheet`). The full
+mandatory checklist (text inside the frame, timing, sound sync, loudness,
+grammar) is in [promo-and-mg-videos.md](promo-and-mg-videos.md). Walk the
+brand checklist too (colors from `brand.colors`, fonts from
+`brand.typography`, voice matches `brand.voice`, logo from `brand.logoPath`).
 
 Upstream engine docs — canonical for engine internals: <https://hyperframes.heygen.com>.
 

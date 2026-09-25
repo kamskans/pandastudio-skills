@@ -8,9 +8,27 @@ Use this as a menu: pick 2-4 atomic recipes per scene, compose them on the singl
 
 ## How to use
 
-1. Read [motion-philosophy.md](motion-philosophy.md) for *what* to build (brand, beat planning, restraint).
-2. Pick atomic recipes here for *how* to animate each beat.
+1. The house standard ([promo-and-mg-videos.md](promo-and-mg-videos.md)) decides *what* every beat does and how it moves; [motion-philosophy.md](motion-philosophy.md) is the engine contract.
+2. **Start from the kit.** The house grammar is already built as seek-safe primitives in `lf-kit.js` ([saas-launch-film.md](saas-launch-film.md)); reach for the atomic recipes below only for a move the kit lacks, and restyle it to the grammar (blur reveals, rack focus, camera push, expo arrivals).
 3. Validate against the **Determinism guardrails** below before rendering — these are silent bugs `lint`/`validate` won't catch.
+
+## Kit first: the house grammar as one-liners
+
+| Want | Kit call (lf-kit.js) | Atomic recipe it replaces |
+|---|---|---|
+| Line revealed word by word with ghost text | `LF.reveal(tl, el, at, {...})` | per-word kinetic type, spring-pop |
+| Rack focus / depth of field | `LF.rackFocus`, `LF.blurIn`, `LF.depth` | depth-of-field-blur |
+| Camera push, dolly, motion blur | `LF.camera(lens, world, keys)` + `LF.frame` | viewport-change, multi-phase-camera, motion-blur-streak |
+| Real app, big, with depth | `LF.appWindow` + `LF.tiltIn` + `LF.popout` | 3d-page-scroll, card-morph-anchor |
+| Cursor + click ripple, button press | `LF.cursor`, `LF.press`, `LF.toggle` | cursor-click-ripple, press-release-spring |
+| Typing with caret | `LF.type` | discrete-text-sequence, context-sensitive-cursor |
+| Number | `LF.countUp`, `LF.odometer`, `LF.counter` | counting-dynamic-scale, stat-bars-and-fills |
+| Callout on UI | `LF.callout` | ai-tracking-box, css-marker-patterns |
+| Underline an accent word | `LF.underline` + `LF.draw` | svg-path-draw |
+| Before/after | `LF.beforeAfter` | split-tilt-cards |
+| Montage | `LF.montage` | scale-swap-transition |
+| Integration logos | `LF.brand`, `LF.brandRow` | avatar-cloud-network |
+| Testimonial, pricing, end card | `LF.testimonial`, `LF.pricing`, `LF.endCard` | center-outward-expansion |
 
 ---
 
@@ -74,7 +92,7 @@ Whole-scene transitions, families from the HyperFrames transition registry — c
 
 `css-push` (slide/cover), `css-scale` (zoom in/out), `css-cover` (wipe), `css-dissolve` (cross-fade), `css-blur`, `css-3d` (flip/cube/rotate), `css-radial` (iris), `css-grid` (tiled reveal), `css-distortion`, `css-light` (flash/glow), `css-mechanical`, `css-destruction` (shatter/break).
 
-Default to the quietest option that reads (dissolve/push/scale); reserve 3d/destruction/distortion for deliberate punctuation.
+House default between chapters: rack focus (`css-blur`), a camera dolly or a whip with motion blur, authored in the compositions. Plain dissolves are the weakest option; reserve 3d/destruction/distortion for deliberate punctuation.
 
 ---
 
@@ -107,6 +125,8 @@ These won't be caught by lint/validate but **break the rendered frames**:
 Run `motion.verify-frames` (vision check) on midpoints before considering a render done.
 
 ## Motion-quality gate — do NOT ship the floor
+
+The full, mandatory checklist (render-sheet review, text inside the frame, timing, sound sync, loudness, grammar) is in [promo-and-mg-videos.md](promo-and-mg-videos.md#mandatory-verification-do-all-of-it-before-you-hand-anything-over). The motion part of it:
 
 `motion.verify-frames` on one still per scene checks LAYOUT, not MOTION — a render can pass every technical check and still be a frozen slideshow (this is exactly how a bland, un-animated promo ships unnoticed). Before declaring a from-scratch / promo render done:
 

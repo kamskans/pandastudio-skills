@@ -49,7 +49,7 @@ pandastudio project.add-annotation --id=$ID --startMs=2000 --endMs=4000 \
 pandastudio project.add-annotation --id=$ID --startMs=2000 --endMs=4000 \
   --type=text --text="Look here →" --anchor=center --x=50 --y=36 --width=30 --height=12
 # Annotations always draw over the presenter: a title that goes BEHIND the
-# person is a motion graphic + project.set-overlay-mask --behindPerson=true.
+# person is project.add-title-behind --text --atMs (one call).
 
 # Switch aspect ratio (incl. 9:16 for Shorts)
 # A camera-only project whose source aspect differs from the new ratio is auto
@@ -247,6 +247,9 @@ pandastudio project.duplicate-region --id=$ID --regionType=zoom --regionId=zoom-
 # Export defaults (pre-fills the Export dialog; CLI export.start uses its own --quality)
 # PandaStudio is a video-only exporter; format is always mp4.
 pandastudio project.set-export-settings --id=$ID --quality=source --format=mp4
+# Frame rate of every export: auto (default: 30, or 60 when every clip is a
+# 60 fps render and none a recording) | 30 | 60 | source (fastest source's rate)
+pandastudio project.set-export-settings --id=$ID --frameRate=60
 ```
 
 

@@ -471,34 +471,131 @@ pandastudio project.add-clip --id=$ID --media="$MERGED" --atIndex=0 --json
 
 Omit `--atIndex` (or use a high number) to append at the end instead.
 
-### Sound design: effects timed to the action
+### Sound design: the sound map
 
-Product demos, launch videos and UI walkthroughs are carried by sound effects
-(and a voiceover), not by a song. Bundled ids (`asset.list-sounds`, use as
-`bundled:sound/<id>`):
-- Typing: `keyboard-key-1` / `-2` / `-3` (one per typed character, vary them),
-  `keyboard-space`, `keyboard-enter` (sending a prompt), `keyboard-typing-fast`
-  / `keyboard-typing-steady` (bursts to cut to length when text isn't animated
-  per letter), `typewriter-typing` (retro/editorial looks only).
-- Clicks and UI: `mouse-click` (every cursor click), `ui-tick` (UI appears, an
-  item checks off), `marker-strike` (something crossed out), `message-pop`.
-- Movement: `swoosh-fast` ONLY on scene changes and when a card or panel flies
-  away. Never one per camera move or blur cut: about one per 8-10 s, never two
-  within a second. Too many swooshes is the most common mistake.
-- Endings: `noise-riser` leading into `logo-impact` on the frame the logo lands.
-- Bed: `room-tone` very quiet under everything so there's no dead silence.
+Product demos, launch films and UI walkthroughs are carried by sound effects
+(plus a voiceover or a music bed): a click on every press, a pop as a card
+lands, a key per typed character, a whoosh on a scene change. ~190 bundled
+sounds (`asset.list-sounds`, use as `bundled:sound/<id>` or the bare id):
 
-Workflow:
-1. Get exact action times from the source: the scene's GSAP timeline when you
-   authored it, otherwise rendered frames around each click, type and cut.
-2. Use bundled sounds first. Only when nothing fits,
-   `media.generate-sound-effect --prompt="…" --durationMs=…` (one sound per
-   call). Don't generate whooshes: generated ones often come back musical.
-3. Place each with `project.add-audio --startMs=<action frame>`. Effects well
-   under the voice (duck them while it speaks); no voice lines over typing
-   close-ups; lines never overlap.
-4. Export and check levels (`volumedetect` on a typing stretch, a voice line
-   and the loudest hit) before calling it done.
+```bash
+pandastudio asset.list-sounds --summary=true --json          # categories + variant groups
+pandastudio asset.list-sounds --category=notification --json # ui notification motion digital impact typing outcome ambience
+pandastudio asset.list-sounds --tag=whoosh --json            # or --group=ui-click-soft, --mood=positive, --query=pop
+```
+
+Ids are `category-name-variant`; a `variantGroup` (e.g. `ui-click-soft` = 1, 2,
+3) holds interchangeable takes. Every new sound starts at its onset (0 ms, so a
+cue at the action frame is in sync) and is loudness-normalised per category
+with true peak at or below -1 dBTP, so one volume means the same thing across a
+category. The 25 older ids (`mouse-click`, `swoosh-fast`, `keyboard-key-*`,
+`logo-impact`, `room-tone`...) still work at their original, generally hotter,
+levels; prefer the new ones.
+
+**Which action gets which cue** (volumes assume a music bed or VO; go 0.1-0.2
+higher with neither):
+
+| On screen | Cue (id or group) | Volume | How often |
+|---|---|---|---|
+| Cursor clicks a button / link | `ui-click-soft-*`, `ui-mouse-click-*` | 0.4-0.6 | every visible click |
+| Primary CTA press, hard confirm | `ui-button-press-*`, `ui-click-hard-*` | 0.5-0.7 | per press |
+| Deliberate hover | `ui-hover-*` | 0.15-0.25 | at most one per 500 ms |
+| Toggle / switch | `ui-toggle-on-*`, `ui-toggle-off-*` | 0.4-0.5 | per toggle |
+| Chip, tag, checkbox, list item checks off | `ui-tap-*`, `ui-select-*` | 0.3-0.5 | per item, rotate variants |
+| Panel, menu, modal opens / closes | `ui-open`, `ui-close`, `ui-maximize`, `ui-minimize` | 0.4 | per open |
+| List scrolls | `ui-scroll-*` (cut with `durationMs`) | 0.2-0.3 | per gesture |
+| Drag lands, item snaps into place | `ui-drop`, `impact-wood-knock` | 0.4 | per drop |
+| A character is typed | `type-key-soft-*` (laptop), `type-key-mech-*` (mechanical); `type-space-*`, `type-enter-*` on send | 0.25-0.4 | one per character at its real time |
+| A line appears typed all at once | `type-burst-*` cut to the typing span | 0.3-0.4 | per line |
+| Chat message arrives / is sent | `notif-message-in-*` / `notif-message-out-*` | 0.5 | per message |
+| Card, bubble, tooltip pops in | `notif-pop-small-*` (UI), `-medium-*`, `notif-pop-large` (hero) | 0.3-0.5 | per card; in a 4+ stagger only first, last or every other |
+| Notification / toast | `notif-chime-*`, `notif-ding` | 0.5-0.6 | at most ~one per 3 s |
+| Badge count goes up | `notif-badge-ping-*` | 0.3-0.4 | per increment |
+| Card / panel slides in or out | `motion-slide-in-*`, `motion-slide-out`, `motion-swipe-*` | 0.4-0.6 | per slide |
+| Card flips to reveal | `motion-card-flip-*` | 0.5 | per flip |
+| Scene change, camera flies to a new area | `motion-whoosh-medium-*` (quick cut `-short-*`, big move `-long-*`, `motion-whip-pan`) | 0.5-0.7 | ~one per 6-10 s, never two within 1 s |
+| Build into a hit or reveal | `motion-whoosh-reverse-*` ending on the hit | 0.5 | a few per film |
+| Element rises / drops away | `motion-swoosh-up`, `motion-swoosh-down` | 0.4-0.5 | sparingly |
+| Big camera push-in / pull-out | `motion-zoom-in-swell`, `motion-zoom-out-swell` | 0.3-0.5 | big zooms only |
+| Loading, AI thinking, data moving | `digital-processing`, `digital-data-transfer`, `digital-scan-*` (cut to the spinner) | 0.3-0.4 | per wait |
+| Number ticks, data point, tech accent | `digital-blip-*`, `digital-chirp-*`, `digital-beep-*` | 0.3-0.5 | light |
+| Glitch transition | `digital-glitch-*` | 0.4-0.6 | two per film at most |
+| Success, checkmark | `outcome-success-*`, `digital-success-beep` | 0.5-0.6 | per success |
+| Error, rejected | `outcome-error-*`, `digital-error-beep-*` | 0.5 | per error |
+| Payment, revenue, a sale | `outcome-cash-*`, `outcome-coins` | 0.5-0.6 | per moment |
+| Screenshot, photo | `outcome-camera-shutter-*` | 0.5 | per shot |
+| Celebration, achievement | `outcome-confetti-pop` + `outcome-sparkle-*` | 0.5 | once or twice |
+| Underline, circle, scribble drawn | `outcome-marker-underline`, `outcome-marker-circle`, `outcome-pencil-scribble-*` (cut to the stroke) | 0.4-0.5 | per stroke |
+| Document, page, approval | `outcome-paper-page-turn-*`, `outcome-paper-slide`, `outcome-stamp` | 0.4-0.5 | per page |
+| A title or statement lands | `impact-soft-*` (subtle), `impact-deep-*` | 0.4-0.6 | a few per film |
+| Logo reveal / end card | `impact-riser-short-*` / `-long-*` ending on the logo frame, then `impact-logo-sting-*` or `impact-boom-*` / `impact-sub-drop`; `impact-downlifter-*` after | riser 0.4-0.5, hit 0.6-0.8 | open and close |
+| Under everything | `ambience-room-tone-*` or `ambience-air-1` (normalised to -38 LUFS), looped | 0.6-1.0 | one bed, so there's no dead silence |
+
+**Restraint:**
+- Sound what the viewer is watching, not every moving pixel: no cue for
+  parallax drift, easing overshoot, blur, a floating camera or background loops.
+  A card landing with its shadow and chip animating gets ONE cue.
+- Density: about 3-4 cues a second at most in a busy stretch (typing is the
+  exception: keys at their real cadence, quieter).
+- Vary: rotate a variant group (`ui-click-soft-1`, `-2`, `-3`...) and nudge
+  repeats by ±0.05-0.1 volume. `project.add-sound-cues` warns when one sound
+  plays 4+ times in a row.
+- Whooshes are the most common mistake: about one per 6-10 s, never two
+  within a second, not on every camera move or blur cut.
+- Duck the music under dense clusters (a typing run, a montage): dip the bed
+  ~4-6 dB (e.g. 0.30 → 0.18) with `project.set-volume-keyframes --target=audio
+  --regionId=<music>` and bring it back after. Keep effects under a voice: no
+  cue on a VO line's key words unless it's the action being named.
+- Give the big moment contrast: 300-600 ms with no cues (and the music dipped)
+  before a logo sting or a reveal.
+
+**Syncing cues to the motion:**
+- The motion timeline is the truth. For HTML/GSAP scenes use the tween times
+  you authored plus the scene clip's start on the project timeline
+  (`atMs = sceneStartMs + tweenMs`; cue times are EDITED-timeline ms). For
+  footage, check frames around each action (`motion.verify-frames`,
+  `project.render-frame`).
+- Transients (click, tap, key, pop, hit) start ON the contact frame: the press,
+  or the end of a landing tween.
+- Moves (whoosh, slide, swoosh) peak mid-move: start 50-150 ms before the move
+  begins, or `atMs = moveMidMs - durationMs / 2`.
+- Reverse whooshes and risers END on the hit: `atMs = hitMs - durationMs`
+  (`durationMs` from `asset.list-sounds`).
+- Typing: one key per character at `LF.type`'s `times`; space and enter on the
+  matching characters. Staggers: the tween's stagger interval.
+
+Place them all in one call (write the list to a file for long ones):
+
+```bash
+cat > /tmp/cues.json <<'JSON'
+[
+  {"sound":"motion-whoosh-medium-1","atMs":2350,"volume":0.6},
+  {"sound":"notif-pop-small-1","atMs":2900,"volume":0.35},
+  {"sound":"ui-click-soft-2","atMs":4120,"volume":0.5},
+  {"sound":"type-key-soft-1","atMs":4600,"volume":0.3},
+  {"sound":"type-key-soft-2","atMs":4680,"volume":0.3},
+  {"sound":"type-enter-1","atMs":5400,"volume":0.4},
+  {"sound":"impact-riser-short-1","atMs":9283,"volume":0.45},
+  {"sound":"impact-logo-sting-1","atMs":12000,"volume":0.7}
+]
+JSON
+pandastudio project.add-sound-cues --id=$ID --group=sfx --cues=@/tmp/cues.json --json
+# → { overlayIds, count, cues:[{overlayId,sound,startMs,endMs}], replaced, warnings? }
+# Retimed? Edit the file and run the same command: group "sfx" is replaced, not doubled.
+# Clear it: --group=sfx --cues='[]'
+```
+
+Each cue is an ordinary audio overlay (the lane `project.add-audio` uses for
+SFX), so `project.update-region --regionType=audio-overlay`, `remove-audio`,
+ducking and volume keyframes all work on it. Pass `anchorSourceMs` only for a
+cue pinned to a transcript word (a hit on a punchline); cues timed to graphics
+stay free.
+
+Nothing fitting in the bundle: `media.generate-sound-effect --prompt="…"
+--durationMs=…` (one sound per call), then use its path as the cue's `sound`.
+Don't generate whooshes (they often come back musical). Before calling it done,
+export and check the levels: the loudest hit, a typing stretch and a voice line
+(`ffmpeg -i out.mp4 -af ebur128=peak=true -f null -`).
 
 ### Loudness normalisation on export (on by default)
 

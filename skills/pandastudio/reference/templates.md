@@ -1,97 +1,81 @@
-# Motion-graphic templates
+# Motion-graphic templates: finding the right one
 
-PandaStudio ships with ~57 bundled slot-templates — our designed set plus a large curated batch promoted from the Hyperframes registry with EDITABLE slots (text, colors, image uploads, data series): titles (handwritten, chromatic-fringe, text-cursor, morph), lower thirds, social (Instagram/TikTok follow cards, comment cards), data-viz (bar+line chart, line graph, count-up stat, specs checklist, hand-drawn flowchart), photo (sketched frame), money counter, camcorder HUD, word-wall transition, gradient background, vertical media filler, and more. The canonical, version-accurate list (with the slot schema for each) is:
+PandaStudio ships slot templates (text, colours, lists, images you fill in)
+grouped into families. The runtime list is the source of truth; this page is
+how to search it. The per-template catalog with slots and placement notes is in
+[motion-templates.md](./motion-templates.md).
 
 ```bash
-pandastudio motion.list --json
+pandastudio motion.list --json            # everything live (MCP: motion_list)
 ```
 
-Always discover; never hard-code. This file is a snapshot for offline reading.
+## Search and filter
 
-## Core designed templates
-
-| id | name | aspects | slots |
-|---|---|---|---|
-| `title-card-vox` | Title Card | 16:9, 9:16 | `title`, `subtitle`, `accentColor`, `textColor` |
-| `listicle-vox` | Listicle | 16:9, 9:16 | `title`, `items`, `accentColor`, `bgColor`, `textColor`, `footer`, `footerCta` |
-| `flow-diagram-explainer` | Flow Diagram | 16:9 | `title`, `titleAccent`, `nodes`, `summary`, `accentColor`, `bgColor`, `nodeBgColor` |
-| `subscribe-cta` | Subscribe CTA | 16:9, 9:16 | `channelName`, `ctaText`, `hookLine`, `bellText`, `accentColor`, `bgColor` |
-| `end-screen` | End Screen | 16:9 | `channelName`, `channelHandle`, `ctaText`, `thanksText`, `accentColor`, `bgColor` |
-| `sponsor-intro` | Sponsor Intro | 16:9, 9:16 | `introText`, `sponsorName`, `tagline`, `ctaText`, `accentColor`, `bgColor`, `textColor` |
-| `chapter-divider` | Chapter Divider | 16:9, 9:16 | `chapterLabel`, `chapterNumber`, `chapterTitle`, `accentColor`, `bgColor`, `textColor` |
-| `channel-intro` | Channel Intro | 16:9, 9:16 | `channelName`, `tagline`, `accentColor`, `bgColor`, `textColor` |
-| `stat-reveal` | Stat Reveal | 16:9, 9:16 | `statLabel`, `prefix`, `statValue`, `suffix`, `unit`, `context`, `accentColor`, `bgColor`, `textColor` |
-| `pull-quote` | Pull Quote | 16:9, 9:16 | `quote`, `attribution`, `role`, `accentColor`, `bgColor`, `textColor` |
-| `before-after` | Before / After | 16:9, 9:16 | `title`, `beforeLabel`, `beforeValue`, `beforeCaption`, `afterLabel`, `afterValue`, `afterCaption`, `beforeColor`, `afterColor`, `bgColor`, `textColor` |
-| `comparison-table` | Comparison Table | 16:9 | `title`, `columnA`, `columnAColor`, `columnB`, `columnBColor`, `rows`, `bgColor`, `textColor` |
-| `bar-chart` | Bar Chart | 16:9, 9:16 | `title`, `bars`, `caption`, `accentColor`, `bgColor`, `textColor` |
-| `word-pop` | Word Pop | 16:9, 9:16 | `text`, `accentColor`, `bgColor` |
-| `reaction-burst` | Reaction Burst | 16:9, 9:16 | `text`, `burstColor`, `textColor`, `strokeColor`, `bgColor` |
-| `source-attribution` | Source Attribution | 16:9, 9:16 | `sourceLabel`, `sourceName`, `url`, `accentColor`, `bgColor`, `textColor` |
-| `date-location` | Date / Location Stamp | 16:9, 9:16 | `dayLabel`, `location`, `subLine`, `accentColor`, `bgColor`, `textColor` |
-| `countdown` | Countdown | 16:9, 9:16 | `caption`, `startFrom`, `finalWord`, `accentColor`, `numberColor`, `bgColor`, `textColor` |
-| `spotlight-ring` | Spotlight Ring | 16:9, 9:16 | `x`, `y`, `radius`, `label`, `labelPosition`, `accentColor`, `bgColor`, `dimAlpha` |
-
-## Style packs
-
-Themes overlay color slots without changing the template. Five ship out of the box:
-
-| theme id | vibe |
+| Want | Call |
 |---|---|
-| `default` | PandaStudio house style — neutral grey/green |
-| `mr-beast` | High-energy YouTube — yellow + black |
-| `mkbhd` | Premium tech — teal + black |
-| `kurzgesagt` | Educational — teal + warm cream + orange |
-| `veritasium` | Science — deep blue + cream + warm yellow |
+| A template for a job | `motion.list --query="subscribe"` (ranked over name, description, family and tags; intent words like `vs`, `cta`, `quote`, `chart`, `timer`, `name` work) |
+| One family | `motion.list --family=stats-data` (comma-separate for several) |
+| Tagged templates | `motion.list --tags=quote,testimonial` (any of) |
+| Only one aspect | `motion.list --aspect=9:16` |
+| The family counts | the `families` array in any `motion.list` result |
+| Retired ones too | `motion.list --includeRetired` (only to inspect an old project's graphic) |
+| Skip registry blocks | `motion.list --includeBlocks=false` |
 
-Always merge `theme.colors` into your `slots` object before `motion.generate`. The render path doesn't know about themes — they're a pre-render layer.
-
-## Picking a template by intent
-
-The catalogue isn't named by intent — pick by tags + name. If the user says "outro," look at `end-screen` and `subscribe-cta`. If they say "intro," look at `title-card-vox`, `channel-intro`, or `sponsor-intro` depending on the brief. If they want a stat or number reveal, `stat-reveal` and `bar-chart`. For comparisons, `before-after` or `comparison-table`. For emphasis moments mid-video, `word-pop`, `reaction-burst`, or `spotlight-ring`.
-
-When uncertain, run `pandastudio motion.list --json | jq '.data.templates[] | {id, name, tags}'` and pattern-match.
-
-## Verifying before render
+Families: `titles`, `text-behind`, `captions`, `callouts`, `lists-steps`,
+`stats-data`, `comparisons`, `product`, `panels`, `social-proof`, `social`,
+`intro-outro`, `end-cards`, `lower-thirds`. The editor's Graphics tab shows the
+same families as chips, with search, Recently used and Featured rows; the Lower
+3rds tab shows the `lower-thirds` family.
 
 ```bash
-# Inspect a chosen template's full slot schema + defaults BEFORE generating
-pandastudio motion.list --json | \
-  jq '.data.templates[] | select(.id=="title-card-vox") | {slots, defaults, durationMs}'
+# Inspect the chosen template's slots and defaults before rendering
+pandastudio motion.list --query="stat" --json | \
+  jq '.data.templates[0] | {id, family, slots, defaults, aspectRatios, durationMs}'
 ```
 
-Always check `defaults` — if a slot has a sensible default, you don't need to pass it. Pass only the slots you want to override.
+Pass only the slots you change; every omitted slot (including colours) falls
+back to the template's default, and a workspace brand kit fills colour slots
+tagged with a brand role.
 
 ## Aspect ratios
 
-Most templates support 16:9 + 9:16. A few are 16:9-only (flow diagrams, end screens, comparison tables — they need the horizontal real estate). Filter:
+Each template lists the layouts it is authored for in `aspectRatios`. A 9:16
+layout is a real portrait layout, not a shrunk 16:9 one. Render at the
+project's aspect (`--aspectRatio=9:16`); filter with `--aspect=9:16` to see
+what fits a vertical project.
+
+## Retired templates
+
+Retired templates (`retired: true`) have a `replacement`. They're hidden from
+`motion.list` and the editor, but they still render and re-render, so older
+projects keep their look. Rendering one returns a `warnings` entry naming the
+replacement: tell the user and use the replacement for anything new. Move a
+placed graphic onto its replacement only when asked:
 
 ```bash
-pandastudio motion.list --json | \
-  jq '.data.templates[] | select(.aspectRatios | index("9:16")) | .id'
+pandastudio project.update-motion-graphic --id=$P --overlayId=$OVERLAY --templateId=<replacement>
 ```
 
-## When none of the 19 fit
+Text, list items and same-named colours carry over; the job result lists
+`switched.carried` and `switched.dropped`. The retired → replacement table is
+in [motion-templates.md](./motion-templates.md#families-search-and-retired-templates).
 
-Use `motion.render-html` to render arbitrary HTML/CSS/JS — same Chromium-based pipeline, no slot machinery. Pass `--html` (inline) or `--htmlPath` plus dimensions / `aspectRatio` / `durationMs` / `frameRate`, get back an MP4 you can `project.add-motion-graphic` straight onto the timeline.
+## When no template fits
 
-## Hyperframes registry blocks (captions, transitions, data-viz, social cards, …)
+Use `motion.render-html` to render your own HTML/CSS/JS on the same engine
+(no slots), or `motion.catalog` to search the ~390 HyperFrames components and
+blocks for a named look. See [motion-philosophy.md](./motion-philosophy.md)
+and [custom-html.md](./custom-html.md).
 
-Beyond the slot templates above, `motion.list` also returns a **`registryBlocks`** array — ~38 CURATED standalone compositions bundled from the HeyGen Hyperframes registry (Apache-2.0). The library was heavily curated in v1.84: everything that was really a text/data template got promoted to a slot template (see above), caption demos were replaced by the transcript-driven animated caption styles (`caption.set-template`), shader-transition demos were removed (real transitions live in `asset.list-transitions`), and duplicates/eye-candy were dropped. What remains are genuine effects and building blocks: media-treatment overlays (grain, vignette, motion blur, shimmer, freeze-frame dressing, camcorder HUD), handwritten annotations (arrows, callout circles, box labels, squiggles), parallax zoom/unzoom, decision-tree flowcharts, the dark-modern code snippet, comment cards, and beat-freeze cut.
+## Registry blocks
 
-These are NOT slot-parameterized — render the block's `htmlPath` directly with `motion.render-html`, and edit the HTML if you need different text/colors:
+`motion.list` also returns `registryBlocks`: standalone HyperFrames
+compositions (media-treatment overlays, handwritten annotations, decision
+trees, a code snippet, beat-freeze cut). They have no slots: render the
+block's `htmlPath` with `motion.render-html` and edit the HTML to change text.
+Retired blocks are left out unless `--includeRetired`.
 
 ```bash
-# Discover registry blocks (name, kind, tags, durationMs, dimensions, htmlPath)
-pandastudio motion.list --json | jq '.data.registryBlocks[] | {name, tags, durationMs}'
-
-# Find an animated-caption block, then render it
 HP=$(pandastudio motion.list --json | jq -r '.data.registryBlocks[] | select(.name=="caption-kinetic-slam") | .htmlPath')
 JOB=$(pandastudio motion.render-html --htmlPath="$HP" --durationMs=4000 --json | jq -r '.data.jobId')
 ```
-
-Caveats: they render via `motion.render-html` (not `motion.generate`), have no slots (change text by editing the HTML), and obey the same engine contract as everything else (see [motion-philosophy.md](./motion-philosophy.md)).
-
-**7 of these are now curated into the editor's click-to-pick grid** (also via `motion.list` `templates` + `motion.generate`): data-viz (`data-chart`, `flowchart-vertical`), social cards (`x-post`, `reddit-post`, `spotify-card`, `macos-notification`), and `logo-outro`. **These now have editable slots** (text + colors), wired in the per-block slot pass — e.g. `spotify-card` (track/artist/album color), `x-post` / `reddit-post` (display name, handle, body, engagement counts), `macos-notification` (app/title/body), `data-chart` (headline + comma-separated labels/values), `flowchart-vertical` (question + branch + outcome labels), `logo-outro` (tagline/url/colors). Set them via `motion.generate` fields or the inspector.
-
-Removed from the picker: `vfx-shatter` / `vfx-portal` (needed the experimental `CanvasDrawElement` Chrome flag the bundled renderer can't enable); `instagram-follow` / `tiktok-follow` (hardcoded HeyGen branding, no slots); `code-typing` / `code-diff` (code is hand-tokenized for syntax highlighting, so it can't be a simple text slot — generate custom code graphics via `motion.render-html` instead). (Registry `flowchart` and `yt-lower-third` are NOT curated — we already ship our own slot-driven versions.) All removed blocks stay agent-only via `motion.render-html`.

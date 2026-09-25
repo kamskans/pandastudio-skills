@@ -218,7 +218,7 @@ ps_ project.remove-region --regionType=<string> --regionId=<string>
 Optional: `--id=<string>` `--path=<string>` `--expectedRevision=<number>`
 
 ### `motion.generate`
-Render a bundled motion-graphic template by id, with your own text/color slot values and a background mode. Returns { jobId }; poll job.get/job.wait for the output path, then add it to the timeline with project.add-motion-graphic (or project.add-designed-segment for split-panel). Discover templates + their editable slots with motion.list.
+Render a bundled motion-graphic template by id, with your own text/color slot values and a background mode. Returns { jobId }; poll job.get/job.wait for the output path, then add it to the timeline with project.add-motion-graphic (or project.add-designed-segment for a side panel such as paper-panel). A retired template id still renders, with a `warnings` entry naming its replacement. Discover templates + their editable slots with motion.list.
 
 ```
 ps_ motion.generate --templateId=<string> --slots=<object>
@@ -250,12 +250,12 @@ ps_ asset.list-transitions
 Optional: none
 
 ### `asset.list-sounds`
-List every bundled sound effect (id, name, category, absolute path).
+List the bundled sound effects (~190: id, name, category, tags, mood, durationMs, variantGroup, absolute path). Filter; place many at once with project.add-sound-cues.
 
 ```
-ps_ asset.list-sounds 
+ps_ asset.list-sounds --category=notification
 ```
-Optional: none
+Optional: `--category` (ui, notification, motion, digital, impact, typing, outcome, ambience), `--tag`, `--mood`, `--group`, `--query`, `--summary=true`
 
 ### `asset.list-music`
 List every bundled background music track (id, title, category, mood, durationMs, absolute path). Use absolutePath with project.add-audio to attach a track to a project.
@@ -356,8 +356,8 @@ ps_ project.add-motion --id=$ID --atMs=<ms> --durationMs=1200 \
 ps_ project.add-speed --id=$ID --startMs=<srcStart> --endMs=<srcEnd> --speed=3 \
   --rampIn='{"durationMs":500}' --rampOut='{"durationMs":500}'
 
-# Big hook word BEHIND the speaker's head (overlay placed first)
-ps_ project.set-overlay-mask --id=$ID --regionId=<overlayId> --behindPerson=true
+# Big hook word BEHIND the speaker's head (one call, then job.wait)
+ps_ project.add-title-behind --id=$ID --text="<1-3 words>" --atMs=<ms>
 
 # Reaction / emphasis card that pops in and fades out
 ps_ project.set-animation --id=$ID --regionType=overlay --regionId=<overlayId> --enter=pop --exit=fade

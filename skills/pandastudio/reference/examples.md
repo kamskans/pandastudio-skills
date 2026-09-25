@@ -1273,7 +1273,7 @@ labels left), **loop** (a curved arrow back to the start), **chart** (swap rects
 for bars that grow via a height/scaleY tween, or a `<path>` line that draws on).
 Reveal each node/edge in time with the narration so it builds. Pre-flight with
 `motion.screenshot` and iterate — a wrong coordinate is obvious in one frame.
-For the half-frame-on-host layout, render it as a `split-panel`/`paper-panel`
+For the half-frame-on-host layout, render it as a `paper-panel`
 companion or place the diagram with `--layer=background` + a small camera card.
 
 ---

@@ -253,9 +253,8 @@ the 2021 clone-look (no ALL-CAPS walls, no emoji, no meme inserts, no b-roll).
 
 The slow drift on a long beat can also be `project.add-motion --preset=push-in
 --durationMs=<beat length>` (a keyframed push, no zoom SFX). The hook claim
-may go BEHIND the speaker's head once (`set-overlay-mask --behindPerson=true`
-on the hook-word overlay), only if the recipe's no-graphics rule is relaxed
-by the user.
+may go BEHIND the speaker's head once (`project.add-title-behind --text
+--atMs`), only if the recipe's no-graphics rule is relaxed by the user.
 
 ## 6. Recipe: podcast-clip (DOAC style)
 

@@ -44,15 +44,13 @@ declare the composition's motion language once, then override per-tween.
 
 | Ease | Feel | Use for |
 |---|---|---|
-| `sine.inOut` | continuous, organic | breathing scale, Ken Burns drift, ambient gradient pan, any `yoyo` loop |
+| `sine.inOut` | continuous, organic | Ken Burns drift, drifting ground blobs, ambient gradient pan |
 | `none` (linear) | constant velocity | camera dollies, conveyor/marquee motion, mechanical drifts |
 
-A held card with one breathing layer (see motion-philosophy §"Micro-motion"):
-
-```js
-tl.to(".card-glow", { scale: 1.03, duration: 2.4, ease: "sine.inOut",
-                      yoyo: true, repeat: 1 }, 0.6);
-```
+House rule for holds: keep them alive with a slow linear camera push
+(2-5%, `LF.camera` with `ease: "linear"`, see motion-philosophy §"Motion on
+holds"), not a looping breathing scale. `sine.inOut` stays right for drifting
+ground blobs and Ken Burns on stills.
 
 ## Exits (accelerate AWAY — `.in`)
 
@@ -85,6 +83,7 @@ transition".
 - 3+ distinct eases per scene. Repeating one ease across every element makes
   every reveal feel identical.
 - `.out` in, `.in` out, `.inOut` between. Always.
-- `back`/`elastic`/`bounce` carry personality — use them for `playful`/`casual`
-  voices, sparingly for `corporate`/`minimal`.
-- `sine.inOut` is the workhorse for everything that loops or breathes.
+- `back` carries personality: a slight overshoot on small pops (icons, chips,
+  pills) in any voice; `elastic`/`bounce` only for an explicitly playful brand,
+  never on big elements.
+- `sine.inOut` is the workhorse for drifts (ground blobs, Ken Burns).

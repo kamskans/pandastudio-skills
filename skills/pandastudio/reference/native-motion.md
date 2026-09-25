@@ -314,15 +314,14 @@ One mask system: a SOURCE (shape, person, layer) plus `invert`, `feather`
 preview and the export.
 
 ```bash
-# Title text BEHIND the presenter (the person matte cuts it out). The title
-# must be a motion graphic (annotations can't go behind): render it, add it,
-# mask it, look at it. If the render fails, skip the move; no annotation.
-pandastudio motion.generate --templateId=transitions-3d \
-  --slots='{"lead":"","emphasis":"FOCUS","trail":""}' --json        # -> { jobId }
-pandastudio job.wait --id=<jobId> --json
-pandastudio project.add-motion-graphic --id=$ID --fromJob=<jobId> --atMs=62000 --durationMs=3000 --json
-pandastudio project.set-overlay-mask --id=$ID --regionId=overlay-3 --behindPerson=true --json
+# Title text BEHIND the presenter (the person matte cuts it out): one call
+# renders it, puts it at head height (face detection) and masks it. Annotations
+# can't go behind; if the verb fails, skip the move, no annotation.
+pandastudio project.add-title-behind --id=$ID --text="FOCUS" --atMs=62000 --json   # -> { jobId }
+pandastudio job.wait --id=<jobId> --json                           # -> result.regionId, result.face, result.y
 pandastudio project.render-frame --id=$ID --atMs=63500 --json      # the head covers part of it; it still reads
+# Any other overlay can go behind the presenter too:
+pandastudio project.set-overlay-mask --id=$ID --regionId=overlay-3 --behindPerson=true --json
 # Wipe reveal: a rectangle mask that grows from the left over 0.8 s
 pandastudio project.set-overlay-mask --id=$ID --regionId=overlay-4 --source=shape --x=0 --y=0 --width=1 --height=1 \
   --keyframes='[{"timeMs":0,"width":0,"easing":"ease-out"},{"timeMs":800,"width":1}]' --json

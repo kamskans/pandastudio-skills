@@ -1,194 +1,200 @@
-# Promo / all-motion-graphics videos — the design bar
+<!-- Part of the pandastudio skill. THE house standard for every promo and motion-graphics video. -->
 
-Load this whenever the deliverable is a video **built from scratch where the
-motion graphics ARE the video** — a promo, a "what's new" reel, a product
-teaser, an explainer with no source footage, an intro/outro piece. (For graphics
-layered OVER a recording — lower thirds, callouts on a talking head — this doc
-does NOT apply; use the bundled-template path in SKILL.md.)
+# Promo and motion-graphics videos: the house standard
 
-This is the most visible, brand-defining asset a creator makes. The bar is high,
-and it is NOT cleared by "it animates." Read this before authoring scene one.
+Load this for every video where motion graphics ARE the picture: a product
+launch, a promo, a feature teaser, a "what's new" reel, an app ad, an
+animated explainer, an intro or outro. It is also the bar for any custom
+graphic you author over footage (Mode A). There is one standard, not a menu of
+styles: the **launch-film grammar**, proven by recreating a top-tier 40 s SaaS
+launch film shot for shot in PandaStudio.
+
+The how-to lives in two places:
+- [saas-launch-film.md](saas-launch-film.md): the full recipe, timings and a
+  snippet for every kit primitive (`lf-kit.js` / `lf-kit.css`).
+- [motion-philosophy.md](motion-philosophy.md): the engine contract (seek-safe
+  timelines, `data-*` attributes, determinism). Obey it; this doc does not
+  repeat it.
+
+Style still comes from the brand (colours, fonts, voice, light or dark). The
+grammar below is how every brand moves.
 
 ---
 
 ## The prime directive
 
-**Every scene is a DISTINCT composition that SHOWS its point. One design system,
-never one layout.**
+**The product (or the subject) is the hero, shown doing its job, in one
+continuous world a camera moves through. Type is punctuation.**
 
-Three rules, in priority order:
-
-1. **SHOW, don't tell.** A feature beat must *depict* the feature, not state it in
-   a headline. "Publish to Reels" → a phone mockup with a clip posting to a Reels
-   UI. "One-click captions" → captions burning in word-by-word on a video frame.
-   "Spotlight & blur" → the effect actually dimming/blurring a mock screen. A
-   giant headline that says the feature is the lowest tier of communication.
-2. **Vary the composition every scene.** Layout, dominant visual, type scale, and
-   motion choreography must change beat to beat. Hold the *system* constant
-   (palette, type family, motion vocabulary) so it feels cohesive — but if scene
-   3 and scene 5 could be swapped by changing the text, they are the same scene.
-3. **Compose 2–4 motion techniques per scene** (kinetic type + camera move +
-   reveal + ambient), and **put a real transition between scenes**.
+- Show, never tell: a feature beat depicts the feature working (a reply types
+  itself, a number rolls, a card lands, a chip flips), it does not headline it.
+- Every beat changes state on screen. A frame that could be a slide is wrong.
+- The same system everywhere (brand tokens, fonts, motion vocabulary), a
+  different composition in every beat.
 
 ---
 
-## Audio: decide voiceover & music FIRST (they drive timing)
+## Beat structure
 
-Narration and a music bed are core capabilities, not afterthoughts. For a promo,
-**ASK the user whether to include them before building** (`media.generate-narration`
-— 3 TTS models; `media.generate-music` / `asset.list-music`) — don't silently ship
-a silent video. Once decided, the order of operations matters:
+Default 40 s; scale every time proportionally for 15-60 s. Map the product's
+real surfaces onto each beat.
 
-- **If there's narration, generate the VO BEFORE timing any visuals.** TTS length
-  is unpredictable and usually runs LONGER than your read-aloud estimate (a ~30s
-  script came back 42s). Generate each line with `media.generate-narration`, read
-  the returned `durationMs`, then set each scene's `data-duration` to its line
-  length **+ ~0.8s** of breathing room. Author visuals first and you guarantee a
-  full re-time + re-render pass once the real VO lengths land.
-- **Music shorter than the timeline.** `media.generate-music` (Lyria-2) returns a
-  fixed ~30s instrumental. For a longer video, in order of preference: (1) **LOOP
-  it** — add the same track as back-to-back `project.add-audio` regions, each with a
-  short `--fadeIn`/`--fadeOut` (~500ms) at the seam so the join is inaudible; (2)
-  generate two different ~30s tracks and sequence them; (3) trim the timeline to the
-  music. Bundled `asset.list-music` tracks list their real `durationMs` — pick one
-  long enough and you skip looping entirely.
-- `project.add-audio` honors `--fadeIn`/`--fadeOut` (ms); the export mixer applies
-  them. Put a fade-out on the final music region so the bed doesn't cut off hard.
+| # | Beat | Share | Job |
+|---|---|---|---|
+| 1 | Pain hook | 6% | A question or claim, word by word, while the pain piles up as objects at different depths (notifications, tabs, tools, reps). Never names the product. |
+| 2 | The miss / the turn | 9% | One object alone, sharp; a serif line with ONE accent word and a hand-drawn underline. |
+| 3 | Reveal | 5% | That object morphs into the real UI; the camera pulls back to the whole app, big (80-90% of frame width), with depth. |
+| 4 | Logo | 5% | Wordmark resolves above the app. First time the name appears. |
+| 5 | Dive in | 10% | A fast dolly into the app; something docks into place (icons into chips, a sidebar assembling). |
+| 6-8 | 2-3 demos | 35% | Each a DIFFERENT interaction: type and answer, click and result, drag and sort, a before/after, a count-up. Cursor or caret drives it; callouts name the part. |
+| 9 | Montage | 5% | "Every <thing>." over 3-5 fast cuts of other screens (LF.montage). |
+| 10 | Proof (optional) | 6% | One real number counting up, a real testimonial, or the real integrations row. Never invented. |
+| 11 | Calm / resolution | 5% | The tidy "after" state. |
+| 12 | End card | 14% | Mark + wordmark, two-part tagline, CTA pill, URL, brand icons popping in. Mirrors the logo beat. Hold. |
 
-**Mixing the audio:** duck the bed under the VO with `project.set-audio-ducking`
-(or `project.add-audio --ducking=true`) instead of keyframing the music by
-hand; use volume keyframes only for a deliberate swell (intro, logo hit).
-
----
-
-## ❌ The #1 promo failure — the templated slideshow
-
-**Building one scene shell (background + eyebrow + big headline + a pill below)
-and reusing it for every scene with the text swapped.** The result animates, has
-a nice palette, passes the motion check — and is a flat, monotonous slideshow.
-This is the single most common way an agent ships a bad promo. It happened in a
-real build: seven scenes, identical layout and motion, only the words changed.
-
-If your scenes share a layout, you have failed this doc. There is no "consistency"
-defense — consistency lives in the *system* (color/type/motion), not in repeating
-a composition. Do not reuse a scene template across beats.
+Shorter films drop beats, never the grammar:
+- **15 s teaser:** hook (1.5 s), reveal (2 s), one demo (6 s), montage (1.5 s), end card (4 s).
+- **30 s promo:** hook, reveal + logo, two demos, montage, end card.
+- **Consumer app** (fitness, finance, social): same beats with a phone
+  (`LF.appWindow` with `chrome: "none"` in a device frame) and the pain as the
+  real-life moment, not software clutter.
+- **9:16:** same beats, one idea per frame vertically, type in the top 60%.
 
 ---
 
-## Show-don't-tell map (depict the feature, don't headline it)
+## The motion grammar (every beat, every film)
 
-| The beat is about… | DEPICT it as… |
+1. **Word-by-word blur reveals with ghost text.** Lines arrive one word at a
+   time from blur, and the unread words are visible as a soft blur just ahead
+   (`LF.reveal`). Letters for wordmarks (`mode: "char"`). No plain fades.
+2. **Depth of field and rack focus.** Only what the viewer should read is
+   sharp. Far layers are blurred; transitions between focal points are rack
+   focus (`LF.rackFocus`, `LF.blurIn`, `LF.depth` layers at depth d blur by
+   |ln d|).
+3. **A virtual camera that never stops.** A slow linear push (2-5%) on every
+   hold; fast expo dollies (`whoosh` eases: smooth start, expo tail) between
+   framings, with directional motion blur only while moving (`LF.camera`).
+4. **Morph continuity.** The before and after are the same element: the
+   notification grows into the card, the card is inside the app window, the
+   dock icons fly into the filter chips. Cuts only between chapters, and those
+   are rack focus, a whip or a camera move, never a plain crossfade.
+5. **Micro-interactions.** Buttons dip and spring (`LF.press`), switches flip
+   (`LF.toggle`), a cursor travels on an arc and clicks with a ripple
+   (`LF.cursor`), numbers roll (`LF.odometer`, `LF.countUp`), a caret types
+   with human jitter (`LF.type`).
+6. **Sound synced to actions.** One sound per real event, on its frame: a key
+   per typed character (use `LF.type(...).times`), a click per cursor click
+   (`LF.cursor(...).clicks`), a tick per montage cut (`LF.montage` returns the
+   cut times), a pop per card, a swoosh only on the big camera moves (never
+   two within a second), a riser into an impact on each logo. Music bed
+   forward; no voiceover unless asked.
+
+Easing: expo/quint out for arrivals, `whoosh` for camera dollies, `linear` for
+pushes, a slight back-out overshoot only on small pops (icons, chips, pills).
+No bouncy or elastic eases on big elements, no looping "breathing" scale.
+
+---
+
+## The brand-derived visual system
+
+Set it in one call, `LF.theme({...})`, from `workspace.capture-brand
+--url=<site> --apply=false` (or the workspace brand kit):
+
+| Role | From the brand | Default |
+|---|---|---|
+| ground | the site's background | warm off-white (light) or near-black (dark) |
+| two blob tints | primary + accent at 12-60% alpha | pale rose + pale sky |
+| ink | text colour | near-black / near-white |
+| accent | the ONE accent word, underline, rings, CTA | brand primary |
+| serif | narrative lines | Newsreader (a Google serif that suits the brand) |
+| sans | UI and wordmark | the brand's UI font, else Inter |
+| dark | true for dark brands | false |
+
+Rules: never a flat ground (the drifting blobs + grain from `LF.ground`); one
+accent colour; the real logo file (check it IS the logo; capture sometimes
+picks an icon; `LF.brand("<Product>")` often has the real mark); real
+screenshots or a faithful HTML trace of the real UI; never invented claims,
+numbers, reviews or logos.
+
+---
+
+## Building blocks (use these, do not hand-roll them)
+
+| Need | Kit primitive |
 |---|---|
-| Publishing to a platform (Reels, YouTube, TikTok) | a phone/app mockup with the clip actually posting into that platform's UI |
-| Captions | a video frame with captions animating on word-by-word (the karaoke highlight) |
-| Spotlight / blur / focus | a mock screenshot where the effect literally dims the surround / blurs a field |
-| AI voiceover / voices | waveforms that pulse like speech; a mic; one "speaking" at a time |
-| AI music | a reactive equalizer / waveform moving to an implied beat + a prompt typing in |
-| Languages / translation | scripts morphing between languages; a globe; text re-typing in another script |
-| Faceless / shorts / multi-format | actual device frames (16:9, 9:16, a motion-graphic card) assembling |
-| Speed / batch / automation | many items flowing through a pipeline, a counter racing, cards dealing out |
-| A number / metric | a counter tweening up with a supporting graphic (bar/ring), not a static figure |
+| Brand tokens, light/dark | `LF.theme`, `LF.ground` |
+| The app, big, from a real screenshot or a traced UI | `LF.appWindow` + `LF.tiltIn` + `LF.camera` |
+| Floating cards / chips over the app with parallax | `LF.depth` |
+| "Look at this part" | `LF.popout` (lift a region), `LF.callout` (ring + label + leader) |
+| Actor | `LF.cursor`, `LF.press`, `LF.type` |
+| Integrations, dock, platforms | `LF.brand`, `LF.brandRow` (3,300 real brand icons) |
+| Proof | `LF.countUp`, `LF.odometer`, `LF.testimonial` |
+| Comparison | `LF.beforeAfter` |
+| Montage | `LF.montage` |
+| Pricing | `LF.pricing` |
+| End card | `LF.endCard` |
+| Named looks the kit lacks | `motion.catalog` (adapt its timeline into the kit grammar) |
 
-If a beat genuinely has no visual (a pure tagline / hook), THAT is when a bold
-type-only moment is right — and it should be a *distinct*, full-bleed kinetic
-treatment, not the same headline layout the other scenes use.
-
----
-
-## Scene-variety matrix — rotate layout archetypes
-
-Pick a DIFFERENT archetype for adjacent scenes. Never run the same one twice in a row:
-
-- **Full-bleed kinetic type** — the hook / a money line. Type fills the frame, scales, slams.
-- **Device-frame showcase** — a phone/laptop mockup demoing the feature (the show-don't-tell workhorse).
-- **Split-screen** — concept on one side, visual on the other.
-- **Centered lockup** — logo / outro / a single statement, breathing.
-- **Animated diagram / flow** — how something connects or moves through steps.
-- **Data-viz** — a counter, bars, a ring, a chart building.
-- **Card grid / assembling cards** — multiple items (tools, formats, options) popping in with depth.
-- **UI demo** — a real (mock) app surface with a cursor performing the action.
-
-A 6–8 scene promo should use 5+ distinct archetypes. Two type-headline scenes
-total is the ceiling; the rest must show something.
-
-## Slot contract — a promo is a sequence of named beats, not free-form
-
-The strongest launch/promo videos follow a fixed skeleton of BEATS, and the
-creative work is mapping the product's own surfaces onto each. Treat a promo as
-these slots, in order, and fill each from something REAL about the product:
-
-1. **Lockup** — brand mark + one-line what-it-is. Breathing, centered.
-2. **Entry screen** — the product's actual first surface (home/dashboard), so the
-   viewer recognizes it.
-3. **One number that matters** — a single stat that counts up (users, minutes
-   saved, videos shipped). One number, not a dashboard.
-4. **Nav / breadth** — the product's real nav or section list, to show scope.
-5. **One action taken** — a cursor performing the single most important action
-   (the "aha"), on a mock of the real UI.
-6. **Endcard** — logo + tagline + CTA. Mirrors the lockup so it bookends.
-
-Map each slot to the brand: pull real colors/fonts/logo with
-`workspace.capture-brand --url` first, then fill the number, nav labels, and the
-action from the product's own surfaces (not generic placeholders). The slot
-skeleton keeps a from-scratch promo coherent; the archetype matrix above keeps
-adjacent slots visually distinct.
-
----
-
-## Worked example — a distinct "show-don't-tell" scene
-
-A "Publish to Reels" beat, depicted (phone posting), NOT a headline. Adapt the
-*approach*, not the pixels. (Authoring contract — GSAP load, `data-width`,
-determinism — is in [motion-recipes.md](motion-recipes.md) and
-[motion-philosophy.md](motion-philosophy.md). GSAP is auto-injected as of
-v1.56.0, but always load `<script src="gsap.min.js">` to be safe on older builds.)
+Reference the kit by name and PandaStudio inlines it (renders, screenshots,
+render-film, templates):
 
 ```html
-<div id="root" data-composition-id="reels" data-width="1920" data-height="1080" data-duration="6">
-  <div class="bg"><!-- shared system bg --></div>
-  <!-- DEPICTION: an actual phone mockup, a clip inside it, and the Reels UI -->
-  <div class="phone" id="phone">
-    <div class="clip" id="clip"><!-- a frame of the user's video --></div>
-    <div class="reels-ui" id="ui"><!-- IG Reels chrome: avatar, caption, like/share --></div>
-    <div class="post-toast" id="toast">Posted to Reels</div>
-  </div>
-  <div class="label" id="label">Publish in one click</div>
-</div>
-<script src="gsap.min.js"></script>
-<script>
-  const tl = gsap.timeline({ paused: true });
-  tl.fromTo("#phone", {y:80,opacity:0,rotationY:-18}, {y:0,opacity:1,rotationY:0,duration:0.8,ease:"power3.out"}, 0.2);
-  tl.fromTo("#clip",  {scale:1.15}, {scale:1,duration:1.2,ease:"sine.out"}, 0.4);      // clip "plays"
-  tl.fromTo("#ui",    {x:40,opacity:0}, {x:0,opacity:1,duration:0.5,ease:"power2.out"}, 1.0);
-  tl.fromTo("#toast", {y:20,opacity:0,scale:0.8}, {y:0,opacity:1,scale:1,duration:0.5,ease:"back.out(2)"}, 2.4); // the "post" moment
-  tl.fromTo("#label", {opacity:0}, {opacity:1,duration:0.5}, 1.4);
-  tl.to({}, {duration:6}, 0);
-  window.__timelines = (window.__timelines||{}); window.__timelines["reels"] = tl;
-</script>
+<link rel="stylesheet" href="_shared/launchfilm/lf-kit.css">
+<script src="_shared/gsap.min.js"></script>
+<script src="_shared/launchfilm/lf-kit.js"></script>
 ```
-
-The next scene (e.g. captions) uses a DIFFERENT archetype (a clip with karaoke
-captions animating), the one after that a different one again. The phone is never
-reused as a generic container for unrelated beats.
 
 ---
 
-## Quality gate — before you call a promo done
+## Audio decisions
 
-Layout-correctness is not motion quality, and motion is not design variety.
-A render can pass every technical check and still be a monotonous slideshow.
-So verify all three:
+- Launch films and promos: music bed + sound design, no voiceover by default.
+  Ask once if the user has not said; with a voiceover, generate it FIRST and
+  time beats to its lines (media-generation.md).
+- Beds built for this: `launch-pulse`, `quiet-launch` (`asset.list-music`);
+  loop with a second region and a 600 ms crossfade when the film is longer.
+- Sounds from `asset.list-sounds` by their current names (`message-pop`,
+  `swoosh-fast`, `ui-tick`, `marker-strike`, `keyboard-key-1/2/3`,
+  `keyboard-space`, `keyboard-typing-fast`, `mouse-click`, `success-chime`,
+  `noise-riser`, `logo-impact`). Place them in one `project.batch`.
 
-1. **Motion** — AUTOMATIC on app >= 1.60: the renderer fails any clip frozen
-   for >=90% of its duration with no real motion (STATIC_RENDER; a short
-   entrance then a long hold passes), so a frozen scene can't reach
-   you as success. Per-scene holds inside a longer video can still hide — for
-   multi-scene single renders, extract 3+ frames *within each scene* and
-   confirm they visibly differ.
-2. **Depiction** — for each feature scene, is the feature SHOWN, or only
-   headlined? Headlined → re-author to depict it.
-3. **Variety** — line the scenes up. Do adjacent scenes share a layout / dominant
-   visual / motion? If yes → it's the templated slideshow. Re-author to distinct
-   compositions.
+---
 
-Only when all three pass is it shippable. "It animates" is not the bar.
+## Mandatory verification (do all of it before you hand anything over)
+
+1. **Render-sheet review.** For every scene, `motion.screenshot` at each reveal
+   and one mid-move; after assembly, `project.render-sheet` (or frames every
+   1 s tiled) of the whole film. Look at it. Fix, re-render, look again.
+2. **Text inside the frame.** No word clipped by the frame edge or hidden
+   behind another layer on any hold; nothing important in the outer 4% (safe
+   area); type ≥ 20 px at 1080p after camera scale.
+3. **Timing.** Every line holds long enough to read (≈ 0.3 s per word + 0.8 s);
+   the reveal lands before the camera leaves; the film length matches the
+   brief ±0.5 s; no dead frame (every hold has a push).
+4. **Sound sync.** Each sound sits on its event's frame (±1 frame); no two
+   swooshes within a second; the bed fades out on the end card.
+5. **Loudness.** `export.start`, then `export.verify`: integrated loudness
+   about -14 LUFS (export normalises), true peak ≤ -1 dBTP, duration equal to
+   the timeline.
+6. **Grammar check.** Word reveals with ghost text; depth of field on every
+   hold; the camera always moving; one morph linking pain to product; each demo
+   a different interaction; real icons, not initials; the end card mirrors the
+   logo beat.
+
+Report the checks you ran and what you fixed. "It renders" is not the bar.
+
+---
+
+## Anti-patterns (each one fails the standard)
+
+- The templated slideshow: one shell (background + headline + pill) reused per
+  beat with the text swapped.
+- A small, flat app: a screenshot sitting at 50% of the frame with no depth,
+  no camera and no parallax. The reveal must feel big.
+- One demo and no montage in a 30 s+ film.
+- Integration icons as initials or grey circles (use `LF.brand`).
+- Headlines that state a benefit the UI could have shown.
+- Plain opacity fades, bouncy/elastic eases, looping breathing scale.
+- Hard cuts or crossfades mid-chapter; a camera that stops.
+- Sounds scattered on a grid instead of on events; stacked swooshes.
+- Invented numbers, reviews, customer logos or screens.

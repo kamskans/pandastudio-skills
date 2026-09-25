@@ -14,6 +14,15 @@ template, `motion.render-html` with custom HTML, lower-thirds, intros,
 transitions. The rules below decide whether the result feels intentional or
 defaulted.
 
+> **The house standard.** How every promo and motion graphic MOVES (word-by-word
+> blur reveals with ghost text, depth of field and rack focus, a camera that
+> never stops, morph continuity, micro-interactions, sound on actions), the
+> beat structure and the mandatory verification checklist live in
+> [promo-and-mg-videos.md](promo-and-mg-videos.md), built on the `lf-kit.js`
+> primitives in [saas-launch-film.md](saas-launch-film.md). This file is the
+> engine contract and authoring discipline underneath it. Where an older rule
+> here and the house standard disagree, the house standard wins.
+
 > **Authoritative engine docs.** PandaStudio's motion-graphic pipeline is
 > [Hyperframes](https://hyperframes.heygen.com/) (HeyGen's open-source HTML→video
 > renderer). The composition / determinism / timeline rules in this file mirror
@@ -26,8 +35,8 @@ defaulted.
 > - [Hyperframes core SKILL.md](https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/SKILL.md)
 
 If you don't know what "good" looks like, the floor is: **static text fading in
-on a flat background is the lowest tier of motion graphics, in any style.** If
-that's what you're about to author, stop and read this file.
+on a flat background is the lowest tier of motion graphics, in any style.** The
+bar is the launch-film grammar in promo-and-mg-videos.md.
 
 ---
 
@@ -123,9 +132,12 @@ skip directly to the rules.
 ### Multi-scene authoring (the default for promos)
 
 If the brief is multi-scene (intro + problem + demo + CTA, or any explainer
-arc with ≥3 distinct beats), **render each scene as its own motion graphic
+arc with ≥3 distinct beats), **render each CHAPTER as its own motion graphic
 and add each as a separate clip on the timeline.** Don't build one big 30s
-HTML composition.
+HTML composition. A chapter is a stretch the camera and the morphs must keep
+continuous (hook, miss-to-reveal-to-logo, one demo, the montage, the end
+card): keep that stretch in ONE composition so the morph and the camera move
+never cut. Chapter boundaries are where the standard allows a cut.
 
 ```bash
 # From-scratch promo (no host footage): scenes become MAIN TRACK clips via
@@ -178,7 +190,9 @@ is the default; concat is the escape hatch.
 
 **Single-scene graphics** (a lower third, a title card, a stat reveal, a
 chapter divider) stay a single render → single clip. The multi-scene
-pattern is only for compositions with multiple named beats.
+pattern is only for compositions with multiple named beats. They follow the
+same grammar: a word-by-word blur reveal instead of a fade, a slow push, a
+rack focus between the parts.
 
 ### Step 4 — Layout Before Animation
 
@@ -395,17 +409,20 @@ authoring mode:
 Each scene is its own MP4 clip on the timeline. Transitions live as editor
 regions between them.
 
-1. **Each scene's HTML is reveal + hold only.** Every element animates IN
-   via `gsap.from()`. After the reveal completes, the scene HOLDS its final
-   composition for the remainder of `data-duration` (use the Law-#1
-   anchor `tl.to({}, { duration: SLOT }, 0)` to fix the timeline length).
-2. **No baked-in exit tweens.** No `gsap.to(..., { opacity: 0 })`, no
-   off-screen y, no scale-to-zero. The held last frame is what the editor's
-   crossfade region blends FROM into the next clip's first frame.
-3. **Transitions are editor regions.** A crossfade between scene 1 and
-   scene 2 is a `project.add-fx` region positioned at the boundary. The
-   user can swap, retime, or remove transitions without re-rendering any
-   scene.
+1. **Each chapter's HTML is reveal + hold, and the hold still moves.** Every
+   element animates IN; after the reveal completes the chapter holds its
+   final composition under a slow camera push for the remainder of
+   `data-duration` (`LF.clock` or the `tl.to({}, { duration: SLOT }, 0)`
+   anchor fixes the timeline length).
+2. **No emptying exits.** No `gsap.to(..., { opacity: 0 })` on elements one
+   by one, no scale-to-zero. The only exit is the chapter transition itself
+   (the whole frame racking out of focus or dollying away), so the frame is
+   full until the cut.
+3. **Chapter cuts are rack focus, a whip or a camera move, authored in the
+   compositions** (the outgoing chapter blurs or dollies out in its last
+   0.2-0.4 s, the incoming one sharpens in). An editor transition region
+   (`project.add-transition`) is the fallback when a chapter is re-used; a
+   plain crossfade is the weakest option.
 4. **Closing fade** (if any) — the LAST scene may fade out to black at
    its end via a tween; the editor doesn't need a region for that.
 
@@ -512,9 +529,10 @@ but justify it.
 - **Offset the first animation 0.1–0.3s** (not t=0). A scene starting with
   motion on frame 0 reads abrupt because the prior transition is still
   resolving in the viewer's eye.
-- **Vary eases.** Use at least 3 different eases per scene — `power3.out`,
-  `expo.out`, `back.out(1.4)`. Repeating one ease across every element makes
-  every reveal feel like the same reveal.
+- **Eases by role, not by variety.** `expo.out`/`quint.out` for arrivals,
+  the kit's `whoosh` eases for camera dollies, `linear` for slow pushes, a
+  slight `back.out` only on small pops (icons, chips, pills). No elastic or
+  bouncy eases on big elements.
 - **Don't repeat an entrance pattern within a scene.** If the headline slid up,
   the subtitle slides from a different direction or scales rather than slides.
 - **Avoid full-screen linear gradients on dark backgrounds.** H.264 bands them
@@ -559,18 +577,18 @@ Different surfaces want different pacing. Pick by what the graphic is *for*:
 The `voice` field in the brand kit also nudges pacing — `bold` and `playful`
 sit at the fast end of each range, `minimal` and `corporate` at the slow end.
 
-### Micro-motion on holds
+### Motion on holds: the camera push
 
-Every "held" beat needs at least one micro-motion layer so the frame doesn't
-freeze. Drift, shimmer, breathing scale, a slow background gradient pan. The
-viewer's eye reads a frozen pixel as a render bug; a 0.5px drift over 3s reads
-as life.
+Every held beat keeps moving, and the house way is the camera: a slow linear
+push of 2-5% across the hold (`LF.camera` keys with `ease: "linear"`), plus
+the drifting ground blobs. Not a looping breathing scale or a pulsing glow:
+those read as filler.
 
 ```js
-// A 3s held card with one breathing layer.
-tl.from(".card", { y: 30, opacity: 0, duration: 0.6, ease: "power3.out" }, 0.3);
-tl.to(".card-glow", { scale: 1.03, duration: 2.4, ease: "sine.inOut", yoyo: true, repeat: 1 }, 0.6);
-tl.to({}, { duration: 3 }, 0);  // anchor
+const cam = LF.camera("#lens", "#world", [
+  { t: 0.3, ...LF.frame(960, 540, 1.0) },
+  { t: 3.0, ...LF.frame(960, 530, 1.04), ease: "linear" }, // the hold still moves
+]);
 ```
 
 ---
@@ -635,13 +653,11 @@ you never ship them and never spend tokens checking for them:
 
 What the gates CANNOT judge is design: depiction (is the feature shown
 or merely headlined?), variety (are adjacent scenes distinct?), brand
-fidelity, and pacing. That's the self-critique below plus the human's
-eye. The agent does **not** auto-screenshot or burn vision tokens
-re-checking what the gates already guarantee.
-
-Author the composition with care, walk the **textual** brand checklist
-before rendering, then render and hand off. The user catches the taste
-gaps you'd miss anyway.
+fidelity, text clipped by the frame, timing and sound sync. Those are yours:
+run the **mandatory verification checklist** in
+[promo-and-mg-videos.md](promo-and-mg-videos.md) (screenshots at every reveal,
+a render sheet of the whole film, text inside the frame, timing, sound sync,
+loudness) before handing anything over.
 
 The brand checklist (run mentally before `motion.render-html`):
 
@@ -654,16 +670,12 @@ The brand checklist (run mentally before `motion.render-html`):
   guessed file.
 - Tagline (if used in an outro) is the verbatim `brand.tagline`.
 
-### Tools that exist for explicit user requests
+### Verification tools
 
-`motion.screenshot` and `motion.verify-frames` are kept available for
-when the user asks for a preview frame ("show me what scene 2 looks
-like at 3 seconds") or a multi-frame sample ("give me 8 frames across
-the timeline"). Both inline a vision-ready preview PNG in the tool
-result, so when you call them on the user's behalf the response carries
-the image inline — you can describe what you see back to the user.
-
-You just don't reach for them in your own authoring flow.
+`motion.screenshot` (one frame of a composition, before rendering) and
+`motion.verify-frames` / `project.render-sheet` (frames of a render or the
+assembled film) are part of every authoring pass, not only for user
+requests. Read their `previewPath` images.
 
 ### 3. Run the timeline-duration diagnostic
 
@@ -689,8 +701,9 @@ The shortest list of things that produce generic / "meh" output:
 
 - **Defaulting to a dark canvas because "dark looks premium."** If the brand
   isn't dark, don't go dark. (This was the v1.31 failure.)
-- **Adding chrome gradients / halos / vignettes / grain because the previous
-  graphic had them.** Those are house-style defaults, not universal moves.
+- **Adding chrome gradients / halos / vignettes because the previous graphic
+  had them.** Depth comes from the grammar (blurred far layers, drifting brand
+  blobs, grain against banding), not from decoration.
 - **Fading flat text in on a flat background.** That's the floor; clear it.
 - **Using "Inter Bold 96px" as the only type move on every scene.** Type is a
   character — vary scale, weight, emphasis, treatment.
@@ -725,9 +738,9 @@ These live alongside this file. Load only the ones the current job needs.
 
 ## TL;DR
 
-Read the brand. Pick the look from the brand, not from a default. Build the
-hero frame in static CSS, then animate INTO it. Anchor every timeline at the
-slot duration. Render a screenshot and check it. Re-author until it matches
-the brand contract.
+Read the brand. Pick the look from the brand, move it with the house grammar
+(promo-and-mg-videos.md, lf-kit.js). Build the hero frame in static CSS, then
+animate INTO it. Anchor every timeline at the slot duration. Screenshot every
+reveal, review the render sheet, re-author until it passes the checklist.
 
 If the brand kit is empty, **ask** — don't invent.

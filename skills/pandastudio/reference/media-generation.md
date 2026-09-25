@@ -314,3 +314,51 @@ DUR=$(echo "$NARR" | jq -r '.data.durationMs'); WAV=$(echo "$NARR" | jq -r '.dat
 START=$(pandastudio media.image-to-video --id="$PID" --imagePath="$IMG" --durationMs=$((DUR + 400)) --aspectRatio=9:16 --zoom=in --json | jq -r '.data.startMs')
 pandastudio project.add-audio --id="$PID" --audioPath="$WAV" --startMs=$START --endMs=$((START + DUR)) --volume=1
 ```
+
+## Downloading online video (`media.download-url`)
+
+Brings a video, or just its audio, from a page link into PandaStudio: YouTube,
+Vimeo, archive.org, X, TikTok and the other sites yt-dlp supports. Use it when
+the user hands you a link ("download this and cut it into a short", "use this
+clip as B-roll", "grab the audio of my podcast upload").
+
+**Rights first.** Only download what the user owns or has the rights to use:
+their own uploads, Creative Commons or public-domain footage, footage they've
+licensed. If the link looks like someone else's content and the user hasn't
+said they can use it, ask before downloading. Don't lecture beyond that.
+
+```bash
+# Whole video (1080p max, H.264 MP4 preferred) → a new project
+JOB=$(pandastudio media.download-url --url="https://www.youtube.com/watch?v=..." --json | jq -r '.data.jobId')
+pandastudio job.wait --id=$JOB --timeoutMs=600000 --json   # → .data.job.result.path
+pandastudio project.new --withMedia="<path>"
+
+# Only the part you need (source time), placed straight into a project
+pandastudio media.download-url --url="https://vimeo.com/..." --startMs=60000 --endMs=95000 \
+  --addToProject=$PID --as=clip          # appends to the main track
+
+# B-roll over the timeline (muted overlay), or an audio track
+pandastudio media.download-url --url=... --addToProject=$PID --as=overlay --atMs=12000
+pandastudio media.download-url --url=... --addToProject=$PID --as=audio --atMs=0
+```
+
+- **Async.** Returns `{ jobId }`; `job.wait` it (long videos: `--timeoutMs=600000`
+  and re-wait on `timedOut`). The result: `{ path, kind, title, durationMs,
+  sourceUrl, uploader, bytes, imported? }`; `imported` has the `clipId` /
+  `regionId` when `addToProject` was set.
+- **Cut early.** For a short from a long video, pass `startMs`/`endMs` rather
+  than downloading an hour: faster, smaller, and the cut is frame-accurate.
+- **Limits.** Over 120 minutes is refused unless `maxMinutes` is raised (max
+  600); files over 8 GB are refused. Playlists, channels and live streams are
+  refused: ask for a single-video link.
+- **Errors say why** (code in brackets): `unsupported_site`, `private`,
+  `age_restricted`, `sign_in_required` (the site wants a signed-in account),
+  `geo_blocked`, `unavailable`, `live`, `playlist`, `too_long`, `too_large`,
+  `network`, `disk_full`. For private / age-restricted / sign-in videos, tell the
+  user to download the file themselves and import it; don't retry.
+- **Engine.** yt-dlp is fetched on first use (checksum-verified against the
+  release's SHA2-256SUMS), kept current every few days, and updated
+  automatically when a site change breaks a download. The first download takes
+  a little longer. Needs the media engine (FFmpeg) installed.
+- Direct file links (an `.mp4` URL a generation service returned) still go
+  through `media.import`.

@@ -110,11 +110,18 @@ network. The classified brand is a starting point; apply corrections with
 - **`--apply=false`** returns `{ applied:false, brand }` and leaves the active
   kit alone (default `true` = merge). Don't overwrite the user's brand with
   someone else's site.
-- **Logo**: `captured.logoPath` is the site's real mark — header logo, else a
-  non-glyph logo SVG, else the apple-touch-icon, else the SVG favicon, else the
-  og:image (`captured.logoSource` says which). Inline UI icons are never
-  chosen. A text-only wordmark site gets its app icon; set the wordmark font
-  via typography instead.
+- **Logo**: `captured.logoPath` is the site's real mark, picked by scoring
+  every image / inline SVG on the page: the header / nav logo (in the home
+  link, "logo" in its class / id / aria-label / alt, named after the site,
+  first in the header) wins, else the page's declared logo (JSON-LD
+  Organization / og:logo), else a footer logo named after the site, else a
+  capture-flagged SVG that is a real mark, else the apple-touch-icon, the SVG
+  favicon, the og:image (`captured.logoSource`: header-logo | declared-logo |
+  page-logo | logo-svg | touch-icon | favicon-svg | og-image | small-icon).
+  UI glyphs, small status icons in page content and customer logos are never
+  chosen. SVG wordmarks drawn in `currentColor` come out black: recolour them
+  for a dark ground. A text-only wordmark site gets its app icon; set the
+  wordmark font via typography instead.
 - **Screenshots**: `captured.screenshots[]` are real 1920×1080 viewport PNGs of
   the live page (hero first, then down the page; `--maxScreenshots` 0–12,
   default 4). Use them in promos (`motion.render-html --assets=<path>` /
