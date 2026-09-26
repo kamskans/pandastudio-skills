@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.192.0 -->
+<!-- version: 3.203.0 -->
 
 # PandaStudio
 
@@ -159,6 +159,13 @@ provider without asking**: `system.set-transcription-provider` sends their audio
 to a third party and bills them. A cloud provider with no key silently falls
 back to local.
 
+**A transcript in the wrong language** (English speech that came out as Tamil):
+fix the language (`system.set-transcription-language --language=auto`; English
+= auto, `english`/`en` are accepted as aliases), then `transcript.transcribe
+--force=true` (all clips) or `--clipId=…` (one). Plain `transcript.transcribe`
+skips clips that already have words. Report `droppedWordEdits[]` from the job
+result: those fixes need redoing.
+
 ## Recording the screen yourself (agent-driven, v1.86+)
 
 `recording.list-sources` → `recording.start [--source=window:…]
@@ -209,7 +216,10 @@ the checklist with rendered frames. Blanks you omit come back as "(you decide
 this from the video: …)": choose them yourself, EXCEPT `fromUser` blanks (a
 faceless video's idea, a product name, an offer): render fails until the user
 gives them; ask, never invent. `allowScript` blanks take the user's script via
-`<key>Kind: "script"`, narrated word for word. After an edit the user likes,
+`<key>Kind: "script"`, narrated word for word. `images` blanks take the
+user's OWN pictures (`values.<key>` = JSON array of absolute paths); empty
+renders as "none" = generate them, or ask for images when no image connector is
+connected. After an edit the user likes,
 offer `recipe.save`. Detail: [`reference/recipes.md`](reference/recipes.md).
 
 ## Memory — remember preferences across chats
@@ -373,6 +383,7 @@ and the doc named in the row.
 | A still image (photo, screenshot, generated beat) | Ken Burns image clip: `media.image-to-video --id` (no move: `project.add-clip --media=<img>`) | a flat held still |
 | Emphasis on one frame ("look at this", the turn of a story) | `project.add-freeze-frame --holdMs=1000–2000` (+ adjustment layer and a slow push over the hold for a record-scratch beat) | a long zoom |
 | Playful rewind ("wait, go back") | `project.add-reverse` over 1–3 s, audio muted | reversing speech you need |
+| Keyword on the stressed word, a number, a key term, the hero line, an end card | native motion element (`project.add-motion-element --wordId`, or the whole pass with `project.style-edit`) | an HTML render for plain words; words in a script the engine fonts can't draw |
 | Punch-in on the payoff line | `project.add-zoom` (default), or `project.add-motion` keyframes for a snap without the swoosh | both on the same beat |
 | Glow, light leak, texture over footage | `--blendMode` on the overlay / FX / adjustment (`screen` drops black, `multiply` drops white, `softLight` / `overlay` lay texture in) | an opaque overlay |
 | A zoom you need to shape frame by frame | `project.convert-to-keyframes --regionId=<zoomId>` | re-placing zooms by hand |
@@ -447,8 +458,11 @@ custom scenes."* No preference → fully custom. (Never ask in Mode A.)
 **5. Voiceover & music for a from-scratch promo.** If the brief doesn't say,
 ask up front: *"Want a voiceover and/or a music bed? Both shape the timing."*
 Narration: `media.generate-narration` (local Kokoro by default; cloud models
-and the user's own ElevenLabs voices via `--model`); music:
-`asset.list-music`, `media.generate-music` (`--model=musicgen
+and the user's own ElevenLabs voices via `--model`). Music + SFX for a promo,
+launch film or motion piece: **`media.compose-soundtrack`** is the default. Write
+the edit's timeline as cues, pick the BPM so cuts land on beats, and put every
+hit on its moment in one score ([`reference/soundtrack.md`](reference/soundtrack.md)).
+Alternatives: `asset.list-music`, `media.generate-music` (`--model=musicgen
 --reference=<audio>` matches a track they have); SFX: `asset.list-sounds`,
 `media.generate-sound-effect`. With narration, generate the VO FIRST and time
 each scene to its line. **Always pass `--transcribe=true` when placing a
@@ -488,7 +502,7 @@ enhancements); treat doubt as `camera` or ask, then lock it with
 | `transcript.find-issues` → `delete-words` | Keep the most recent take; keep `severity: "low"`; ask when a repeat might be deliberate emphasis. |
 | `transcript.remove-silences` | After content cleanup; 600ms default (don't raise it "to be safe"); two passes (word gaps + audio-level detection) like the UI button. |
 | `audio.clean` | Un-cleaned clips only; `--echo=true` only for echo / reverb / "studio sound". |
-| `caption.set-template` ("add captions", no style named) | `glowStack` (app default since 1.94); a recipe's caption setting wins (Ali style keeps captions off). Animated styles for Shorts energy, `bold` / `editorial` for long-form: captions-metadata.md. |
+| `caption.set-template` ("add captions", no style named) | `glowStack` (app default since 1.94); a recipe's caption setting wins (Ali style keeps captions off). Animated styles for Shorts energy, `bold` / `editorial` for long-form: captions-metadata.md. "Highlight the key word" / Hormozi / Captions.ai-style looks → an emphasis template (`hormoziEmphasis`, `tiltedBox`, `serifItalic`, `condensedCaps`, `scriptKeyword`, `wordBoxes`, `goldSerif`, `keywordBox`, `limeItalic`): it marks the IMPORTANT word of each phrase (detected from the audio on apply), not the spoken one. |
 | `llm.generate-title` / `-description` / `-timestamps` | After the edit pass; show them, let the user regenerate or edit. |
 | Zoom moments | Pick from the transcript ("you said 'click here' at 12.4s — adding a zoom"). Don't pre-ask. |
 | FX overlays | **Never by default**, only on explicit request, placed where they said. |
@@ -788,7 +802,10 @@ over footage too, on a transparent render). Read
 [`reference/motion-recipes.md`](reference/motion-recipes.md) first; render
 verbs (`motion.render-html`, `motion.screenshot` pre-flight, `motion.concat`,
 `motion.verify-frames`, transparent overlays, glass) in
-[`reference/custom-html.md`](reference/custom-html.md).
+[`reference/custom-html.md`](reference/custom-html.md). The root
+`data-duration` IS the render length: `durationMs` is optional (a different value
+comes back as a warning), renders run up to 10 minutes, and `motion.screenshot`
+accepts any `atMs` inside the composition (clamped to its end).
 
 > **🛑 Pass the HTML INLINE — never write a file first.** `motion.render-html`
 > takes the whole composition as an inline `html` string. The in-app agent has
@@ -799,9 +816,15 @@ verbs (`motion.render-html`, `motion.screenshot` pre-flight, `motion.concat`,
 ## Effects (FX) & transitions
 
 **Golden rule: restraint.** `project.add-transition --transitionId --atMs=<cut>`
-(edited time, centred on a cut between clips; ids from `asset.list-transitions`;
-one style per video, ~1 per major section, only on "make it engaging"
-briefs). `project.add-fx` overlays only on explicit request. Detail:
+(edited time, centred on a cut: a clip boundary or a jump cut, snapped within
+500 ms; ids from `asset.list-transitions`; one style per video, ~1 per major
+section, only on "make it engaging" briefs). Two kinds: **native** ids
+(`zoom-blur`, `whip-left`, `whip-right`, `whip-up`, `spin`, 350 ms) move the
+footage itself across the cut, the CapCut / Captions look, while captions and
+graphics stay put; **overlay** ids (`fade-black`, `flash`, `glitch`,
+`torn-paper` for paper-collage edits, ...) draw a WebM over the cut. Each
+places its default sound (`--sound=none` to skip). Add them after the cutting
+passes (no anchor). `project.add-fx` overlays only on explicit request. Detail:
 [`reference/fx-transitions.md`](reference/fx-transitions.md).
 
 ## Narration (voiceover) + B-roll generation
@@ -811,7 +834,8 @@ or `elevenlabs-direct` for the user's own cloned voices; `--pronunciations` for
 names) → `project.add-audio --audioPath --transcribe=true`. The user wants their
 OWN voice → point them to Audio tab → Record voiceover (you can't record it).
 B-roll stills: `media.generate-image`, always Ken-Burnsed (`media.image-to-video`),
-never a flat photo. `media.generate-presenter` (Seedance, Replicate) makes a
+never a flat photo. See "Images" below for connectors, stickers and the
+bring-your-own fallback. `media.generate-presenter` (Seedance, Replicate) makes a
 realistic AI presenter with its own voice (one take ≤30s; describe the person,
 the line in double quotes; never add narration on top), used as a camera-only
 clip or attached with `project.set-clip-webcam`. `media.import --url` brings in
@@ -844,13 +868,39 @@ art style stated in every prompt; 16:9 → `3:2`, 9:16 → `2:3`) →
 --aspectRatio --zoom=in|out [--pan]` (appends an editable image clip + motion
 region, returns `startMs`; alternate in/out) → `project.add-audio --audioPath
 --startMs=<that startMs>`. Then a quiet ducked music bed, captions, maybe one
-title card. Without Replicate connected, say so. Full pipeline + example:
+title card. No image connector? Ask the user for their own images (one per
+beat) instead of stopping (see "Images"). Full pipeline + example:
 media-generation.md "Faceless videos".
+
+## Images — the user's own connector first, their own pictures as fallback
+
+`media.generate-image --prompt [--aspectRatio=1:1|3:2|2:3|4:3|3:4|16:9|9:16]
+[--quality] [--referenceImagePath] [--transparent=true]
+[--provider=auto|replicate|higgsfield]` runs on the user's OWN image connector
+and bills their credits there: `auto` (default) = Replicate (gpt-image-2) when
+connected, otherwise Higgsfield (GPT Image 2.5). Returns `{ imagePath,
+provider, model, aspectRatio, transparent, transparency?, warnings? }`; say
+which service it used. Each call is a paid generation: never repeat one "to be
+safe", and relay `warnings`.
+- **Stickers / cut-outs**: `--transparent=true` returns a trimmed PNG with alpha
+  (native alpha, else a flat magenta backdrop keyed out locally). Check
+  `transparency`: `native`/`keyed` worked, `none` = background kept (say so).
+  Place it as an overlay (`project.add-motion-graphic` / image overlay).
+- **No image connector** (`connector.list` shows neither Replicate nor
+  Higgsfield connected, or the call fails with `details.code:
+  "NO_IMAGE_CONNECTOR"`): don't give up and don't substitute text cards. Ask
+  the user for their own images (or use images already in the project folder:
+  `workspace.contents` / the project's media), and build with those. Mention
+  once that connecting Replicate or Higgsfield in Settings → Integrations lets
+  you generate them.
+- Thumbnails (`export.generate-thumbnail`) use the same connector order.
 
 ## Connectors (Higgsfield, HeyGen, ElevenLabs, Replicate, your own)
 
 Hosted MCP services the user signs in to in Settings → Integrations, billed to
-their own credits. **Run `connector.list` before promising anything that
+their own credits. Replicate and Higgsfield also power PandaStudio's own image
+verbs (`media.generate-image`, thumbnails; Replicate first): use those verbs
+for stills rather than calling the connector's tools directly. **Run `connector.list` before promising anything that
 depends on one.** Inside PandaStudio's chat their tools are reached on demand:
 `connector.tools --connector=<id> [--search | --tool=<name>]` →
 `connector.call --connector --tool --args='{…}'`; import any returned remote
@@ -896,8 +946,12 @@ clips, 0–2), mute a stretch without cutting the picture
 (`project.add-mute-region` / `remove-mute-region`), ducking
 (`project.set-audio-ducking --regionId [--amountDb --source=transcript|energy]`),
 volume automation (`project.set-volume-keyframes --target=clip|audio|overlay`,
-`add-volume-keyframe`, `remove-volume-keyframe`), bundled / generated music
-(`asset.list-music`, `media.generate-music`), SFX (~190 bundled:
+`add-volume-keyframe`, `remove-volume-keyframe`), composed soundtracks with
+every hit on the edit's cues (`media.compose-soundtrack`, the default for
+promos, launch films and motion pieces:
+[`reference/soundtrack.md`](reference/soundtrack.md)), bundled / generated music
+(`asset.list-music`, `media.generate-music`: beds under long talking-head
+videos), SFX (~190 bundled:
 `asset.list-sounds --category=ui|notification|motion|digital|impact|typing|outcome|ambience`
 or `--tag`; place many timed cues in one call with `project.add-sound-cues
 --group=sfx --cues='[{"sound":"ui-click-soft-1","atMs":1200,"volume":0.5}]'`,
@@ -906,6 +960,61 @@ when nothing fits) and colour (`project.set-clip-color
 --preset=flat-footage` first, then `project.set-clip-lut`; `--target=camera`
 grades the camera separately). Detail + sound design + loudness:
 [`reference/audio-color-music.md`](reference/audio-color-music.md).
+
+### Timing to speech: zooms, graphics and sound on the stressed words
+
+For a talking head or a Short, **`project.style-edit` does this in one call**
+(see "Native motion elements" below). By hand, for any styled edit (Shorts,
+long-form, tutorials): first run `project.inspect-footage` (flat colour,
+green backdrop, rotation: it names the verbs to run), then time the picture
+and the sound to the speaker: `project.speech-map` returns the words they lean
+on (edited `atMs`, `wordId`, `phrase`, `strength` 1-3, measured from the audio
+in any language). Put zooms on strength 2-3, keyword graphics on the phrases
+as **native motion elements** anchored to the cue words
+(`project.add-motion-elements`; HTML compositions only for bespoke extras),
+and call `project.compose-soundtrack` LAST to score the edit from its own
+timeline (it reads the elements' sound roles; pass an HTML composition's cue
+times as `cues`). Full loop, density per format and a worked example:
+[`reference/speech-timing.md`](reference/speech-timing.md).
+
+### Native motion elements: keyword graphics drawn by the engine
+
+Word-timed graphics the render engine draws itself (preview = export, nothing
+rendered to a file, editable any time): `keyword` headline, `chip`, `stamp`,
+`count` (number / range rolls up), `steps`, `slam` (+ camera kick), `behind`
+(word behind the speaker), `lowerThird`, `highlight`, `endCard`, `progress`,
+`iconPop`. **The default for keyword graphics** on talking heads and Shorts.
+
+- **Vox / paper-cut / "cut-out on paper" / magazine collage look:**
+  `project.style-edit --style=paper-cut` sets it all up (newsprint backdrop,
+  speaker cut out with a white keyline in the lower half, serif ink-on-torn-
+  paper strips with highlighter swipes, paper foley). By hand: the `paper`
+  style family on any element + `project.set-wallpaper
+  --wallpaper=/wallpapers/paper-cream.jpg` + `project.add-background-effect
+  --mode=remove --outline=true`.
+
+- **One call:** `project.style-edit --id [--style=bold-short|editorial-long|clean-tutorial|paper-cut]
+  [--applyFixes=true] [--texts='{"<wordId>":"English keyword"}'] [--endCard='["a","b"]']
+  [--dryRun=true]`: inspect-footage, speech-map, elements + silent zooms on
+  the stressed moments by a rules table (numbers → count, English statement
+  hero → slam, heroes → keyword/stamp, key terms → chip, first moment → hook,
+  last 4 s → end card, long-form topic turns → lower third), then
+  compose-soundtrack. Run after the cuts. Re-runs replace only what it placed;
+  anything the user edited stays. Read `plan.skipped` in a dryRun first.
+- **By hand:** `project.add-motion-element --type --content (--wordId|--atMs)
+  [--durationMs --style --zone --layer --sound]`, `project.add-motion-elements
+  --elements` (batch, all or nothing), `update-motion-element --elementId`,
+  `remove-motion-element`, `list-motion-elements [--catalog=true]`.
+- **Latin script only** (engine fonts: Inter, Poppins, JetBrains Mono). For
+  Tamil / Hindi / other scripts pass English keywords (`texts`), or use an
+  HTML composition for that moment. Never put words in a script the fonts
+  can't draw.
+- `zone: auto` keeps them off the face; `layer: behind` puts any element
+  behind the speaker; `sound` is a role the score plays (call
+  compose-soundtrack last). Verify with `project.render-sheet`.
+
+Full detail (content shapes, families, zones, layers, recipes, when to use
+HTML instead): [`reference/motion-elements.md`](reference/motion-elements.md).
 
 ## Visual edits — zooms, trims, speed, crop, layouts
 
@@ -960,7 +1069,9 @@ WHEN: "Which tool for which moment" above. HOW:
 ## Captions, AI metadata, thumbnails
 
 `caption.toggle`, `caption.set-template`, `caption.set-style` (`positionY` is %
-from the top, `wordsPerLine`, `uppercase`, font), `caption.move` (a span),
+from the top, `wordsPerLine`, `uppercase`, font, `highlightMode`, emphasis look,
+`boxRotation`), `caption.mark-emphasis` (which words are the KEY words),
+`caption.move` (a span),
 `project.hide-captions` / `show-captions`; `llm.generate-title`, `llm.generate-description`, `llm.generate-timestamps` and
 `llm.generate-caption` (an Instagram Reel caption) on the local LLM
 (`llm.status`, `llm.infer` for a one-shot prompt); thumbnails (`export.generate-thumbnail`,
@@ -1111,9 +1222,16 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   themes, list-storyboards, generate-storyboard, catalog [catalog-search],
   catalog-item, craft, render-film (motion-templates.md, custom-html.md,
   launch-video.md)
+- **project (timing to speech)** — inspect-footage (flat / green backdrop /
+  rotation checks), speech-map (stressed words → cues),
+  compose-soundtrack (score the edit from its own timeline), style-edit (the
+  whole pass in a house style) (speech-timing.md, motion-elements.md)
+- **project**, native motion elements — add-motion-element,
+  add-motion-elements, update-motion-element, remove-motion-element,
+  list-motion-elements (motion-elements.md)
 - **media** — import, generate-image, image-to-video, generate-narration,
-  generate-music, generate-sound-effect, generate-presenter
-  (media-generation.md)
+  compose-soundtrack (soundtrack.md), generate-music, generate-sound-effect,
+  generate-presenter (media-generation.md)
 - **asset** — list-music, list-sounds, list-fx, list-luts, list-transitions,
   list-emoji, resolve
 - **llm** — generate-title, generate-description, generate-timestamps,
@@ -1144,6 +1262,9 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - [`reference/transcript-editing.md`](reference/transcript-editing.md) — the transcript edit loop, fillers, bad takes, silences, find-replace caveats, fixes that survive re-transcription.
 - [`reference/native-motion.md`](reference/native-motion.md) — keyframes, motion tracks, speed ramps, freeze, reverse, adjustment layers, blend modes, masks, enter/exit, caption moves, Ken Burns stills.
 - [`reference/visual-edits.md`](reference/visual-edits.md) — zooms, trims, speed, crop, style, webcam and podcast layouts, clips, focus regions, speaker background, green screen, frame checks, reset.
+- [`reference/motion-elements.md`](reference/motion-elements.md) — native motion elements (keyword, chip, stamp, count, steps, slam, behind, lowerThird, highlight, endCard, progress, iconPop): content shapes, style families, zones, behind-the-speaker, sound roles, word anchoring, `project.style-edit` rules tables, Shorts vs long-form recipes, when HTML instead.
+- [`reference/speech-timing.md`](reference/speech-timing.md) — timing zooms, keyword graphics, sound effects and music to the words the speaker stresses, for any format: speech map → cue sheet → picture → score; density by format; import checks (flat colour, green backdrop, vertical footage); a worked example.
+- [`reference/soundtrack.md`](reference/soundtrack.md) — `media.compose-soundtrack`: the one-timeline method, score format, every sound, tempo maths, recipes, the PandaCrawl worked example.
 - [`reference/audio-color-music.md`](reference/audio-color-music.md) — audio cleanup, volume, ducking, volume keyframes, music, sound design, loudness, colour correction and LUTs.
 - [`reference/captions-metadata.md`](reference/captions-metadata.md) — caption templates and style, AI title/description/timestamps, thumbnails.
 - [`reference/motion-templates.md`](reference/motion-templates.md) — template workflow, lower thirds, editing placed graphics, GIFs/emoji, storyboards, background modes, designed segments, the full catalog, podcast layouts.

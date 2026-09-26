@@ -95,12 +95,13 @@ For a from-scratch promo with narration, generate the VO FIRST and time each
 scene to its line (TTS runs longer than you'd guess; see promo-and-mg-videos.md
 "Audio: decide voiceover & music FIRST").
 
-## B-roll generation (Replicate gpt-image-2)
+## B-roll generation (the user's image connector)
 
 PandaStudio ships with a project-level image-gen verb that runs on the
-user's own connected Replicate account. Use it to author B-roll, concept
-stills, mood-board frames, or reference imagery for explainer beats —
-without leaving the editor.
+user's own image connector: Replicate (openai/gpt-image-2) when it's
+connected, otherwise Higgsfield (GPT Image 2.5). Use it to author B-roll,
+concept stills, mood-board frames, stickers, or reference imagery for
+explainer beats — without leaving the editor.
 
 ### The verb
 
@@ -109,16 +110,26 @@ pandastudio media.generate-image \
   --prompt="cinematic 35mm photo, sunlit modern desk with vintage typewriter, warm tones, shallow depth of field" \
   --aspectRatio=3:2 \
   --quality=medium
-# → { imagePath: "/Users/.../generated-images/<ts>-cinematic-35mm.webp", ... }
+# → { imagePath: "/Users/.../generated-images/<ts>-cinematic-35mm.webp",
+#     provider: "replicate", model: "openai/gpt-image-2", ... }
 ```
 
-**Aspect ratios are gpt-image-2 native:** `1:1` / `3:2` / `2:3`. For
-a 16:9 video, generate `3:2` and crop in the wrap. For 9:16, generate
-`2:3`. Don't ask the model for `16:9` — it doesn't exist in this API.
+**Aspect ratios:** `1:1`, `3:2`, `2:3`, `4:3`, `3:4`, `16:9`, `9:16` (both
+connectors take them natively). Use `16:9` / `9:16` for a full-frame still in
+a 16:9 / 9:16 video; `3:2` / `2:3` still work and leave room to crop in a wrap.
 
-**Requires Replicate connected.** If the user hasn't connected it in
-Settings → Integrations → Connectors, the verb returns an error saying
-so. Don't loop on this; surface it to the user.
+**Stickers:** `--transparent=true` returns a trimmed PNG with alpha (the
+subject cut out). Check `transparency` in the result (`native` / `keyed`
+worked; `none` means the background stayed, say so) and place it as an
+overlay.
+
+**Needs an image connector.** With neither Replicate nor Higgsfield connected
+the verb fails with `details.code: "NO_IMAGE_CONNECTOR"`. Don't loop on this
+and don't swap in text cards: ask the user for their own images (or use
+images already in the project folder) and continue with those; mention once
+that connecting Replicate or Higgsfield in Settings → Integrations lets you
+generate them. Each call is a paid generation on the user's account: never
+re-run one that failed without telling them.
 
 ### ⚠ Don't drop a flat photo straight into the timeline
 
@@ -270,9 +281,12 @@ optional title card or a lower-third stat.
    default). ONE beat per call (~40–60 words): Kokoro caps a single call around
    ~25s, so long scripts get truncated. Grab its `durationMs`.
 4. **Generate the IMAGE** → `media.generate-image` with a vivid, LITERAL visual
-   prompt (subject, setting, lighting, mood, no on-screen words). 16:9 → `3:2`,
-   9:16 → `2:3`. **Keep one art style across every image** (state it in every
-   prompt, e.g. "cinematic oil-painting, warm dramatic light").
+   prompt (subject, setting, lighting, mood, no on-screen words). 16:9 → `3:2`
+   (or `16:9`), 9:16 → `2:3` (or `9:16`). **Keep one art style across every
+   image** (state it in every prompt, e.g. "cinematic oil-painting, warm
+   dramatic light"). **No image connector?** Ask the user for one image per
+   beat (or use the project folder's images, or the images a recipe's `images`
+   blank collected) and Ken-Burns those instead.
 5. **Ken-Burns it as the next beat** → `media.image-to-video --id=$PID
    --imagePath=<img> --durationMs=<beat narration + ~400ms> --aspectRatio=9:16
    --zoom=in` (or `--zoom=out`, optional `--pan=left|right|up|down`). With

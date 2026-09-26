@@ -234,8 +234,11 @@ in this space have no narration at all, and neither should these unless the user
 for one. The on-screen type does the talking: one short line per section.
 
 Put the film in a project so the user can adjust it: `project.new` with the film's aspect ratio,
-`project.add-clip --media=<film>`, then the music bed. Match the bed to the film rather than
-grabbing one: the launch films that work sit on a restrained, mid-tempo (around 90-100 BPM) bed
+`project.add-clip --media=<film>`, then the soundtrack. **Default: compose it** with
+`media.compose-soundtrack` ([`soundtrack.md`](soundtrack.md)) from the film's own timeline:
+the scene cuts, titles, clicks, typed lines and logo times become the score's cues, one groove
+section per chapter at a BPM that puts the cuts on beats, every effect on its event. Only when the
+user wants a library bed, match the bed to the film rather than grabbing one: the launch films that work sit on a restrained, mid-tempo (around 90-100 BPM) bed
 with little percussion. Two bundled beds are built for exactly this film and
 need no generation: `launch-pulse` (confident, carries the cut) and `quiet-launch` (quieter and
 more considered), both ~33s, so repeat them for a longer film. `media.generate-music` writes a

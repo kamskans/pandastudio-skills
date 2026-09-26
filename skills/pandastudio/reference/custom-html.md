@@ -76,9 +76,9 @@ none does.
 >    promo (~10 min).
 > 2. **Editor primitives apply per-clip.** Each scene gets its own trim,
 >    speed, zoom, FX, layout transform — wasted on a single mega-clip.
-> 3. **Render reliability.** `motion.render-html` for a 30s @ 1080p
->    composition pushes memory + capture-time hard. Five 6-second renders
->    are cheaper individually AND parallelizable through the render pool.
+> 3. **Render time.** Renders over 20 s capture on a single worker (frames
+>    stream straight into the encoder, so length never costs disk space), so
+>    one 30s composition takes longer than five 6-second renders.
 >
 > Each scene's HTML is **reveal + hold** only — no baked-in exit tweens.
 > Scene-to-scene transitions are placed on the timeline with
@@ -180,6 +180,8 @@ in `reference/motion-philosophy.md` — read it before authoring):
 
 ```bash
 # Pre-flight ONE frame before a full render (sub-second; catches layout bugs).
+# --atMs can be anywhere in the composition; past its data-duration it clamps to
+# the end (the result's atMs is the time captured, plus a warning).
 pandastudio motion.screenshot --htmlPath=/tmp/scene.html --atMs=1500 --json
 # Screenshot and render load the same document: web fonts named in CSS
 # (font-family: 'Caveat') are embedded in both, and with no --aspectRatio/--width
@@ -187,7 +189,11 @@ pandastudio motion.screenshot --htmlPath=/tmp/scene.html --atMs=1500 --json
 
 # Render to MP4 (opaque). Renders are SEQUENTIAL — job.wait before firing the
 # next or you get RENDER_BUSY. For many scenes, fire in parallel + job.wait each.
-JOB=$(pandastudio motion.render-html --htmlPath=/tmp/scene.html --durationMs=4000 --json | jq -r '.data.jobId')
+# The length is the root data-duration (here 4 s); --durationMs is optional and a
+# different value comes back in the result's warnings. Up to 10 minutes; renders
+# over 20 s stream frames into the encoder (no temp frame files), and a render
+# that can't fit on disk fails up front with a plain "not enough disk space" error.
+JOB=$(pandastudio motion.render-html --htmlPath=/tmp/scene.html --json | jq -r '.data.jobId')
 pandastudio job.wait --id="$JOB" --json
 
 # Transparent overlay (lower third / watermark / name plate): author with

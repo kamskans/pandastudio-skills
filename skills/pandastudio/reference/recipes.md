@@ -60,6 +60,12 @@ pandastudio recipe.get --id=product-demo-walkthrough --json
 #    idea OR the user's finished script: for a script pass
 #    values.<key> = the script and values.<key>Kind = "script"; it's appended
 #    to the prompt and must be narrated word for word.
+#    Fields with `type: "images"` take the user's OWN pictures: pass
+#    values.<key> as a JSON array (or newline list) of absolute image paths.
+#    Empty renders as "none": generate the images with media.generate-image
+#    (user's Replicate / Higgsfield connector), or, when neither is connected,
+#    ask the user for images. Unless the field is `optional`, render fails
+#    until `minCount` paths are given. At most `maxCount` are used.
 pandastudio recipe.render --id=product-demo-walkthrough \
   --values='{"product":"PandaStudio","featureCount":"3"}' --json
 # → { prompt, runContext, values, checklist, agentFilled }
@@ -95,7 +101,7 @@ When the user runs a recipe from the app, the in-app agent receives the same `ru
 
 ## Saving and sharing
 
-- **"Save this as a recipe" / "remember this style"** after an edit came out right → `recipe.save --recipe='<json>'`. Turn video-specific values (language, colors, product name, topic) into blanks with sensible defaults; keep the things that define the look fixed in `style`; write 3 to 6 checklist items a frame can confirm. Set `format` to `short` for vertical output and `long` otherwise (it's inferred from `aspectRatio` when omitted).
+- **"Save this as a recipe" / "remember this style"** after an edit came out right → `recipe.save --recipe='<json>'`. A recipe that builds on pictures can declare an images blank: `{ "key": "images", "label": "Your own images", "type": "images", "optional": true, "maxCount": 12 }` and use `{{images}}` in the prompt (the app shows a file picker and which image connector would generate them otherwise). Turn video-specific values (language, colors, product name, topic) into blanks with sensible defaults; keep the things that define the look fixed in `style`; write 3 to 6 checklist items a frame can confirm. Set `format` to `short` for vertical output and `long` otherwise (it's inferred from `aspectRatio` when omitted).
 - `recipe.export --id=<id>` writes a `.pandarecipe` file (no project data or footage). `recipe.import --file=<path>` adds one. Users can do both from the app: Import sits at the top of the Recipes tab, and Export (plus Delete, for their own) sits in a recipe's detail view.
 - `recipe.delete --id=<id>` removes a saved recipe; starters can't be deleted.
 

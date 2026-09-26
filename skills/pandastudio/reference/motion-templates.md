@@ -145,6 +145,11 @@ calls when one fits the brief.
 | `transparent` | alpha; camera shows through un-painted pixels | overlay templates — the default for those |
 | `glass` | alpha + frosted blur of the camera behind the content | overlay templates when you want the modern frosted look; also pass `--backdropBlurStrength=24` on `add-motion-graphic` |
 
+The frost follows the overlay's mask: on a graphic behind the presenter
+(`text-behind`, `behindPerson`) the backdrop around the person is frosted
+and the presenter stays sharp in front; a shape-masked graphic frosts only
+inside its shape.
+
 Omit `--background` to use the template's natural mode. **Never force
 `solid` on an overlay template** — its see-through region renders black.
 Overlay templates are flagged `overlay: true` in `motion.list`.

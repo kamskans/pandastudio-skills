@@ -78,6 +78,37 @@ hero shot. Rules:
    connected and how to connect it (see above), then offer
    `media.generate-image` + `media.image-to-video` (Ken Burns) as what you can
    do instead. Never swap in the fallback silently.
+5. **Stills: use `media.generate-image`, not Higgsfield's tools.** It already
+   runs on Higgsfield (GPT Image 2.5) when Replicate isn't connected, headless
+   (submit + poll, never the widget tools), with `use_unlim: false`, downloads
+   the result before the link expires, and returns a local path.
+   `--provider=higgsfield` forces it when both are connected.
+
+## Image generation: which connector PandaStudio's own image verbs use
+
+`media.generate-image` and `export.generate-thumbnail` run on the user's image
+connector, billed to their credits there:
+
+| Connected | Used |
+|---|---|
+| Replicate (connector, or an older saved key) | `openai/gpt-image-2` on Replicate |
+| Higgsfield only | `gpt_image_2_5` on Higgsfield |
+| neither | error `NO_IMAGE_CONNECTOR` |
+
+- `--provider=replicate|higgsfield` picks one explicitly (only when the user
+  asks); a named provider that isn't connected fails with
+  `PROVIDER_NOT_CONNECTED`, naming the other if it is connected.
+- `--transparent=true` (stickers): native alpha where the model offers it
+  (both do: `background: transparent`), and the prompt also asks for a flat
+  magenta backdrop if one is drawn, which is keyed out locally. One generation
+  either way; the PNG comes back trimmed.
+- **Neither connected**: don't stop the video. Ask the user for their own
+  images (or use images already in the project folder), build with those, and
+  mention once that connecting Replicate or Higgsfield in Settings →
+  Integrations lets you generate them. Recipes with an `images` blank collect
+  the user's pictures up front (see recipes.md).
+- A failed or refused generation is never retried automatically: a retry is
+  charged again. Report the service's reason and let the user decide.
 
 ## Avatar (talking-head) videos — HeyGen
 
@@ -113,8 +144,9 @@ so say what you're about to do first:
   `media.generate-narration --model=elevenlabs-direct` uses their cloned voices
   directly (see media-generation.md).
 - **Replicate**: any model on Replicate. Use PandaStudio's own `media.*` verbs
-  first (they're tuned for editing); reach for this only for a model those
-  don't cover, then `media.import` the output.
+  first (they're tuned for editing, and `media.generate-image` already uses
+  Replicate when it's connected); reach for this only for a model those don't
+  cover, then `media.import` the output.
 - **Canva / Figma**: thumbnails, title designs and brand assets. Export an image,
   `media.import` it, then use it (e.g. `export.set-thumbnail`, an overlay).
 - **Notion**: read a script or show notes to edit against; write chapters or a

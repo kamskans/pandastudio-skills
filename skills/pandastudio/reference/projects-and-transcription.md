@@ -235,6 +235,28 @@ pandastudio system.set-transcription-language --language=chinese --json
 - Whisper's seq2seq decoder smooths over fillers. That's fine for Chinese/Japanese/Korean where fillers behave differently anyway, but DO NOT switch to Whisper for English projects — the editor's "Remove Filler Words" / "Remove Silences" features depend on Parakeet's CTC honesty.
 - Language hint is locked, not auto-detected, when Whisper is active. If the user picks "chinese" and then transcribes a Japanese file, the output is garbage. Match the setting to the actual source language.
 - `system.set-transcription-language` only writes the setting — it does not download the Whisper model. The download is a Settings-UI-only action because it streams ~1.1 GB and surfaces a progress modal.
+- There is no "english" value: English is `auto`. `--language=english` / `en` are accepted and saved as `auto` (the result carries a `message` saying so).
+
+### Redoing a transcript (wrong language, bad run)
+
+`transcript.transcribe` skips clips that already have words. When a transcript
+came out wrong (English speech transcribed as Tamil because the language was
+set to tamil), fix the setting, then transcribe again with `--force`:
+
+```bash
+pandastudio system.set-transcription-language --language=auto --json
+JOB=$(pandastudio transcript.transcribe --id=$ID --force=true --json | jq -r '.data.jobId')
+# one clip only: --clipId=<clip> (a clipId always re-transcribes that clip)
+pandastudio job.wait --id=$JOB --json
+# → { transcribedClips, retranscribedClips, wordEditsReapplied, wordEditsDropped, droppedWordEdits? }
+```
+
+Word fixes (find-replace, insert-words, edits typed in the app) are re-applied
+where the new run heard the same original words at the same moment. After a
+language fix the old words were gibberish, so most fixes land in
+`droppedWordEdits[]`: tell the user which ones, they may need redoing. Cuts are
+time-based and survive untouched. The editor's transcript panel has the same
+action ("Transcribe again").
 
 ## Transcription provider: local vs cloud
 

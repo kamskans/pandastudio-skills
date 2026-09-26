@@ -242,7 +242,7 @@ ps_ motion.verify-frames --timestamps=<array>
 Optional: `--entryId=<string>` `--videoPath=<string>` `--outputName=<string>`
 
 ### `asset.list-transitions`
-List every bundled transition (id, title, category, durationSeconds). Use the id with project.add-transition.
+List every bundled transition: id, title, kind (overlay = a WebM drawn over the cut; native = an effect on the footage itself: zoom-blur, whips, spin), effect (native only), category, durationSeconds, defaultSoundId. Use the id with project.add-transition. For a native transition absolutePath is only its gallery demo.
 
 ```
 ps_ asset.list-transitions 

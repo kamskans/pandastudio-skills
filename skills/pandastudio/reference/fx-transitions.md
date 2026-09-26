@@ -45,33 +45,62 @@ reads as amateur, not produced. Rules:
 
 ### Transitions — `project.add-transition`
 
-Places a full-frame transition overlay **centered on a cut** (the overlay goes
-opaque at its midpoint so it masks the join). Pass `atMs` = the cut time between
-two clips — read clip boundaries from `project.read`. `--durationMs` defaults to
-1000 (the native length). Discover ids with `asset.list-transitions`.
+One verb, two kinds (`asset.list-transitions` returns `kind` and `effect`):
+
+- **native** (`zoom-blur`, `whip-left`, `whip-right`, `whip-up`, `spin`): the
+  CapCut / Captions.ai look. The footage itself moves across the cut: the
+  outgoing shot pushes in / whips out / spins with motion or radial blur and
+  the incoming shot lands the same way. What moves is the VIDEO PLATE (backdrop,
+  main video, camera / participant tiles, background-layer graphics, "behind"
+  motion elements); captions, front motion elements (keyword pops, lower
+  thirds), annotations, overlays and FX stay put. Default 350 ms, half before
+  and half after the cut (`--durationMs` 120-2000). Preview and export render
+  it identically.
+- **overlay** (everything else): a full-frame transparent WebM that goes opaque
+  at its midpoint to mask the join.
+
+Pass `atMs` = the cut (EDITED ms): a clip boundary (`project.read`) or a jump
+cut left by a trim / deleted words. `atMs` snaps to the nearest cut within
+`--snapMs` (default 500, `0` = exact); the result reports `centerMs` and
+`snappedToCut`. Each transition places its default sound (`defaultSoundId`:
+whip-pan for whips, zoom swell for zoom-blur, swoosh for spin, paper tear for
+torn-paper, camera click for flash); `--sound=<id>` swaps it, `--sound=none`
+drops it.
 
 ```bash
 pandastudio project.add-transition --id=$PROJECT \
-  --transitionId=fade-black --atMs=42000 --json   # MCP: project_add_transition
+  --transitionId=zoom-blur --atMs=42000 --json   # MCP: project_add_transition
+pandastudio project.add-transition --id=$PROJECT \
+  --transitionId=whip-left --atMs=61500 --sound=none --json
 ```
 
-| Id | Look | When to reach for it |
-|---|---|---|
-| `fade-black` | dip to black | The safe, classic scene break — a beat of black between two sections. Time-passing, chapter change. |
-| `fade-white` | dip to white | Brighter, optimistic version of the dip — reveals, upbeat pivots, product shots. |
-| `flash` | quick warm-white pop | A snappy hit on a hard beat / energetic cut — montage, fast pivots. Punchy, brief. |
-| `light-sweep` | bright bar wipes across | A clean directional wipe — moving to a new location/topic with momentum. |
-| `film-burn` | organic fire bloom | A warm, filmic, vintage scene change — storytelling/cinematic pieces. |
-| `glitch` | digital RGB tearing | Tech/edgy/energetic content — a deliberately abrupt, modern cut. |
-| `scribble` | hand-drawn scribble on, then clears | Whiteboard / hand-drawn pieces. Authored at 2200ms: pass `--durationMs=2200` to keep its beats intact. |
+| Id | Kind | Look | When to reach for it |
+|---|---|---|---|
+| `zoom-blur` | native | push-in to 1.35x with a radial blur and a quick flash at the cut; the new shot lands zoomed and settles | The signature punchy cut for Shorts / talking heads: topic pivots, a hook landing, "and here's the thing". |
+| `whip-left` / `whip-right` | native | the frame whips sideways with heavy motion blur; the new shot enters from the other side | Energetic momentum: moving on, a list's next item, before/after. Alternate directions sparingly; one direction reads as "forward". |
+| `whip-up` | native | vertical whip | A rise / reveal, or to vary the whip family in a long list. |
+| `spin` | native | small clockwise turn + zoom + blur through the cut | Playful, high-energy pivots. The loudest of the set; once or twice per video. |
+| `fade-black` | overlay | dip to black | The safe, classic scene break — a beat of black between two sections. Time-passing, chapter change. |
+| `fade-white` | overlay | dip to white | Brighter, optimistic version of the dip — reveals, upbeat pivots, product shots. |
+| `flash` | overlay | quick warm-white pop | A snappy hit on a hard beat / energetic cut — montage, fast pivots. Punchy, brief. |
+| `light-sweep` | overlay | bright bar wipes across | A clean directional wipe — moving to a new location/topic with momentum. |
+| `film-burn` | overlay | organic fire bloom | A warm, filmic, vintage scene change — storytelling/cinematic pieces. |
+| `glitch` | overlay | digital RGB tearing | Tech/edgy/energetic content — a deliberately abrupt, modern cut. |
+| `scribble` | overlay | hand-drawn scribble on, then clears | Whiteboard / hand-drawn pieces. Authored at 2200ms (its catalog default). |
+| `torn-paper` | overlay | a newsprint sheet with torn edges sweeps across and uncovers the next shot (900 ms, paper-tear sound) | Paper-collage / scrapbook / Vox-style edits. Authored 9:16, covers 16:9 too. |
 
 - **`atMs` is EDITED (output) time and add-transition has NO `anchorSourceMs`**
-  (unlike add-zoom / add-motion-graphic). With only a source-time value (a
+  (unlike add-zoom / add-motion-graphic): a transition placed before later
+  trims can drift off its cut, so add transitions AFTER the cutting passes
+  (fillers, silences, word deletes). With only a source-time value (a
   transcript word's `startMs`), convert first with `timeline.source-to-edited
   --sourceMs=N`. Always prefer `asset.list-transitions` over this static list.
-- A transition bridges a CUT between two clips; mid-clip it has nothing to
-  mask. To mark a new visual layer entering over one clip, use an overlay with
-  its own entrance (`set-animation`, a light-sweep overlay) instead.
+- A transition bridges a CUT; mid-shot an overlay has nothing to mask, and a
+  native one just jolts the shot. To mark a new visual layer entering over one
+  clip, use an overlay with its own entrance (`set-animation`) instead.
+- Native ids are not overlays: `project.add-motion-graphic --file=bundled:transition/zoom-blur`
+  is rejected. Remove a placed transition like any overlay (`project.remove-region --regionType=overlay`
+  with its `regionId` from the add result).
 - FX overlays take `--blendMode` (default `screen`) and `--opacity`; 13 bundled
   ids (`asset.list-fx`): film-burn, light-leak, light-flare, lens-flare-sweep,
   light-streaks, bokeh-drift, prism-leak, dust-scratches, film-grain,
@@ -79,10 +108,12 @@ pandastudio project.add-transition --id=$PROJECT \
   speed (default 1). FX are explicit-request-only (never on a plain edit, not
   even for "make it engaging").
 
-> Picking by vibe: clean/corporate → `fade-black`/`fade-white`; energetic/social
-> → `flash`/`glitch`; cinematic/story → `film-burn`/`light-sweep`. Pick ONE
-> transition style and reuse it across the video's section breaks — consistency
-> reads as designed; a different transition on every cut reads as a demo reel.
+> Picking by vibe: Shorts / talking head → `zoom-blur` or a whip; clean/corporate
+> → `fade-black`/`fade-white`; energetic/social → `flash`/`glitch`/`whip-*`;
+> cinematic/story → `film-burn`/`light-sweep`; paper collage → `torn-paper`. Pick
+> ONE transition style and reuse it across the video's section breaks —
+> consistency reads as designed; a different transition on every cut reads as a
+> demo reel.
 
 ### FX overlays — `project.add-fx`
 

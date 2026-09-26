@@ -86,8 +86,9 @@ Shorter films drop beats, never the grammar:
    per typed character (use `LF.type(...).times`), a click per cursor click
    (`LF.cursor(...).clicks`), a tick per montage cut (`LF.montage` returns the
    cut times), a pop per card, a swoosh only on the big camera moves (never
-   two within a second), a riser into an impact on each logo. Music bed
-   forward; no voiceover unless asked.
+   two within a second), a riser into an impact on each logo. Those times ARE
+   the soundtrack's cues: compose the music and effects together with
+   `media.compose-soundtrack` (see Audio decisions). No voiceover unless asked.
 
 Easing: expo/quint out for arrivals, `whoosh` for camera dollies, `linear` for
 pushes, a slight back-out overshoot only on small pops (icons, chips, pills).
@@ -146,17 +147,25 @@ render-film, templates):
 
 ---
 
-## Audio decisions
+## Audio decisions: one timeline for picture and sound
 
-- Launch films and promos: music bed + sound design, no voiceover by default.
-  Ask once if the user has not said; with a voiceover, generate it FIRST and
-  time beats to its lines (media-generation.md).
-- Beds built for this: `launch-pulse`, `quiet-launch` (`asset.list-music`);
-  loop with a second region and a 600 ms crossfade when the film is longer.
-- Sounds from `asset.list-sounds` by their current names (`message-pop`,
-  `swoosh-fast`, `ui-tick`, `marker-strike`, `keyboard-key-1/2/3`,
-  `keyboard-space`, `keyboard-typing-fast`, `mouse-click`, `success-chime`,
-  `noise-riser`, `logo-impact`). Place them in one `project.batch`.
+- Launch films and promos: music + sound design, no voiceover by default. Ask
+  once if the user has not said; with a voiceover, generate it FIRST and take
+  its line times as cues (media-generation.md).
+- **Write the timeline table before any code**: every scene and key moment
+  with an exact time (wipe 2.4, slam 3.0, features 4.8 every 1.3 s, logo
+  12.95). Define those numbers once in the composition (`const CUES = {...}`)
+  and drive the GSAP timeline from them.
+- **Compose the soundtrack from the same numbers** with
+  `media.compose-soundtrack` ([soundtrack.md](soundtrack.md)): the cues become
+  the score's `cues`, the groove's BPM is chosen so every cut lands on a beat
+  (beat = cut spacing / 2), and each hit sits on its cue (boom + kick + snare
+  on the slam, whoosh 0.12 s before each cut, ticks on typed letters and logo
+  letters, pops on cards, a riser into the logo). This is the default: it
+  locks to the edit in a way no stock track can.
+- Fallbacks when the user wants a library track: `launch-pulse`,
+  `quiet-launch` (`asset.list-music`) plus bundled sounds (`asset.list-sounds`)
+  placed in one `project.add-sound-cues` call.
 
 ---
 
@@ -171,8 +180,9 @@ render-film, templates):
 3. **Timing.** Every line holds long enough to read (≈ 0.3 s per word + 0.8 s);
    the reveal lands before the camera leaves; the film length matches the
    brief ±0.5 s; no dead frame (every hold has a push).
-4. **Sound sync.** Each sound sits on its event's frame (±1 frame); no two
-   swooshes within a second; the bed fades out on the end card.
+4. **Sound sync.** Each sound sits on its event's frame (±1 frame): the score's
+   cues equal the composition's `CUES`; groove cuts land on downbeats; no two
+   swooshes within a second; the music fades out on the end card.
 5. **Loudness.** `export.start`, then `export.verify`: integrated loudness
    about -14 LUFS (export normalises), true peak ≤ -1 dBTP, duration equal to
    the timeline.

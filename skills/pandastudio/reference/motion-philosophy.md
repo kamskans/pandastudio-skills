@@ -172,10 +172,10 @@ Why this is the default for promos:
   all of that.
 - **Reordering is a drag.** Literally. The user moves scenes around on the
   timeline; you don't need to rebuild a unified HTML.
-- **Render ceiling.** `motion.render-html` for a 30s @ 1080p composition
-  pushes the engine hard (memory + capture time). Six 5-second renders are
-  cheaper than one 30s render, and each is small enough to render reliably
-  on slower machines.
+- **Render time.** `motion.render-html` renders up to 10 minutes, but renders
+  over 20 s capture on a single worker (frames stream into the encoder, so
+  length costs time, not disk). Six 5-second renders finish sooner than one
+  30s render.
 - **Smaller renders are more reliable.** Each short scene renders well within
   the engine's memory/capture ceiling. NOTE: renders are **serial** — a
   single-render mutex means only one `motion.render-html` runs at a time (a

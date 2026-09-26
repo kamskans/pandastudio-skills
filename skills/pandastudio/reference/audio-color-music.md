@@ -261,6 +261,16 @@ Among tracks that match an intent, rotate between variants (`-a` and `-b`) or
 pick by `durationMs` closest to what the project needs. Never pick by filename
 — always query `asset.list-music` so new tracks get picked up automatically.
 
+### Composed soundtracks: music + SFX locked to the edit
+
+For promos, launch films, intros and motion pieces, compose the soundtrack
+instead of choosing one: `media.compose-soundtrack` renders music, beats and
+effects from a score written on the edit's own cues, so every hit lands on its
+moment and cuts fall on beats. Local, no key, ~1 s per 15 s. Full method,
+format and recipes: [soundtrack.md](soundtrack.md). The library and the
+generators below remain the right tools for long beds under speech and for
+specific real-world sounds.
+
 ### Custom music — generate an original track (Lyria-2 or MusicGen)
 
 When the bundled library doesn't cover what the user wants (a specific genre,
