@@ -1,6 +1,6 @@
 <!-- Part of the pandastudio skill. Detail relocated from SKILL.md for progressive disclosure. -->
 
-# Publishing to YouTube + Instagram
+# Publishing to YouTube + social (Instagram, TikTok, Facebook, LinkedIn, X)
 
 ## Publishing to YouTube (v1.19+)
 
@@ -21,23 +21,27 @@ PandaStudio uploads directly to YouTube via the Google Data API v3 — no PandaS
 
 (Full arg schemas for every `youtube.*` / `export.*-youtube` verb: `reference/commands.md`.)
 
-## Publishing to Instagram (Reels)
+## Publishing to social: Instagram, TikTok, Facebook, LinkedIn, X
 
-Instagram Reel publishing goes through PandaStudio's license-server broker (which holds a Composio key), not direct OAuth. The rendered video uploads **straight to Composio storage via a presigned URL — the bytes never pass through our server**, so there's no per-publish cost. Requires an activated license.
-
-**Key constraint:** Instagram's API only publishes from **Business or Creator accounts** (a Meta restriction — Personal accounts cannot, via any tool). Always check `instagram.account` first.
+Social publishing runs through PandaQueue. Each PandaStudio workspace has its OWN set of connected accounts (an isolated PandaQueue tenant, set up behind the scenes), so accounts connected in one workspace are invisible to every other workspace and every other user. You never handle a key. The video uploads straight to PandaQueue, never through a PandaStudio server. Requires an activated license.
 
 **Flow** (only when the user asks to publish):
 
-1. **Connect if needed:** `instagram.connect` → opens the browser for consent, returns `{ connectionId, redirectUrl }`. Then poll `instagram.status --connectionId=…` until `active: true`.
-2. **Verify the account can publish:** `instagram.account` → if `publishable` is false (Personal account), tell the user to switch to a Business/Creator account in the Instagram app and reconnect; do not attempt to publish.
-3. **Caption (optional):** `llm.generate-caption --id=$EID` writes a Reel caption (punchy hook + a few hashtags) from the transcript on the local model — no API key. Use its output as `--caption` below, or let the user write their own.
-4. **Publish an export:** `export.publish-instagram --id=$EID --caption='…' --shareToFeed=true`. Returns `{ mediaId, permalink }`. Long-running: Instagram processes the Reel for ~30-120 s before it's live.
+0. **Check the plan:** `system.status` → `license.socialPublishing.allowed`. Social publishing is part of Creator, Team and Pro (not Starter). Not allowed: stop, tell the user it comes with those plans, and give them the exported file.
+1. **See what's connected:** `social.channels` → `{ channels[{ id, platform, name, status, limits, settings }], networks[{ id, label, connected }] }` for the ACTIVE workspace.
+2. **Connect if needed:** `social.connect --network=instagram` (or tiktok, facebook, linkedin, x) opens the network's own sign-in in the user's browser and returns `{ sessionId }` at once. Tell the user to finish in the browser, then poll `social.connect-status --sessionId=…` every few seconds until `state` is `connected` or `failed`. Facebook and LinkedIn page pickers are part of that browser step.
+3. **Caption:** `llm.generate-caption --id=$EID` writes a short caption (hook + a few hashtags) on the local model; or use the user's own text. Respect the smallest `limits.maxChars` of the accounts you post to (X is 280).
+4. **Confirm with the user:** which accounts, the caption, and now or when. Posting is public and irreversible.
+5. **Publish:** `export.publish-social --id=$EID --networks=instagram,tiktok --caption='…'` (or `--channelIds=…` for specific accounts; `--when=schedule --scheduledAt=2026-10-01T18:30:00+01:00` to schedule). It returns `{ jobId }`; `job.wait --id=…` gives `{ postId, state, channels[{ platform, name, status, permalink, error }], summary }`. Tell the user `summary` and the permalinks.
+6. **Later:** `social.post-status --postId=… --exportId=$EID` for a scheduled post or one still `publishing`.
 
 **Hard caveats:**
-- **Short-form only.** Instagram takes Reels (9:16, up to ~90 s). Export a Reel-appropriate clip — don't push a long-form 16:9 video.
-- **Rate limit:** 25 published posts per 24 h per account; surface a quota error rather than retrying.
-- **Hashtags go in the caption** (max 2200 chars). There's no separate tags field.
+- **Instagram** only publishes from **Business or Creator accounts** (a Meta rule). A video posts as a Reel. It suits 9:16, up to about 90 s.
+- **TikTok** wants 9:16 vertical video. **LinkedIn** and **Facebook** take 16:9 or square too. **X** captions are 280 characters.
+- **Never cross workspaces:** if the account isn't in the active workspace, ASK before `workspace.switch`. An export from another workspace is refused.
+- A `failed` channel carries the network's reason in `error`; report it rather than retrying blindly.
 
-(Full arg schemas for every `instagram.*` / `export.publish-instagram` verb: `reference/commands.md`.)
+The older `instagram.*` verbs and `export.publish-instagram` still work (they're the same thing with `--networks=instagram`); prefer the social verbs.
+
+(Full arg schemas for every `social.*` / `export.publish-social` verb: `reference/commands.md`.)
 

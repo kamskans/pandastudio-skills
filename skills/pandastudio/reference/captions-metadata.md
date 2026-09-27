@@ -9,10 +9,16 @@ pandastudio caption.set-template --id=$ID --templateId=neon
 pandastudio caption.toggle --id=$ID --enabled=true
 pandastudio caption.set-style --id=$ID --color="#fff" --highlightColor="#34B27B" \
   --strokeWidth=3 --strokeColor="#000" --positionY=85
-# Change the caption font. The render engine draws its built-in fonts:
-# Inter, Poppins, Playfair Display, Bebas Neue (condensed caps), Anton,
-# Great Vibes (script), JetBrains Mono. Other names fall back to Inter.
+# Change the caption font. Built in: Inter, Poppins, Playfair Display, Bebas
+# Neue (condensed caps), Anton, Great Vibes (script), JetBrains Mono. The
+# user's imported fonts and installed fonts work by name too:
+# `asset.list-fonts` lists them. Unknown names render in Inter (with a warning).
 pandastudio caption.set-style --id=$ID --fontFamily="Bebas Neue"
+# Non-English captions: Tamil/Hindi/Arabic/Thai/... text renders in any font
+# (per-character Noto fallback). If the user imported a font for the language,
+# use it:
+pandastudio asset.list-fonts --json | jq '.data.custom'
+pandastudio caption.set-style --id=$ID --fontFamily="Noto Sans Tamil"
 # Force ALL CAPS on any template (common for shorts). uppercase=false turns caps
 # OFF, including for a template that ships uppercase (editorial):
 pandastudio caption.set-style --id=$ID --uppercase=true

@@ -198,18 +198,29 @@ The export library (MyExports view). Read + patch only — there's no `export.st
 | `export.get` | `id` (string, required) | Single entry by id. |
 | `export.update` | `id` (string, required), `patch` (object, required) | Patch entry fields (e.g. `generatedTitle`, `generatedDescription`). |
 | `export.delete` | `id` (string, required) | Delete the library row (does NOT delete the underlying MP4 on disk). |
-| `export.publish-instagram` | `id` (required), `caption`, `shareToFeed` (default true) | Publish an export as an Instagram Reel via the broker. Requires a connected Business/Creator account. Returns `{ mediaId, permalink }`. Long-running (~30-120s). |
+| `export.publish-social` | `id` (required), `channelIds` and/or `networks`, `caption`, `captions` ({channelId: text}), `settings` ({channelId: {...}}), `when` (now \| schedule), `scheduledAt` | Publish an export to the active workspace's connected social accounts (Instagram, TikTok, Facebook, LinkedIn, X). Returns `{ jobId }`; `job.wait` → `{ postId, state, channels[{ platform, name, status, permalink, error }], summary }`. Public and irreversible: confirm first. |
+| `export.publish-instagram` | `id` (required), `caption` | Same as `export.publish-social --networks=instagram`. Returns `{ jobId }`; `job.wait` → `{ postId, state, permalink, channels, summary }`. |
 
-## instagram.*
+## social.*
 
-Reel publishing via the license-server Composio broker. Requires an activated license + a connected Business/Creator account (Personal accounts can't publish — a Meta restriction). The exported video uploads straight to Composio via a presigned URL; bytes never transit our server.
+Instagram, TikTok, Facebook, LinkedIn and X through PandaQueue. Every verb acts on the ACTIVE workspace's own accounts (an isolated tenant per workspace). Requires an activated license.
 
 | Command | Args | Purpose |
 |---|---|---|
-| `instagram.connect` | — | Open the browser to connect an account. Returns `{ connectionId, redirectUrl }`; then poll `instagram.status`. |
-| `instagram.status` | `connectionId` (optional) | `{ status, active }`. Poll after connect until `active`. |
-| `instagram.account` | — | `{ connected, account, error }`. `account.publishable` is true only for Business/Creator. |
-| `instagram.disconnect` | — | Remove the connection. Published Reels stay on Instagram. |
+| `social.channels` | — | `{ channels[{ id, platform, network, name, username, status, limits, settings }], networks[{ id, label, connected }] }`. |
+| `social.connect` | `network` (required: instagram \| tiktok \| facebook \| linkedin \| x) | Opens the network's sign-in in the browser; returns `{ sessionId }` at once. Poll `social.connect-status`. |
+| `social.connect-status` | `sessionId` (required) | `{ state: pending \| connected \| failed, error, channels }`. |
+| `social.disconnect` | `channelId` (required) | Disconnect one account (the user confirms in PandaStudio). Published posts stay up. |
+| `social.post-status` | `postId` (required), `exportId` | `{ state, channels[{ platform, name, status, permalink, error }], summary }`; updates the export's record when `exportId` is given. |
+
+## instagram.* (older aliases of social.*)
+
+| Command | Args | Purpose |
+|---|---|---|
+| `instagram.connect` | — | Same as `social.connect --network=instagram`; returns `{ connectionId }`. Poll `instagram.status`. |
+| `instagram.status` | `connectionId` (optional) | `{ status, active, error }`: active once an Instagram account is connected in the active workspace. |
+| `instagram.account` | — | `{ account: { ig_user_id, username, name, publishable } \| null }` (the first Instagram account; `social.channels` lists all). |
+| `instagram.disconnect` | — | Disconnect every Instagram account in the active workspace (the user confirms). |
 
 ## transcript.* (v1.9.1)
 
@@ -263,7 +274,7 @@ PandaStudio bundles Gemma 4 E2B (~2B params). Good for summarisation / classific
 | `llm.generate-title` | `id` \| `path`, `maxChars` (default 70) | **Project-aware.** Reads the merged transcript, returns a YouTube-ready title. |
 | `llm.generate-description` | `id` \| `path`, `maxChars` (default 400) | **Project-aware.** Returns a 3-5 sentence description. |
 | `llm.generate-timestamps` | `id` \| `path`, `maxChapters` (default 8) | **Project-aware.** Returns `[{ timeMs, label }, …]` chapter markers. |
-| `llm.generate-caption` | `id` \| `path`, `maxChars` (default 2200) | **Project-aware.** Returns an Instagram Reel caption (punchy hook + hashtags) for `export.publish-instagram`. |
+| `llm.generate-caption` | `id` \| `path`, `maxChars` (default 2200) | **Project-aware.** Returns a short social caption (punchy hook + hashtags) for `export.publish-social`. |
 
 ## job.*
 
@@ -330,7 +341,7 @@ The MCP tool descriptions are kept short to save context. These are the details 
 - `project.set-overlay-chroma-key`: first enable uses similarity 0.45, smoothness 0.25, spill 0.5; `color: auto` is read from the edges of the overlay's first visible frame. Preview, render-frame and export share one keyer.
 - `project.set-clip-chroma-key`: same defaults and `auto` detection (the clip's or camera's first frame). A camera key needs a clip with a camera. `keyStrength` keyframes on an `add-motion --target=frame` (main) / `--target=webcam` (camera) track fade it.
 - `project.add-mute-region` / `project.hide-captions`: regions may overlap.
-- `project.plan-broll` (`maxBeats`, `minGapMs`): B-roll moments + `imageConnector`; the LAST step of an edit, and ask the user before any image exists. `project.add-broll` (`imagePath`, `wordId` or `atMs`, `durationMs` 1400-4000 or `endWordId`, `layout` full|inset, `transition` flash|light-sweep|film-burn|fade-white|glitch|none, `sound` shutter|click|none, `push` in|out|none): one beat (picture + push + shutter + edge transitions, one link group). `project.list-broll`, `project.remove-broll --brollId`.
+- `project.check-broll --moments='[{wordId|atMs, endWordId?, durationMs?, picture?}]'` (`minGapMs`; alias `plan-broll`): checks the B-roll moments YOU picked (any language) → `checks[]` ({ok, atMs, durationMs, phrase, sentence, problems[], suggestion?, insetSide}), `free[]`, `imageConnector`; the LAST step of an edit, and ask before any images.
 - `project.add-bleep` (`wordIds` or `startMs`/`endMs`, `sound` tv|low|high|retro|silence, `volume` 0-1, `mask` stars|none, `padMs`): censor words with a tone of exactly their length, captions masked; `project.update-bleep` (`bleepId`, sound/volume/mask, `nudgeStartMs`/`nudgeEndMs`), `project.remove-bleep` (`bleepId` or `wordIds`). Overlapping bleeps merge.
 - `project.add-emoji`: each emoji asset is downloaded once, then cached.
 
@@ -351,6 +362,8 @@ The MCP tool descriptions are kept short to save context. These are the details 
 - `motion.render-html`: seek through the timeline, never `window.__hf.seek`: it skips the compositor invalidation and renders with 1-second stalls.
 - `motion.verify-frames`: frames are written to `<recordings dir>/<outputName stem>/frame-<ms>.png`. The full-res `path` is ~2 MB as base64; read `previewPath`.
 - `motion.screenshot`: `atMs` snaps to the 30 fps frame grid and clamps to the composition's `data-duration` (result `atMs` = time captured, `warnings` when clamped). `outputPath` is 1920x1080; `previewPath` is a 1280-wide copy.
+- `system.report-issue --title --details [--kind --key --userGoal --command --workaround --agent --id|--path --userContent --userConsented]` → `{ sent, id?, fingerprint, reason? }`: report a PandaStudio problem to the team.
+- `asset.list-fonts [--includeSystem]` → `{ bundled, scriptFallbacks, custom, system? }`: families for caption / annotation `fontFamily`.
 - `asset.list-luts` categories: natural, cinematic, dramatic, vintage, modern. `asset.list-music` `recommendedFor`: youtube-long, shorts, linkedin, loom.
 - `preview.show`: a single window, takes 1-2 s to boot.
 

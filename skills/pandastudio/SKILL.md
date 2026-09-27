@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.206.0 -->
+<!-- version: 3.210.0 -->
 
 # PandaStudio
 
@@ -104,8 +104,8 @@ upgrade, don't retry. Full detail (switch, create, rename, delete, contents):
 
 **Destructive actions need the user's confirmation, in PandaStudio.**
 `project.delete`, `workspace.delete`, `recipe.delete`, `memory.forget`,
-`export.delete`, `export.clear-thumbnail`, `youtube.disconnect` and
-`instagram.disconnect` never run on your say-so alone:
+`export.delete`, `export.clear-thumbnail`, `youtube.disconnect`,
+`social.disconnect` and `instagram.disconnect` never run on your say-so alone:
 1. Ask the user plainly in chat first, naming what goes ("Delete project
    'Demo'? This can't be undone."). Call the verb only after they agree. For a
    workspace, show `workspace.contents` counts first.
@@ -199,11 +199,20 @@ Camera card ring / circle on a camera-only video: `project.set-style
 --borderWidth --borderColor [--shape=circle]` (not `set-webcam-style`).
 Camera looks flipped: `project.set-webcam-style --mirror=true`.
 
-## Publishing (YouTube + Instagram)
+## Publishing (YouTube + social)
 
 YouTube `privacyStatus` defaults to `unlisted`: never public without the
-user's explicit say. Instagram needs a Business/Creator account. Never publish
-from the wrong workspace. Flows: [`reference/publishing.md`](reference/publishing.md).
+user's explicit say. Instagram, TikTok, Facebook, LinkedIn and X go through
+`social.channels` → `export.publish-social` (the active workspace's own
+accounts only; Instagram needs a Business/Creator account). Confirm the caption
+and accounts before posting, and never publish from the wrong workspace.
+Social publishing comes with the Creator and Team plans and the Pro
+subscription, not Starter: `system.status` → `license.socialPublishing`
+({ allowed, planLabel, message }). When it isn't allowed, don't try to connect
+or publish; tell the user in one line that it's part of those plans (the
+Settings card links to them) and hand them the exported file instead. A
+`plan_required` / `subscription_ended` error means the same. YouTube publishing
+isn't plan-gated. Flows: [`reference/publishing.md`](reference/publishing.md).
 
 ## Recipes — run a proven edit style
 
@@ -381,7 +390,7 @@ and the doc named in the row.
 | Music under a voice | `project.set-audio-ducking --regionId` or `project.add-audio --ducking=true` | hand-drawn volume dips (volume keyframes are for deliberate swells) |
 | Product demo / launch audio | sound effects timed to clicks, typing and scene changes (audio-color-music.md "Sound design") | a song under everything |
 | A still image (photo, screenshot, generated beat) | Ken Burns image clip: `media.image-to-video --id` (no move: `project.add-clip --media=<img>`) | a flat held still |
-| A picture of what's being said, cut in over the speaker for a beat (talking-head edits) | B-roll, as the LAST step and only after asking (see "B-roll beats"): `project.plan-broll` → ask → `project.add-broll --imagePath --wordId` | generating or inventing images the user didn't agree to |
+| A picture of what's being said, cut in over the speaker for a beat (talking-head edits) | B-roll, as the LAST step and only after asking (see "B-roll beats"): you pick the lines → `project.check-broll --moments` → ask → `project.add-broll --imagePath --wordId` | generating or inventing images the user didn't agree to |
 | Emphasis on one frame ("look at this", the turn of a story) | `project.add-freeze-frame --holdMs=1000–2000` (+ adjustment layer and a slow push over the hold for a record-scratch beat) | a long zoom |
 | Playful rewind ("wait, go back") | `project.add-reverse` over 1–3 s, audio muted | reversing speech you need |
 | Keyword on the stressed word, a number, a key term, the hero line, an end card | native motion element (`project.add-motion-element --wordId`, or the whole pass with `project.style-edit`) | an HTML render for plain words; words in a script the engine fonts can't draw |
@@ -838,31 +847,47 @@ Short or explainer most, but the pictures are the user's, never yours to invent.
 **It's the last step of the edit:** do the cuts, captions, graphics, zooms and
 score first. Then:
 
-1. `pandastudio project.plan-broll --id=$ID --json` returns `moments[]`
-   (`phrase`, `subject`, `sentence`, `wordIds`, `atMs`, `durationMs`) and
-   `imageConnector` (`"replicate"`, `"higgsfield"` or `null`).
-2. **Ask the user, with the moments listed** (time + phrase). Offer:
+1. **Pick the moments yourself** from what's being said (`transcript.get`), in
+   whatever language the video is in and on whatever topic: lines where a
+   picture of the idea lifts the edit (a place, an object, a person, an era, a
+   feeling you can show), about one per 10-15 s, never on every sentence. Decide
+   what each picture shows.
+2. Check them: `pandastudio project.check-broll --id=$ID
+   --moments='[{"wordId":"w12","picture":"a 1970s Indian couple"},{"wordId":"w40"}]' --json`.
+   Each comes back with its `atMs` / `durationMs` (lands just before the word,
+   held for the phrase plus a beat), `phrase`, `sentence`, `problems` and, when
+   blocked, a `suggestion` nearby. `block` problems: the word was cut, it
+   overlaps the steps list / end card / words behind the speaker / another
+   picture, or it's within 2.5 s of another beat. `note`s (over the hook,
+   shortened at the end) are fine. `insetSide` is where a picture card goes
+   (away from the face). It also returns `imageConnector` (`"replicate"`,
+   `"higgsfield"` or `null`); without `--moments` it returns `free[]`, the
+   stretches with room for a beat.
+3. **Ask the user, with the moments listed** (time, their words, what each
+   picture would show). Offer:
    - their own images for those moments (a file each; any they skip is dropped),
    - generating them on their image connector, only when `imageConnector` is set
-     (say it uses their credits; `media.generate-image`, one prompt per moment
-     built from `subject` + `sentence`, no text in the image). No connector:
+     (say it uses their credits; `media.generate-image`, one English prompt per
+     moment describing the picture you chose, no text in the image). No connector:
      offer to connect Replicate or Higgsfield (Settings → Connectors) instead,
    - no B-roll: finish without it.
    Never generate, download or reuse images before they answer. With nobody to
    ask (a scheduled or unattended run), skip B-roll and say in your report that
    the edit has room for it.
-3. Place each picture they give: `pandastudio project.add-broll --id=$ID
-   --imagePath=<file> --wordId=<moment.wordIds[0]> [--durationMs]
+4. Place each picture they give: `pandastudio project.add-broll --id=$ID
+   --imagePath=<file> --wordId=<check.wordId> --durationMs=<check.durationMs>
    [--layout=full|inset] [--transition=flash|light-sweep|film-burn|fade-white|glitch|none]
    [--sound=shutter|click|none] [--push=in|out|none]`. Defaults: full frame,
    flash, shutter, push in, 2 s. `inset` is a rounded card that keeps the
-   speaker visible (top band in 9:16). Use ONE transition across the video.
-4. `project.render-frame` in the middle of a beat to check the picture reads.
+   speaker visible, on the side away from the face. Use ONE transition across
+   the video.
+5. `project.render-frame` in the middle of a beat to check the picture reads.
 
 A beat is one unit (its `brollId` is the link group of the picture and its two
 transitions): it moves, deletes and follows later cuts together.
 `project.list-broll`, `project.remove-broll --brollId`. Cap: about one beat per
-10-15 s; never over a keyword graphic or a title (plan-broll avoids those).
+10-15 s. Keyword graphics and captions draw on top of a beat, so a picture
+under its keyword is good; check-broll flags what a picture would hide.
 
 ## Narration (voiceover) + B-roll generation
 
@@ -1046,10 +1071,10 @@ rendered to a file, editable any time): `keyword` headline, `chip`, `stamp`,
   [--durationMs --style --zone --layer --sound]`, `project.add-motion-elements
   --elements` (batch, all or nothing), `update-motion-element --elementId`,
   `remove-motion-element`, `list-motion-elements [--catalog=true]`.
-- **Latin script only** (engine fonts: Inter, Poppins, JetBrains Mono). For
-  Tamil / Hindi / other scripts pass English keywords (`texts`), or use an
-  HTML composition for that moment. Never put words in a script the fonts
-  can't draw.
+- **Latin script only** for motion elements (their text layout is tuned for
+  Latin). For Tamil / Hindi / other scripts pass English keywords (`texts`),
+  or use an HTML composition for that moment. Captions are different: they
+  draw every script (see Fonts below).
 - `zone: auto` keeps them off the face; `layer: behind` puts any element
   behind the speaker; `sound` is a role the score plays (call
   compose-soundtrack last). Verify with `project.render-sheet`.
@@ -1107,6 +1132,35 @@ WHEN: "Which tool for which moment" above. HOW:
 - **Verify every animation** with `project.render-sheet` (or 2–3
   `render-frame`s) across its span.
 
+## Reporting PandaStudio problems
+
+When PandaStudio itself gets in the way, report it to the team, without
+asking first:
+
+```bash
+pandastudio system.report-issue --kind=capability-gap --key=custom-font-not-in-export \
+  --title="Imported font isn't used by the export" \
+  --details="User imported Noto Sans Tamil; captions still render in Inter, Tamil shows as boxes." \
+  --userGoal="Tamil captions on a 9:16 short" --command=caption.set-style
+```
+
+- **Report:** a capability gap (the app can't do what the edit needs), a
+  command that fails or errors unexpectedly, output that doesn't match the
+  project (a render missing an element, wrong timing), a crash.
+- **Don't report:** user mistakes, missing API keys or connectors, network
+  outages, taste.
+- **Then say so** in the same chat message: "I've reported this to the
+  PandaStudio team."
+- `key` is a short kebab-case name for the problem; the same problem gets the
+  same key, so reports from every user group into one issue.
+- Technical facts only go out (app version, recent command names and errors,
+  project shape, app logs). Never put transcript text, captions or file
+  contents in `title` / `details`; pass them as `userContent` with
+  `--userConsented=true` only after the user agrees.
+- Throttled: once per problem per project per day, 10 a day. `sent: false`
+  with a `reason` (already reported, daily limit, the user switched reports
+  off) means don't retry.
+
 ## Captions, AI metadata, thumbnails
 
 `caption.toggle`, `caption.set-template`, `caption.set-style` (`positionY` is %
@@ -1118,6 +1172,18 @@ from the top, `wordsPerLine`, `uppercase`, font, `highlightMode`, emphasis look,
 (`llm.status`, `llm.infer` for a one-shot prompt); thumbnails (`export.generate-thumbnail`,
 `edit-thumbnail`, `set-thumbnail`, `revert-thumbnail`, `clear-thumbnail`).
 Detail: [`reference/captions-metadata.md`](reference/captions-metadata.md).
+
+**Fonts.** `asset.list-fonts` lists what text can use: `bundled` families,
+`custom` (fonts the user imported in the font picker) and, with
+`--includeSystem=true`, installed families. Any of them works as
+`caption.set-style --fontFamily`; an unknown name renders in Inter and the
+result carries a `warnings` entry, so read it. Captions in a script the font
+lacks still render: Tamil, Hindi, Bengali, Telugu, Kannada, Malayalam,
+Gujarati, Punjabi, Odia, Sinhala, Arabic, Hebrew and Thai fall back per
+character to a bundled Noto font, and Chinese / Japanese / Korean to an
+installed system font. For a non-English video, check `custom` first: when the
+user imported a font for that language, set it as the caption `fontFamily`
+(it's what they want, not the Noto fallback).
 
 ## Export — produce the final MP4
 
@@ -1281,11 +1347,12 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - **export** — start, verify [check], list, get, update, delete, set-details,
   generate-shots, generate-thumbnail, edit-thumbnail, set-thumbnail,
   revert-thumbnail, clear-thumbnail, publish-youtube, list-youtube,
-  update-youtube, update-youtube-thumbnail, publish-instagram (publishing.md,
-  shorts.md, captions-metadata.md)
+  update-youtube, update-youtube-thumbnail, publish-social, publish-instagram
+  (publishing.md, shorts.md, captions-metadata.md)
 - **youtube** — connect, disconnect, is-configured, list-accounts,
-  list-channels; **instagram** — connect, disconnect, status, account
-  (publishing.md)
+  list-channels; **social** — channels, connect, connect-status, disconnect,
+  post-status; **instagram** (older aliases of social) — connect, disconnect,
+  status, account (publishing.md)
 - **recipe** — list, get, render, apply-style, save, export, import, delete
   (recipes.md)
 - **memory** — save, list, forget
@@ -1331,5 +1398,5 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - [`reference/connectors.md`](reference/connectors.md) — connector verbs, Higgsfield, HeyGen, ElevenLabs, Replicate, custom servers.
 - [`reference/recording.md`](reference/recording.md) — agent-driven screen recording.
 - [`reference/fx-transitions.md`](reference/fx-transitions.md) — transitions and FX overlays with the restraint rules.
-- [`reference/publishing.md`](reference/publishing.md) — YouTube and Instagram publishing rules.
+- [`reference/publishing.md`](reference/publishing.md) — YouTube and social (Instagram, TikTok, Facebook, LinkedIn, X) publishing rules.
 - [`reference/projects-and-transcription.md`](reference/projects-and-transcription.md) — workspaces, brand kit, project defaults, folders, rename, transcription languages and providers, preview proxies, standalone transcription.
