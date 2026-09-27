@@ -330,6 +330,8 @@ The MCP tool descriptions are kept short to save context. These are the details 
 - `project.set-overlay-chroma-key`: first enable uses similarity 0.45, smoothness 0.25, spill 0.5; `color: auto` is read from the edges of the overlay's first visible frame. Preview, render-frame and export share one keyer.
 - `project.set-clip-chroma-key`: same defaults and `auto` detection (the clip's or camera's first frame). A camera key needs a clip with a camera. `keyStrength` keyframes on an `add-motion --target=frame` (main) / `--target=webcam` (camera) track fade it.
 - `project.add-mute-region` / `project.hide-captions`: regions may overlap.
+- `project.plan-broll` (`maxBeats`, `minGapMs`): B-roll moments + `imageConnector`; the LAST step of an edit, and ask the user before any image exists. `project.add-broll` (`imagePath`, `wordId` or `atMs`, `durationMs` 1400-4000 or `endWordId`, `layout` full|inset, `transition` flash|light-sweep|film-burn|fade-white|glitch|none, `sound` shutter|click|none, `push` in|out|none): one beat (picture + push + shutter + edge transitions, one link group). `project.list-broll`, `project.remove-broll --brollId`.
+- `project.add-bleep` (`wordIds` or `startMs`/`endMs`, `sound` tv|low|high|retro|silence, `volume` 0-1, `mask` stars|none, `padMs`): censor words with a tone of exactly their length, captions masked; `project.update-bleep` (`bleepId`, sound/volume/mask, `nudgeStartMs`/`nudgeEndMs`), `project.remove-bleep` (`bleepId` or `wordIds`). Overlapping bleeps merge.
 - `project.add-emoji`: each emoji asset is downloaded once, then cached.
 
 **Transcript**

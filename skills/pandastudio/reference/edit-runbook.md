@@ -192,6 +192,10 @@ fi
 # pandastudio project.add-mute-region --id=$ID --atMs=12000 --durationMs=3000
 # pandastudio project.remove-mute-region --id=$ID --regionId=mute-1
 
+# BLEEP a word instead of cutting it (a swear, a name): silenced, a tone of
+# exactly the word's length, captions masked (d***). Word ids from transcript.get.
+# pandastudio project.add-bleep --id=$ID --wordIds='["w-212"]'
+
 # 4.5 VERIFY FRAMES — MANDATORY. Never export without looking.
 # render-frame at each hero moment (one PNG per check keeps the vision call
 # light) and motion.verify-frames on every rendered motion-graphic MP4. Check:

@@ -156,6 +156,42 @@ Set the music `volume` for the pauses (e.g. 0.25-0.35); ducking takes it
 `amountDb` lower under speech. Stored as `audioOverlays[].ducking`
 (`{enabled, amountDb, attackMs, releaseMs, source}`).
 
+### Bleeps: censor a word without cutting it
+
+When the user wants a word (a swear, a name, a number) hidden but the moment
+kept, BLEEP it instead of deleting it. The words stay in the video, their
+audio is silenced, a tone of exactly their length plays over them (a 380 ms
+word gets a 380 ms bleep) and captions mask them ("damn," shows "d***,").
+Same as right-click -> Bleep in the editor's transcript.
+
+```bash
+pandastudio transcript.search --id=$ID --query="damn" --json      # find the word ids
+pandastudio project.add-bleep --id=$ID --wordIds='["w-212"]' --json
+#   -> { bleepIds: ["bleep-1"], bleeps: [...] }
+pandastudio project.add-bleep --id=$ID --wordIds='["w-40","w-41"]' --sound=retro --volume=0.4
+pandastudio project.add-bleep --id=$ID --startMs=12400 --endMs=12900   # audio not in the transcript
+pandastudio project.update-bleep --id=$ID --bleepId=bleep-1 --nudgeStartMs=20   # start 20 ms earlier
+pandastudio project.update-bleep --id=$ID --bleepId=bleep-1 --sound=silence      # mute only, no tone
+pandastudio project.remove-bleep --id=$ID --wordIds='["w-41"]'   # un-bleep one word
+pandastudio project.remove-bleep --id=$ID --bleepId=bleep-1
+```
+
+- **Sounds:** `tv` (the classic 1 kHz bleep, default), `low`, `high`,
+  `retro` (8-bit square), `silence` (mute only). `volume` 0-1, default 0.5.
+- **Words, not times:** adjacent words become one bleep (cut words between them
+  don't split it); separate runs become separate bleeps. Each bleep gets 30 ms
+  of padding each side (`--padMs`, or `--padStartMs/--padEndMs`) so the word's
+  start and end don't leak. It is anchored on its words, so later cuts
+  elsewhere keep it on them. Overlapping bleeps merge.
+- **Timing slightly off?** Word timings can miss by a few tens of ms. Render
+  or listen, then nudge: `--nudgeStartMs` (+ = earlier start) and
+  `--nudgeEndMs` (+ = later end), 20 ms at a time.
+- **Captions:** `--mask=stars` (default) or `--mask=none` to leave the text.
+- Bleeps live in `editor.muteRegions` with a `bleep` field (sound, volume,
+  mask, wordIds, padding). `project.remove-mute-region --regionId=bleep-1`
+  also removes one. Bleep AFTER the cutting passes (fillers, silences), like
+  captions.
+
 ### Volume keyframes (automation over time)
 
 Any main-track clip (`--target=clip`) or audio overlay (`--target=audio`:

@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.203.0 -->
+<!-- version: 3.206.0 -->
 
 # PandaStudio
 
@@ -381,6 +381,7 @@ and the doc named in the row.
 | Music under a voice | `project.set-audio-ducking --regionId` or `project.add-audio --ducking=true` | hand-drawn volume dips (volume keyframes are for deliberate swells) |
 | Product demo / launch audio | sound effects timed to clicks, typing and scene changes (audio-color-music.md "Sound design") | a song under everything |
 | A still image (photo, screenshot, generated beat) | Ken Burns image clip: `media.image-to-video --id` (no move: `project.add-clip --media=<img>`) | a flat held still |
+| A picture of what's being said, cut in over the speaker for a beat (talking-head edits) | B-roll, as the LAST step and only after asking (see "B-roll beats"): `project.plan-broll` → ask → `project.add-broll --imagePath --wordId` | generating or inventing images the user didn't agree to |
 | Emphasis on one frame ("look at this", the turn of a story) | `project.add-freeze-frame --holdMs=1000–2000` (+ adjustment layer and a slow push over the hold for a record-scratch beat) | a long zoom |
 | Playful rewind ("wait, go back") | `project.add-reverse` over 1–3 s, audio muted | reversing speech you need |
 | Keyword on the stressed word, a number, a key term, the hero line, an end card | native motion element (`project.add-motion-element --wordId`, or the whole pass with `project.style-edit`) | an HTML render for plain words; words in a script the engine fonts can't draw |
@@ -827,14 +828,50 @@ places its default sound (`--sound=none` to skip). Add them after the cutting
 passes (no anchor). `project.add-fx` overlays only on explicit request. Detail:
 [`reference/fx-transitions.md`](reference/fx-transitions.md).
 
+## B-roll beats — the last step, and always ask
+
+A B-roll beat is a picture of what's being said, cut in over the speaker for
+about 2 s: the image with a slow push, a camera-shutter click, and a flash /
+light streak / film burn on its in and out edges. It's what lifts a talking-head
+Short or explainer most, but the pictures are the user's, never yours to invent.
+
+**It's the last step of the edit:** do the cuts, captions, graphics, zooms and
+score first. Then:
+
+1. `pandastudio project.plan-broll --id=$ID --json` returns `moments[]`
+   (`phrase`, `subject`, `sentence`, `wordIds`, `atMs`, `durationMs`) and
+   `imageConnector` (`"replicate"`, `"higgsfield"` or `null`).
+2. **Ask the user, with the moments listed** (time + phrase). Offer:
+   - their own images for those moments (a file each; any they skip is dropped),
+   - generating them on their image connector, only when `imageConnector` is set
+     (say it uses their credits; `media.generate-image`, one prompt per moment
+     built from `subject` + `sentence`, no text in the image). No connector:
+     offer to connect Replicate or Higgsfield (Settings → Connectors) instead,
+   - no B-roll: finish without it.
+   Never generate, download or reuse images before they answer. With nobody to
+   ask (a scheduled or unattended run), skip B-roll and say in your report that
+   the edit has room for it.
+3. Place each picture they give: `pandastudio project.add-broll --id=$ID
+   --imagePath=<file> --wordId=<moment.wordIds[0]> [--durationMs]
+   [--layout=full|inset] [--transition=flash|light-sweep|film-burn|fade-white|glitch|none]
+   [--sound=shutter|click|none] [--push=in|out|none]`. Defaults: full frame,
+   flash, shutter, push in, 2 s. `inset` is a rounded card that keeps the
+   speaker visible (top band in 9:16). Use ONE transition across the video.
+4. `project.render-frame` in the middle of a beat to check the picture reads.
+
+A beat is one unit (its `brollId` is the link group of the picture and its two
+transitions): it moves, deletes and follows later cuts together.
+`project.list-broll`, `project.remove-broll --brollId`. Cap: about one beat per
+10-15 s; never over a keyword graphic or a title (plan-broll avoids those).
+
 ## Narration (voiceover) + B-roll generation
 
 `media.generate-narration` (local Kokoro by default; `--model` for cloud voices
 or `elevenlabs-direct` for the user's own cloned voices; `--pronunciations` for
 names) → `project.add-audio --audioPath --transcribe=true`. The user wants their
 OWN voice → point them to Audio tab → Record voiceover (you can't record it).
-B-roll stills: `media.generate-image`, always Ken-Burnsed (`media.image-to-video`),
-never a flat photo. See "Images" below for connectors, stickers and the
+B-roll stills over a talking head: "B-roll beats" above (ask first, place with
+`project.add-broll`); in a faceless video, `media.image-to-video` clips. See "Images" below for connectors, stickers and the
 bring-your-own fallback. `media.generate-presenter` (Seedance, Replicate) makes a
 realistic AI presenter with its own voice (one take ≤30s; describe the person,
 the line in double quotes; never add narration on top), used as a camera-only
@@ -943,7 +980,11 @@ store: [`reference/transcript-editing.md`](reference/transcript-editing.md).
 without exporting), `project.add-audio` / `project.remove-audio` (music, SFX,
 VO; `--fadeIn/--fadeOut`, `--ducking=true`), `project.set-clip-volume` (balance
 clips, 0–2), mute a stretch without cutting the picture
-(`project.add-mute-region` / `remove-mute-region`), ducking
+(`project.add-mute-region` / `remove-mute-region`), bleep a word instead
+of cutting it (`project.add-bleep --wordIds='[...]'`: silenced, a tone of
+exactly the word's length, captions show `d***`; `update-bleep` for sound /
+volume / nudges, `remove-bleep`; see
+[`reference/audio-color-music.md`](reference/audio-color-music.md) "Bleeps"), ducking
 (`project.set-audio-ducking --regionId [--amountDb --source=transcript|energy]`),
 volume automation (`project.set-volume-keyframes --target=clip|audio|overlay`,
 `add-volume-keyframe`, `remove-volume-keyframe`), composed soundtracks with
@@ -1199,7 +1240,8 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   add-transition, add-motion-graphic, add-designed-segment, add-lower-third,
   add-spotlight, update-spotlight, remove-spotlight, add-background-effect,
   add-caption-region [hide-captions], remove-caption-region [show-captions],
-  add-mute-region, remove-mute-region, update-region, remove-region,
+  add-mute-region, remove-mute-region, add-bleep, update-bleep, remove-bleep,
+  update-region, remove-region,
   duplicate-region, set-region-sound, update-motion-graphic,
   set-overlay-crop, set-overlay-backdrop-blur, set-overlay-chroma-key,
   set-clip-chroma-key (visual-edits.md, fx-transitions.md, motion-templates.md)

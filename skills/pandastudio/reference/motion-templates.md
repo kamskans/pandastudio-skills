@@ -26,7 +26,14 @@ pandastudio project.add-motion-graphic --id="$PROJECT" --fromJob="$JOB" --durati
 
 - **Editable everything** — text, colors, list items and images are `slots`;
   pass only the ones you change. `motion.list` returns each slot's key, type
-  (`string` / `color` / `list` / `image`) and default.
+  (`string` / `color` / `list` / `image` / `number`) and default. A `number`
+  slot has `min` / `max` / `step` (the editor shows a slider), e.g.
+  comparison's `leftShare`: how the length splits between its two cards
+  (0.2-0.8, default 0.5; the right card arrives at the split).
+- **Length:** templates with a `durationRangeMs` in `motion.list` take
+  `--durationMs` on `motion.generate` (clamped into the range), and timing inside
+  them scales with it. Render at the length the graphic will be on screen, then
+  add it with the same `--durationMs`.
 - **Image slots** take an **absolute file path** (project media or a
   `media.generate-image` output); the renderer stages it. `image-showcase` is
   the dedicated one (a screenshot/photo on a 3D-tilted card, 16:9 + 9:16);
