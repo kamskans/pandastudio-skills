@@ -9,13 +9,19 @@ studied July 2026). Every rule below is quantified from real videos, and every
 step is an executable verb. `reference/shorts.md` gets you a 9:16 project
 (fork-from-shot pipeline); THIS file is how you edit it so it retains.
 
-**When to load:** the user asks to make a short "engaging", "viral-style",
-"like <creator>", or hands you a raw talking-head / podcast recording for
-Shorts, TikTok, or Reels.
+**Recipes come first.** Every catalog recipe (`recipe.pick`) already encodes
+this grammar in its prompt, so for a solo talking-head Short run the recipe and
+don't load this file. Load it only when no recipe fits:
+- the user asks for a creator's style that no recipe matches,
+- the user wants a custom style and says no to the recipes.
+
+The four styles below (kinetic-educator, bold-caption, podcast-clip,
+polished-explainer) are grammars for that custom work, not catalog recipes:
+`recipe.apply-style` doesn't know them.
 
 ---
 
-## 1. Pick the recipe (decision tree)
+## 1. Pick the grammar (only when no catalog recipe fits)
 
 **The master dial is face-time — how much of the frame is the speaker's face.**
 It is the single decision every other short-form default follows from, so
@@ -258,6 +264,9 @@ may go BEHIND the speaker's head once (`project.add-title-behind --text
 
 ## 6. Recipe: podcast-clip (DOAC style)
 
+The catalog recipe `podcast-clip-short` (`recipe.pick` offers it for podcast
+footage) runs this grammar; use the table below only for a custom podcast style.
+
 Two-person conversation → vertical clip. Our most defensible recipe:
 PandaStudio records each participant locally, so every device below is exact,
 not cropped-guesswork.
@@ -266,7 +275,7 @@ not cropped-guesswork.
 |---|---|
 | Clip selection | `export.generate-shots` scores; pick a segment whose payoff can sit at 55–80% of the clip |
 | Hook | enter mid-conversation at 0.0s + title banner naming the payoff, auto-out by ~5.5s (`motion.generate` overlay, white bg / black caps) |
-| Switching | camera follows the speaking participant (`project.set-clip-layout` / podcast layout transforms per section — see visual-edits.md §podcast) |
+| Switching | camera follows the speaking participant: `project.follow-speaker` on a podcast recording, `project.auto-reframe` on one wide shot |
 | Reaction cutaways | 1–1.5s of the NON-speaker at reaction moments, speaker's audio continues |
 | Long holds | >12s single-speaker → break with alternating punch-ins every 5–6s (`project.add-zoom`, alternate framing, or `project.add-motion` keyframes for a snap without the swoosh) |
 | Captions | `wordsPerLine` 1–3, bold + stroke, `positionY` 85; per-speaker color when available (§11) |
@@ -320,9 +329,11 @@ Checklist (view every frame):
 
 ## 9. Generated visuals: B-roll + motion graphics (use them deliberately)
 
-When Replicate is connected (media.generate verbs available), the agent can
-CREATE its inserts on the fly — this is a core part of what makes an edit feel
-produced rather than trimmed. Two families:
+Generated inserts are a core part of what makes an edit feel produced rather
+than trimmed, but pictures are the user's call: ASK first (SKILL.md "B-roll
+beats"): their own images, generated on their image connector (Replicate or
+Higgsfield; it uses their credits), or none. Generate only after a yes. Two
+families:
 
 - **Generated B-roll stills** — `media.generate-image` (one per abstract
   concept the speaker mentions but the camera can't show). House rule from
@@ -412,8 +423,8 @@ Rules that keep it tasteful: every insert must be ANCHORED to the transcript
 word that motivates it (fire at that word's startMs); one insert per beat max
 outside polished-explainer; inserts count as the beat's L2 state change (don't
 stack a zoom on top); match the video's single accent color in any generated
-graphic. If media.generate fails (Replicate not connected), degrade to template
-motion graphics only — never block the edit on image generation.
+graphic. No image connector, or the user said no to pictures: use template
+motion graphics only; never block the edit on image generation.
 
 ## 10. Speed discipline (users are waiting)
 

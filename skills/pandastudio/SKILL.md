@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.210.0 -->
+<!-- version: 3.213.0 -->
 
 # PandaStudio
 
@@ -180,11 +180,11 @@ Full detail: [`reference/recording.md`](reference/recording.md).
 
 Discover shots (`export.generate-shots`), fork one project per shot
 (`project.fork-from-shot`), then edit it as a Short:
-[`reference/shorts.md`](reference/shorts.md). For a Short that RETAINS, load
-[`reference/shorts-styles.md`](reference/shorts-styles.md) plus
-[`reference/shorts-cheatsheet.md`](reference/shorts-cheatsheet.md) (exact
-command shapes). For `youtube-long` retention:
-[`reference/longform-styles.md`](reference/longform-styles.md).
+[`reference/shorts.md`](reference/shorts.md). Its style comes from a recipe
+(`recipe.pick`, see "Pick the style" below). The retention grammar behind the
+recipes, for a custom style no recipe covers:
+[`reference/shorts-styles.md`](reference/shorts-styles.md) (9:16) and
+[`reference/longform-styles.md`](reference/longform-styles.md) (16:9).
 
 9:16 layout by footage (detail in shorts.md):
 
@@ -192,6 +192,7 @@ command shapes). For `youtube-long` retention:
 |---|---|
 | Camera-only, one person | `project.set-shorts-layout --layout=full\|camera-corner` |
 | Screen recording (± camera) | `project.set-vertical-screen-layout --fill=follow\|fit --corner=…` |
+| A PandaStudio podcast recording (each person on their own camera) | `project.follow-speaker` after the cuts: the frame follows whoever talks, both people during a quick back-and-forth |
 | Landscape with 2+ people (interview, podcast, talk show) | `project.auto-reframe` (tracked active-speaker camera; set 9:16 first) |
 | One stationary talking head, crop nudge | `project.set-focal-point` |
 
@@ -214,22 +215,52 @@ Settings card links to them) and hand them the exported file instead. A
 `plan_required` / `subscription_ended` error means the same. YouTube publishing
 isn't plan-gated. Flows: [`reference/publishing.md`](reference/publishing.md).
 
-## Recipes — run a proven edit style
+## Recipes — every edit style lives in a recipe
 
-When the user names a style, says "like last time", or wants a repeatable look,
-check recipes BEFORE designing from scratch (and with NO style named, use the
-defaults in the pipeline below). `recipe.list --format=short|long` →
-`recipe.get` → `recipe.apply-style` (sets the fixed look deterministically) →
-`recipe.render --values=…` → follow the prompt, apply the style exactly, verify
-the checklist with rendered frames. Blanks you omit come back as "(you decide
-this from the video: …)": choose them yourself, EXCEPT `fromUser` blanks (a
-faceless video's idea, a product name, an offer): render fails until the user
-gives them; ask, never invent. `allowScript` blanks take the user's script via
-`<key>Kind: "script"`, narrated word for word. `images` blanks take the
-user's OWN pictures (`values.<key>` = JSON array of absolute paths); empty
-renders as "none" = generate them, or ask for images when no image connector is
-connected. After an edit the user likes,
-offer `recipe.save`. Detail: [`reference/recipes.md`](reference/recipes.md).
+A recipe is a proven edit style with blanks, a fixed look and a checklist. The
+recipe catalog is the source of truth for styles: this skill never lists them,
+so it can't fall out of date.
+
+**Pick the style.** The user's named style, recipe or creator, or a saved
+memory, wins. Otherwise, for any "edit my video" / "make this a Short" /
+"polish this":
+
+1. `recipe.pick [--id=$P]` → `{ format, footage, candidates: [{ id, title,
+   pickWhen }], defaultId, before? }`. It narrows by what the tool knows: the
+   format (9:16 = short) and the footage (camera, screen, none; pass
+   `--footage` when you can see it's something else).
+2. Read the transcript and choose the ONE candidate whose `pickWhen` matches
+   what is actually said: a numbered list, a story, one blunt claim, things you
+   can show, a result with numbers. `defaultId` when none clearly fits. The
+   user's own saved recipes come first in `candidates`; prefer them when they fit.
+3. Run `before` if present (a screen-recorded Short gets its vertical layout).
+4. `recipe.apply-style --id --projectId` (sets the fixed look), `recipe.render
+   --id --values=…`, then follow the prompt and verify its checklist with
+   rendered frames.
+5. Tell the user which recipe and why in one line, and name one or two
+   alternatives from `candidates`.
+
+On an app without `recipe.pick` (2.0.5 and older: "unknown command"), use
+`recipe.list --format=short|long` (9:16 = short) and choose by each recipe's
+`description` and `footage` the same way.
+
+The recipe owns the creative choices: captions, graphics, zooms, transitions,
+music, sound. Don't layer the generic pipeline's captions / graphics / zooms on
+top of it. A single named operation ("just add captions", "cut the silences")
+is exactly that, no recipe.
+
+**Blanks.** Blanks you omit come back as "(you decide this from the video: …)":
+choose them yourself, EXCEPT `fromUser` blanks (a faceless video's idea, a
+product name, an offer): render fails until the user gives them; ask, never
+invent. Optional `fromUser` blanks (people's names on a podcast clip) render as
+"none given" when empty: skip what they feed (name straps), never guess them. `allowScript` blanks take the user's script via `<key>Kind: "script"`,
+narrated word for word. `images` blanks take the user's OWN pictures
+(`values.<key>` = JSON array of absolute paths); empty renders as "none" =
+generate them, or ask for images when no image connector is connected.
+
+`recipe.list [--format=short|long]` / `recipe.get` browse the catalog when the
+user asks what styles exist. After an edit the user likes, offer `recipe.save`.
+Detail: [`reference/recipes.md`](reference/recipes.md).
 
 ## Memory — remember preferences across chats
 
@@ -249,42 +280,9 @@ what you did, and iterate via preview.
 
 ### The default edit pipeline (vague "edit my video", no specifics)
 
-> **Long-form default style: Ali style.** A `youtube-long` (or any 16:9
-> long-form) edit with the speaker ON CAMERA and no style, recipe or reference
-> creator named → run the cleanup steps below (transcribe, fillers, STT fixes,
-> bad takes, silences), then `recipe.apply-style
-> --id=educator-talking-head-chapters --projectId=<P>` and `recipe.render
-> --id=educator-talking-head-chapters` (decide the blanks from the footage) and
-> follow that prompt: captions OFF, camera card (`cam-left-portrait`) over
-> numbered slides with `--layer=background`, serif statements, hand-drawn
-> diagrams, keyword pills, gentle 1.25x zooms with no zoom sounds, one soft
-> music bed at about 8%, and on 2.0 chapter titles behind the presenter. Keep
-> background-graphic content in the x=820..1860 zone so the card doesn't cover
-> it. Tell the user you used Ali style because no style was given, and offer
-> another recipe. NOT for Shorts / vertical, `loom`, screen recordings with no
-> camera, or when the user named any style or recipe (theirs wins).
-
-> **Short-form default: pick a Shorts recipe.** A `shorts` edit (9:16, incl. a
-> `project.fork-from-shot` project) with no style named → same cleanup, read
-> the transcript, then run the ONE recipe whose shape matches the clip with
-> `recipe.apply-style` + `recipe.render`:
->
-> | The clip is… | Recipe id |
-> |---|---|
-> | one blunt claim or opinion, delivered fast | `hard-truth-one-liner-short` |
-> | a numbered list of rules / tips / mistakes | `rules-listicle-cutaways-short` |
-> | a quick run through several tools / items, one line each | `rapid-fire-list-short` |
-> | a story or anecdote with a twist or payoff | `storytime-turn-short` |
-> | explaining one concept, model or framework | `framework-explainer-short` |
-> | talking about things that can be SHOWN (places, products, examples) | `split-screen-short-broll` |
-> | selling a product or offer (needs the offer from the user) | `social-ad-hook-variants` |
-> | no footage at all, only an idea or script | `faceless-short` |
-> | calm educational talk that fits none of the above (**the fallback**) | `warm-educator-short` |
->
-> A Short made from a screen recording gets `project.set-vertical-screen-layout
-> --fill=follow` first (camera corner clear of the action), then the recipe.
-> Tell the user which recipe and why in one line, offer the others. The user's
-> own style, recipe or saved preference always wins. Not for long-form or `loom`.
+The pipeline below is the cleanup every edit gets, then the STYLE from a recipe
+(`recipe.pick`, "Recipes" above). Steps 7-10 are the fallback for when no
+recipe runs (no candidate fits, or the user asked for a plain clean-up).
 
 When the user asks to **edit / polish / clean up** without naming an
 operation, run this in order:
@@ -309,8 +307,10 @@ operation, run this in order:
    earlier from a transcript word needs `--anchorSourceMs`.
 6. **Clean audio** (`audio.clean`) where `audioCleaned === false`
    (`--echo=true` only when the user mentions echo / a boomy room).
-7. **Captions** — `caption.toggle` + `caption.set-template` (`glowStack` unless
-   a recipe or the destination profile says otherwise).
+7. **Style: run the recipe** (`recipe.pick` → apply-style → render → follow
+   its prompt). It covers captions, graphics, zooms and sound, so skip 8-10.
+   Without a recipe: **captions** — `caption.toggle` + `caption.set-template`
+   (`glowStack` unless the destination profile says otherwise).
 8. **Motion graphics** — follow the Motion-graphics Rules: `motion.list` first,
    vary by beat, prefer the featured templates; camera-only / imported footage
    leads with `paper-panel` / `vox-side-panel` designed segments; on a talking
@@ -349,10 +349,10 @@ the latest), clean audio, captions, motion graphics and emphasis zooms? Or just
 some of it?"* On yes / "just go" / "do everything", run it all without
 per-step asking. A named operation ("just add captions") → exactly that.
 
-**NOT part of the default pipeline — only on explicit request:** background
-music, intro / outro cards (the user's footage stays the first and last frame),
-and FX overlays (`project.add-fx`: not even for "make it engaging"). You may
-*suggest* them in your narration; add them only after a yes.
+**Only when the recipe or the user asks:** background music, intro / outro
+cards (the user's footage stays the first and last frame), and FX overlays
+(`project.add-fx`: not even for "make it engaging"). You may *suggest* them in
+your narration; without a recipe, add them only after a yes.
 
 ### Emphasis zooms — punch in on the key beats
 
@@ -422,7 +422,7 @@ Restraint and variety (defaults; the user's style or recipe wins):
   clean; text inside the frame. Ramps and freezes change the output length: re-read
   `editedDurationMs` before placing later edited-time regions.
 
-### MUST ASK (3 things, only when context is missing)
+### MUST ASK (only when context is missing)
 
 <HARD-GATE>
 Before `project.new`, `project.add-*`, `motion.generate` or `motion.render-html`
@@ -455,9 +455,11 @@ fork-from-shot pipeline (shorts.md), then the `shorts` profile on each fork.
 subtitle in one message. Never invent a name or title. Skip for `shorts` /
 `loom` (no lower thirds).
 
-**3. Brand / style direction.** A named style (MrBeast, MKBHD, Vox, Kurzgesagt,
-Veritasium, Linear…) → a fitting template with its colors set via `slots`
-first; custom HTML (from `motion-philosophy.md` §1) only when none matches. No
+**3. Brand / style direction.** A named style or creator (Ali Abdaal, Vox,
+MrBeast, MKBHD, Kurzgesagt, Linear…) → first `recipe.list`: a recipe whose
+title or description names that style (e.g. Ali style, Vox paper-cut) runs the
+whole edit. No recipe matches → a fitting template with its colors set via
+`slots`; custom HTML (from `motion-philosophy.md` §1) only when none matches. No
 style reference but multiple clips hinting at a brand → ask once: *"Any brand
 colors, fonts, or visual references — or default look?"*
 
@@ -512,7 +514,7 @@ enhancements); treat doubt as `camera` or ask, then lock it with
 | `transcript.find-issues` → `delete-words` | Keep the most recent take; keep `severity: "low"`; ask when a repeat might be deliberate emphasis. |
 | `transcript.remove-silences` | After content cleanup; 600ms default (don't raise it "to be safe"); two passes (word gaps + audio-level detection) like the UI button. |
 | `audio.clean` | Un-cleaned clips only; `--echo=true` only for echo / reverb / "studio sound". |
-| `caption.set-template` ("add captions", no style named) | `glowStack` (app default since 1.94); a recipe's caption setting wins (Ali style keeps captions off). Animated styles for Shorts energy, `bold` / `editorial` for long-form: captions-metadata.md. "Highlight the key word" / Hormozi / Captions.ai-style looks → an emphasis template (`hormoziEmphasis`, `tiltedBox`, `serifItalic`, `condensedCaps`, `scriptKeyword`, `wordBoxes`, `goldSerif`, `keywordBox`, `limeItalic`): it marks the IMPORTANT word of each phrase (detected from the audio on apply), not the spoken one. |
+| `caption.set-template` ("add captions", no style named) | `glowStack` (app default since 1.94); a recipe's caption setting wins (some turn captions off). Animated styles for Shorts energy, `bold` / `editorial` for long-form: captions-metadata.md. "Highlight the key word" / Hormozi / Captions.ai-style looks → an emphasis template (`hormoziEmphasis`, `tiltedBox`, `serifItalic`, `condensedCaps`, `scriptKeyword`, `wordBoxes`, `goldSerif`, `keywordBox`, `limeItalic`): it marks the IMPORTANT word of each phrase (detected from the audio on apply), not the spoken one. |
 | `llm.generate-title` / `-description` / `-timestamps` | After the edit pass; show them, let the user regenerate or edit. |
 | Zoom moments | Pick from the transcript ("you said 'click here' at 12.4s — adding a zoom"). Don't pre-ask. |
 | FX overlays | **Never by default**, only on explicit request, placed where they said. |
@@ -850,7 +852,8 @@ score first. Then:
 1. **Pick the moments yourself** from what's being said (`transcript.get`), in
    whatever language the video is in and on whatever topic: lines where a
    picture of the idea lifts the edit (a place, an object, a person, an era, a
-   feeling you can show), about one per 10-15 s, never on every sentence. Decide
+   feeling you can show), about one every 6-8 s in a Short (the first right after
+   the opening line) and one per 10-15 s in long-form, never on every sentence. Decide
    what each picture shows.
 2. Check them: `pandastudio project.check-broll --id=$ID
    --moments='[{"wordId":"w12","picture":"a 1970s Indian couple"},{"wordId":"w40"}]' --json`.
@@ -880,13 +883,16 @@ score first. Then:
    [--sound=shutter|click|none] [--push=in|out|none]`. Defaults: full frame,
    flash, shutter, push in, 2 s. `inset` is a rounded card that keeps the
    speaker visible, on the side away from the face. Use ONE transition across
-   the video.
+   the video. With a beat every few seconds (a Short), use flash or
+   light-sweep: film-burn and glitch cover about 1 s on each edge and swamp
+   the video when beats are frequent; keep them for 2-3 beats in long-form.
 5. `project.render-frame` in the middle of a beat to check the picture reads.
 
 A beat is one unit (its `brollId` is the link group of the picture and its two
 transitions): it moves, deletes and follows later cuts together.
-`project.list-broll`, `project.remove-broll --brollId`. Cap: about one beat per
-10-15 s. Keyword graphics and captions draw on top of a beat, so a picture
+`project.list-broll`, `project.remove-broll --brollId`. Pace: in a Short, one
+beat every 6-8 s with the first right after the opening line (a Short that
+opens on a picture holds better); in long-form, about one per 10-15 s. Keyword graphics and captions draw on top of a beat, so a picture
 under its keyword is good; check-broll flags what a picture would hide.
 
 ## Narration (voiceover) + B-roll generation
@@ -1091,7 +1097,7 @@ style (`set-style`, `set-wallpaper`), annotations, aspect ratio, face centring
 (`set-webcam-layout`, `set-webcam-style`, `set-clip-webcam`), per-clip
 overrides (`set-clip-layout`, `set-clip-style`), per-section layouts
 (`add-clip-transform-region`), podcasts (`add-podcast-clip`,
-`auto-sync-podcast`, sync with `set-webcam-offset` / `set-participant-offset`), overlay
+`auto-sync-podcast`, `follow-speaker` to cut to whoever talks, sync with `set-webcam-offset` / `set-participant-offset`), overlay
 crop / glass (`set-overlay-crop`, `set-overlay-backdrop-blur`), focus regions,
 speaker background, green screen, frame checks and reset:
 [`reference/visual-edits.md`](reference/visual-edits.md).
@@ -1235,8 +1241,8 @@ performance levers, entry-trigger phrases and one-shot plan announcements:
 | Caption template | — (`minimal` if the user insists) | **`neon`**, positionY 85 | `minimal` | `minimal` if any |
 | Export quality | `high` | `high` | `high` | `standard` |
 
-A recipe's settings win over this table (e.g. Shorts recipes choose their own
-caption style).
+This table is the fallback for an edit no recipe runs on. When a recipe runs
+(`recipe.pick`), its settings win over every row.
 
 ### Anchoring — every transcript-derived region MUST be anchored
 
@@ -1299,7 +1305,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   set-backdrop, set-style, set-wallpaper, set-focal-point, auto-reframe,
   set-shorts-layout, set-vertical-screen-layout, set-webcam-layout,
   set-webcam-style, set-webcam-offset, center-camera-on-face, detect-face,
-  add-clip-transform-region, add-podcast-clip, auto-sync-podcast,
+  add-clip-transform-region, add-podcast-clip, auto-sync-podcast, follow-speaker,
   set-participant-offset (visual-edits.md, shorts.md, motion-templates.md)
 - **project**, regions — add-trim, add-zoom, add-speed, add-speed-ramp,
   add-freeze-frame, add-reverse, add-annotation, add-emoji, add-fx,

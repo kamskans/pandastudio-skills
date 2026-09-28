@@ -211,14 +211,17 @@ pandastudio project.set-clip-style --id=$ID --clipId=clip-1 \
   --padding=0 --borderRadius=0 --shadowIntensity=0
 pandastudio project.set-clip-style --id=$ID --clipId=clip-2 --padding=18 --borderRadius=24
 
-# Speaker-driven editing (podcast): transcript.get tags every word with a
-# `speaker` field — "host" (speaker 1 / mediaPath) or "guest" (speaker 2 /
-# webcamPath). Read those spans, split the clip where the active speaker
-# changes, then set each section's layout to that speaker's full-frame:
-#   1) pandastudio transcript.get --id=$ID --format=words   # words carry speaker
-#   2) pandastudio project.split-clip ... at each speaker-change boundary
-#   3) pandastudio project.set-clip-layout --clipId=<section> --preset=podcast-host-full
-#      (or podcast-guest-full when the guest is talking)
+# Speaker-driven editing (podcast): cut to whoever is talking in one call.
+# transcript words carry `speaker` (host / guest / guest-2 ...); follow-speaker
+# turns them into podcast-solo sections (the speaker full-frame), podcast-pair
+# during a quick back-and-forth (both people, stacked in 9:16), and skips short
+# interjections. Hard cuts, anchored, re-runnable (replaces its own sections).
+# Run AFTER the cuts, and again after any later trim.
+pandastudio project.follow-speaker --id=$ID [--dryRun=true]
+#   --minTurnMs=1200      a turn shorter than this doesn't cut away
+#   --pair=false          never show both, always cut
+#   --exchangeTurnMs=2600 turns this short count toward a back-and-forth
+# One wide shot of several people isn't a podcast recording: project.auto-reframe.
 
 # Podcast guest/host sync nudge — when the two speakers are slightly out of
 # sync. offsetMs shifts the guest vs the host (positive delays guest, 0 clears).

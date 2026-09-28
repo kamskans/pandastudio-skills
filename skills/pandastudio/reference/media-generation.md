@@ -103,6 +103,10 @@ connected, otherwise Higgsfield (GPT Image 2.5). Use it to author B-roll,
 concept stills, mood-board frames, stickers, or reference imagery for
 explainer beats — without leaving the editor.
 
+**Ask first, always.** Generating spends the user's credits. Before any
+generation, ask whether they'll give their own pictures, want them generated,
+or want none, and generate only after a yes (SKILL.md "B-roll beats").
+
 ### The verb
 
 ```bash
@@ -219,7 +223,10 @@ Do not add `media.generate-narration` on top: the voice is already in the file.
 `referenceAudios` drives the lip sync ([Video1], [Image1], [Audio1] in the prompt). But
 Seedance refuses a REAL person's face as a reference, photo or video, with "flagged as
 sensitive (E005)" (confirmed Sep 18 2026 on the user's own footage). Don't retry or try to
-disguise the face. To put the user on camera, use their own recording.
+disguise the face. To put the user on camera, use their own recording. The same refusal hits an
+earlier Seedance take used as a reference (its face is photoreal too): to bring back the
+same generated presenter for another shot (a listening take, a second angle), reuse the
+same written description and `--seed`, and check the face matches.
 
 **Speaking in the user's own voice** (no ElevenLabs plan needed):
 `media.generate-narration --model=voice-clone --voiceSample=<their recording> --voiceSampleStartMs=… --voiceSampleDurationMs=15000`

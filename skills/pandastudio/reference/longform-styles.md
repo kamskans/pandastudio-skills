@@ -2,10 +2,13 @@
 
 # Long-form styles: the retention grammar
 
-**What this is.** The retention layer for `youtube-long` edits — what to do ON
-TOP of SKILL.md's default edit pipeline (transcribe → fillers → STT fixes →
-bad takes → silences) and the destination-profile defaults, so a 5–20 min
-video *holds*, not just plays clean.
+**What this is.** The retention layer for `youtube-long` edits: what to do on
+top of SKILL.md's cleanup pipeline (transcribe → fillers → STT fixes → bad
+takes → silences), so a 5–20 min video *holds*, not just plays clean.
+
+**Recipes come first.** The long-form catalog recipes (`recipe.pick`) already
+apply this grammar in their prompts. Use this file directly only when no
+recipe fits or the user wants a custom style.
 
 **Evidence.** Quantified from a 9-video measured study (July 2026): 3 videos
 each from Ali Abdaal (educator), MKBHD (product review), Fireship

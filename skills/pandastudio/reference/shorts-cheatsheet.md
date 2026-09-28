@@ -1,9 +1,10 @@
 # Shorts command cheat sheet — zero spelunking
 
 Every command a standard short edit needs, with exact shapes, auto-generated
-from the live CLI arg schemas. If you are editing a short, this file plus
-`shorts-styles.md` is ALL you need — do NOT grep source code or dump full
-command schemas; that costs minutes.
+from the live CLI arg schemas. If you are editing a short, this file plus the
+recipe's prompt (`recipe.pick` → `recipe.render`) is ALL you need; with no
+recipe, `shorts-styles.md`. Do NOT grep source code or dump full command
+schemas; that costs minutes.
 
 Setup (zsh-safe — unquoted $VAR does not word-split in zsh):
 

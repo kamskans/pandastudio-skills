@@ -8,29 +8,19 @@ A recipe is an edit that worked, saved so it can be run again on new footage:
 
 Recipes are grouped by **format**: `short` (vertical Shorts / Reels / TikTok) and `long` (YouTube videos, product demos, courses, explainers). Starter recipes ship with the app; users can save their own per workspace. In the app, users find them in three places: the **Start from a recipe** row on the home screen (pick a recipe, then record, import or choose a project; the editor opens with that recipe ready), the suggestions in an empty AI chat, and the **Recipes** tab of the AI agent panel, where they fill the blanks and press **Run on this project**. After an edit, the chat offers **Save this edit as a recipe**, which asks you to run `recipe.save`.
 
-## Starter recipes
+## Which recipes exist, and which to use
 
-| id | format | what it makes |
-|---|---|---|
-| `split-screen-short-broll` | short | Speaker in a studio on the bottom half, B-roll on top, keyword pills, click on every image change |
-| `framework-explainer-short` | short | Educator framework: pain-question hook echoed as typography, section headers building in the top third, highlighted captions, payoff punch-in |
-| `hard-truth-one-liner-short` | short | Blunt one-idea Short: restarts and pauses cut hard, huge 2-word Bold captions with the spoken word in the accent color, punch-in on every other sentence, strongest on the kicker, no music or graphics |
-| `rules-listicle-cutaways-short` | short | Fast educator listicle: claim-stack pill badges, numbered rules, a full-screen cutaway per rule, picture changes every 3 to 5 s |
-| `rapid-fire-list-short` | short | Cheat-sheet list: title card, one item every ~3 s with a colored name and use line as the caption, no music |
-| `storytime-turn-short` | short | Story Short: hook card pinned at the top for the whole video over a speaker card, jump cuts, Colored captions, thud + 1.5x push-in on the turn, no music |
-| `tv-style-explainer` | long | Chapter header bar, big number callouts, camera sliding into cards and corners |
-| `product-demo-walkthrough` | long | Calm feature tour from a screen recording (app 2.0.2): kit title card per feature over a held frame, numbered feature banner, callouts on clicks, 1.5x zooms, narration if you don't speak, soft clicks under a ducked bed, takeaways card |
-| `punchy-youtube-talking-head` | long | Tight jump cuts, punch-in zooms on strong lines, keyword pops, stat cards, takeaways |
-| `educator-talking-head-chapters` | long | The Ali style (default long-form on-camera edit, needs app 1.98.0): you full frame at least half the time; `list` slides (style numbers or pills) / kit-product-slide behind a cam-left-portrait card (max two in a row), serif-statement over the shot, glow-steps diagrams, keyword-pills placed with project.detect-face; three or more moves per video over 3 min, a zoom every 40 s of full frame, soft music, no captions; on 2.0 also chapter titles behind the presenter and one adjustment look for asides |
-| `business-lesson-rule-slams` | long | Blunt business lesson: restarts and read-out notes cut hard, beat-by-beat punch-ins as a second angle, full-screen Rule N text slams with a thud, bold boxless captions, no music |
-| `course-lesson-chapters` | long | Title + learning goals, chapter cards, highlighted definitions, captions, recap, chapter timestamps |
-| `product-promo-from-url` | long | Product launch video from the user's screen recording (app 2.0.2): the recording plays inside LF.appWindow, word-reveal hook, camera push-ins on what's used, a click sound on every click, callouts, montage, end card. No recording: use `motion-graphics-launch` |
-| `motion-graphics-launch` | long | Product launch film, no footage (app 2.0.2): built from the website with capture-brand, real 2x screenshots and traced UI in the lf-kit launch-film grammar: pain hook, the miss, morph reveal, logo, 2-3 different demos, montage, end card, sound on every event. Former id `saas-launch-film` resolves here |
-| `whiteboard-explainer` | long | No footage: hand-drawn draw-on scenes on paper, one metaphor, red arrow on each key point, summary board |
-| `social-ad-hook-variants` | short | Footage optional: 9:16 ad (hook, problem, product, proof, offer, CTA), three hook versions, 1:1 and 16:9 copies |
-| `warm-educator-short` | short | Calm premium educator Short: sh-serif-hook-title in the first 2 s, Boxed pill captions, one serif-statement (9:16, upper) on the key sentence, emoji and keyword-pills cutaways, image-showcase for walked-through screens, gentle punch-ins, soft music |
-| `faceless-short` | short | No footage: hook-first 30 to 50 s story, one AI image per beat with slow zooms, cloud or local AI narrator, big Bold captions, quiet cinematic music |
-| `faceless-youtube-explainer` | long | No footage: narrated story in 10 to 20 s beats over one AI image each with slow zooms, 2.5 s title card, Modern captions, music bed |
+The catalog is live and changes without an app update, so this doc doesn't
+list it. Ask the app:
+
+- **`recipe.pick [--id=<project>]`**: no style named? The recipes that fit this
+  project's format and footage, each with `pickWhen` (when it's the right
+  pick), plus `defaultId` for this situation. Choose by what's said in the
+  video. This is the normal entry point.
+- **`recipe.list [--format=short|long]`**: every recipe (the user's saved ones
+  first), with `description` and `pickWhen`, when the user asks what styles
+  exist.
+- **`recipe.get --id`**: one recipe in full (blanks, fixed style, checklist).
 
 Starter prompts name the 2.0 native moves where they fit (behind-the-presenter titles, caption moves, keyframed punch-ins, speed ramps, adjustment layers, audio ducking) and say "skip if the command doesn't exist", because the same catalog serves older apps. On 2.0, do them; on an older app, skip them silently.
 

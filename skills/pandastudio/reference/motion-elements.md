@@ -69,8 +69,8 @@ Zooms on every strength 2-3 moment: 1.5x and 1.25x alternating, 1.8x (depth
 3, the closest to 2x) on the single hero moment, placed silent (the score
 carries the sound). Graphics never overlap each other or anything you placed.
 
-Text: the engine fonts are Inter, Poppins and JetBrains Mono, **Latin script
-only**. Element text is the English words the speaker used, condensed to a
+Text: **Latin script only** for motion elements (their layout is sized for
+Latin letters; captions draw every script). Element text is the English words the speaker used, condensed to a
 headline (trimmed of "the / is / to..."). A moment with no Latin words gets a
 zoom only. For non-Latin speech, pass English keywords per word:
 
@@ -136,7 +136,7 @@ Errors name the field and what it accepts, e.g. `element 1: endCard content is
 | `sticker` | `{ image: transparent PNG path, label? }` | 2.5 s | pop | a cut-out image as a die-cut sticker: a white border that follows the image's own outline, a soft shadow, a tilted pop and a gentle float; `label` adds a strip of black label tape under it. Make the image with `media.generate-image --transparent=true` (Replicate or Higgsfield connector), or use the user's own PNG; without a connector ask the user for images |
 
 Text limits: 160 characters per field; keep headlines to 1-4 words, a slam to
-one short statement. Latin script only (the engine fonts).
+one short statement. Latin script only (element layout is sized for Latin).
 
 ## Style
 
@@ -169,6 +169,16 @@ Named bands: `top`, `upper`, `center`, `lower`, `bottom` (still nudged off
 the face). Exact: `{ x, y, w? }` in PERCENT of the frame (0-100, not 0-1:
 `{x:50,y:34}` = centred, a third down), (x, y) = the element's CENTRE, w = its
 width. Dragging an element on the canvas sets this.
+
+Elements on screen at the same time never cover each other (same layer;
+`frame` and `behind` excepted). The one added first keeps its spot; a later
+one whose spot is taken stacks right under or over it, else moves to the next
+free band, else steps down in size, still off the face and the caption band.
+An exact `{ x, y }` element never moves (the others dodge it). When no free
+spot exists (two exact elements on one spot, or too many tall blocks at once)
+`add-motion-element` / `add-motion-elements` / `update-motion-element` return
+`warnings` naming the overlapping elements: tell the user, then shorten, move
+in time or remove one.
 
 ## Layers: in front of or behind the speaker
 

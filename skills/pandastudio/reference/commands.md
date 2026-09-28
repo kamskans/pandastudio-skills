@@ -335,6 +335,7 @@ The MCP tool descriptions are kept short to save context. These are the details 
 - `project.move-clip`: a move never drops a region. A region anchored inside a cut starts where kept content resumes. Out-of-range `toIndex` is clamped.
 - `project.split-clip`: clips always play their media from 0; an in-point is a head trim (the same as dragging a clip's left edge).
 - `project.add-audio`: `fadeOut` only applies to bounded overlays (ignored on an uncapped full-length one). Useful to crossfade the seam of a looped music bed.
+- `project.follow-speaker [--minTurnMs --pair --exchangeTurnMs --dryRun]` → `{ segments: [{ startMs, endMs, preset, participants }], replaced }`: podcast recordings only; cut to whoever talks (podcast-solo), both people in quick exchanges (podcast-pair), no cut for interjections. Run after the cuts.
 - `project.auto-reframe`: without `zoom`, each speaker's face is sized to a consistent fraction of the frame. Letterbox bars are detected once per clip and stay excluded even after `project.set-screen-transform`.
 - `project.add-motion-graphic` with `file=bundled:transition/<id>`: stamps the transition id, so it cover-fits any canvas (a 16:9 sweep fills 9:16) and carries its own sound.
 - `project.set-overlay-crop`: out-of-range values are clamped; the worst case is the whole source.

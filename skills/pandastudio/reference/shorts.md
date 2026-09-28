@@ -52,11 +52,12 @@ pandastudio project.fork-from-shot --exportId="$EXPORT" --shotId="$SHOT" --json
 - **Fills the vertical frame** — applies a centered cover-crop so a landscape (16:9) source fills the 9:16 canvas instead of being letterboxed into a band. (Probed from the source video's real dimensions; skipped for podcast composites and already-vertical sources.) **Face centering is automatic:** when the short opens in the editor, vertical talking-head clips are face-detected and a focal point is set so the cover-crop (and any top/bottom designed-segment band) keeps the face in frame rather than slicing the geometric middle. Override with the "Center on face" control or `project.set-focal-point` (see Settings below).
 - **Names** the new project `"{Source Name} — Short: {shot title}"` and gives it a fresh UUID + revision 0.
 
-The result is a **clean 9:16 canvas with the timing already done**. Now make it
-retain: **load [`shorts-styles.md`](shorts-styles.md)** — the evidence-based recipe
-playbook (kinetic-educator / bold-caption / podcast-clip / polished-explainer)
-with the seven retention laws, per-recipe caption/zoom/overlay parameters, and
-the verification pass. The snippet below is minimal generic polish only:
+The result is a **clean 9:16 canvas with the timing already done**. Now give
+it a style: **`recipe.pick --id=<short>`**, choose the candidate that matches
+what's said, then `recipe.apply-style` + `recipe.render` and follow the prompt
+(SKILL.md "Recipes"). Only when no recipe fits (a multi-person podcast clip, a
+custom style) load [`shorts-styles.md`](shorts-styles.md). The snippet below is
+minimal generic polish only:
 
 ```bash
 NEW_PROJECT=$(pandastudio project.fork-from-shot --exportId="$EXPORT" --shotId="$SHOT" --json | jq -r '.data.id')
@@ -126,10 +127,10 @@ The fork hands you a **clean 9:16 canvas with the cut already timed**. A bare
 clip is not a Short — a Short lives or dies on **completion rate** (the ~70%
 watch-through is where the algorithm starts pushing it).
 
-> **Authoritative grammar: [`shorts-styles.md`](shorts-styles.md).** Pick a
-> recipe there FIRST (kinetic-educator / bold-caption / podcast-clip /
-> polished-explainer) and follow its parameter table; the layers below are the
-> generic mechanics those recipes drive. One correction from the July-2026
+> **Style first: a catalog recipe (`recipe.pick`).** Without one (a
+> multi-person podcast clip, a custom style), use
+> [`shorts-styles.md`](shorts-styles.md) and its parameter tables; the layers
+> below are the generic mechanics both drive. One correction from the July-2026
 > frame-by-frame study of top creators, superseding older guidance in this
 > section: modern top shorts are NOT busy or transition-heavy. Every cut is
 > semantic (new idea = new cut, every 3.5–8s), emphasis uses ONE mechanism,
