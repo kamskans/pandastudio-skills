@@ -204,7 +204,7 @@ engine is a **mutating top-zone overlay** — the camera almost never cuts.
 | Overlay format | one of: label-swap (per-item name+logo) · progressive-sections · chip-stack. Mutation every 3–8s |
 | Captions | template `bold`/`colored`; `wordsPerLine` 3–4; lower third (`positionY` 85 — percent of frame height from top) |
 | Camera | NO cuts within beats; jump-cut between beats; ONE punch-in at the ~75% act change (`depth=2` = 1.5×) |
-| Audio | music bed from first beat (`asset.list-music` → `project.add-audio`, low volume); `keepFillers=on` |
+| Audio | score from the first beat: `project.compose-soundtrack --style=short` LAST, after cuts and graphics (a library bed from `asset.list-music` only if the user asks); `keepFillers=on` |
 | Payoff cadence | one item/verdict every 3–8s |
 
 The PROVEN top-band mechanism (validated on a real short): **designed

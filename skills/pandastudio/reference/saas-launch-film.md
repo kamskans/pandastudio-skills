@@ -425,9 +425,18 @@ const t = LF.endCard(tl, "#end", {
 
 ## Sound
 
-- Bed: `launch-pulse` (or `quiet-launch`) from `asset.list-music`, forward in
-  the mix; loop it with a second region and a 600 ms crossfade for films over
-  33 s; fade out over the end card.
+- **Default: compose the score** with `media.compose-soundtrack`
+  ([`soundtrack.md`](soundtrack.md)), not a library track. The scene starts,
+  card landings, clicks, typed lines, underlines and the logo are already
+  numbers in your scene timelines: make them the score's `cues`, put one groove
+  section per chapter at a BPM that lands the cuts on beats, and place every
+  effect below as a score event on its cue. Music and effects then come out as
+  ONE mastered track that hits every moment. With a voiceover, render the score
+  around -16 LUFS and duck it under the voice (`project.set-audio-ducking`, or
+  a sidechain compressor when mixing outside the editor).
+- Only when the user asks for a library bed: `launch-pulse` (or
+  `quiet-launch`) from `asset.list-music`, looped past 33 s, plus the bundled
+  sounds below placed with `project.add-sound-cues`.
 - Sound design is half this style. Follow the sound map in
   [`audio-color-music.md`](audio-color-music.md#sound-design-the-sound-map)
   (which action gets which cue, volumes, restraint, syncing to keyframes).

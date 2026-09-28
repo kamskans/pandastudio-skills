@@ -314,8 +314,11 @@ optional title card or a lower-third stat.
    `--fill=false` frames it like a video).
 6. **Lay the narration under it** → `project.add-audio --audioPath=…
    --startMs=<the beat's startMs>`.
-7. **Polish (expected):** a quiet music bed (`asset.list-music` →
-   `project.add-audio --ducking=true` at low volume, e.g. 0.15), burned captions
+7. **Polish (expected):** a score under the narration: `project.compose-soundtrack
+   --style=calm` (or `--style=short` for a Short) composes music and hits from
+   the timeline and ducks it under the voice; for a long video (over ~3 min) a
+   quiet library bed (`asset.list-music` → `project.add-audio --ducking=true`,
+   volume ~0.15) is the better choice. Then burned captions
    (faceless viewers often watch muted; transcribe the narration with
    `--transcribe=true`), maybe ONE title card at the top.
 8. **Export** (16:9 for YouTube, 9:16 for a faceless short).

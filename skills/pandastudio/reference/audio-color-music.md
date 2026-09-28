@@ -279,7 +279,7 @@ pandastudio asset.list-music --json | jq '.data.tracks'
 - Tech review / tutorial / explainer / SaaS walkthrough / under-voiceover bed → `corporate-underscore`
 - Vlog / day-in-life / lifestyle / behind-the-scenes → `chill-lofi`
 - Fun / lighthearted promo / social clip → `bright-playful`
-- **Motion-graphics product launch film with NO voiceover** → `launch-pulse` (the bed carries the cut) or `quiet-launch` when the film is quieter and more considered. Both run ~33s, so loop or repeat them for a longer film, and mix so the finished export lands near -18 LUFS with peaks at or under -1 dBFS.
+- **Motion-graphics product launch film, promo or ad (with or without voiceover)** → compose it with `media.compose-soundtrack` (see "Composed soundtracks" below); that is the default. Only if the user wants a library track: `launch-pulse` (the bed carries the cut) or `quiet-launch` when the film is quieter and more considered. Both run ~33s, so loop or repeat them for a longer film, and mix so the finished export lands near -18 LUFS with peaks at or under -1 dBFS.
 - Anything else / don't-know / "just add music" → `corporate-underscore` (neutral default)
 - **LinkedIn / Loom:** prefer `corporate-underscore` (neutral, won't distract from message) — only use `driving-promo` or `bright-playful` when the brief is explicitly promo/reveal/fun
 
