@@ -118,7 +118,10 @@ trailing) and (2) ffmpeg audio-level `silencedetect` (noise -30 dB) on each
 clip's media, which catches real dead air the transcript misses when
 speech-to-text invents phantom words over quiet stretches. Default threshold
 600ms; don't hand-pick a higher value "to be safe". `--paddingMs=100` sets the
-margin kept around every word, so it never cuts into words. Run it AFTER the
+margin kept around every word, so it never cuts into words. When the
+transcript times words back to back (each word "ends" as the next starts), a
+pause the audio measures as silent is still cut: a word is guarded only on its
+voiced part, and a quiet word the audio reads as silence stays guarded whole. Run it AFTER the
 content cleanup. If the user already removed silences in the UI, a fresh
 `project.read` shows the new `trimCount` / `editedDurationMs` /
 `totalTrimmedMs`: treat that as done.

@@ -56,6 +56,13 @@ pandastudio recipe.get --id=product-demo-walkthrough --json
 #    (user's Replicate / Higgsfield connector), or, when neither is connected,
 #    ask the user for images. Unless the field is `optional`, render fails
 #    until `minCount` paths are given. At most `maxCount` are used.
+#    A `look` field (TV-style explainer, educator chapters, course lesson,
+#    punchy talking head) colours the panels, cards and background: "Match my
+#    footage" (default: render a frame, light panels + dark text for a bright
+#    shot, dark for a dark one, accent from the shot if the recipe's clashes),
+#    "Light", "Dark" or "My brand colours". Leave it at the default unless the
+#    user named a look. `chapters` = "Auto" scales the count to the length
+#    (about one per 1-2 min; under a minute, 2 sections at most).
 pandastudio recipe.render --id=product-demo-walkthrough \
   --values='{"product":"PandaStudio","featureCount":"3"}' --json
 # → { prompt, runContext, values, checklist, agentFilled }
