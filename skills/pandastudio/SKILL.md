@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.217.0 -->
+<!-- version: 3.218.0 -->
 
 # PandaStudio
 
@@ -180,22 +180,31 @@ Full detail: [`reference/recording.md`](reference/recording.md).
 
 "Make clips / Shorts from this podcast / webinar / long video" with a FILE
 (not an open project) → `clips.make --file=<path> [--length=short|medium|long]
-[--footage=camera|screen] [--captionTemplate=<id>]`. One call does the whole
-OpusClip-style job with no agent work: import, transcribe, find the strongest
-self-contained moments across the WHOLE video (sentence-aligned, scored
-0-100), and fork each into its own 9:16 project with captions and
-face-following framing (whole picture over a blur when there's no face).
+[--format=9:16|1:1|16:9] [--captionTemplate=<id>|none]`. One call does the whole
+OpusClip-style job with no agent work: import, transcribe, title the video
+from its transcript, find the strongest self-contained moments across the
+WHOLE video (sentence-aligned, scored 0-100), and fork each into its own
+project in that format with captions and face-following framing (whole
+picture over a blur when there's no face), plus a preview still and video.
+Defaults: 15-30 s clips, 9:16, Glow Stack.
 Async: returns `{ clipSetId, jobId }`; poll `clips.get --id` until status
-`ready` (clips fill in best-first; a 12-min video takes about 1.5 min). Then:
-- show the user the titles + scores; `clips.export --id [--clipIds=[...]]`
-  writes MP4s to Movies/PandaStudio Clips/<video>/ (async, job.wait).
+`ready` (clips fill in best-first; a 6-min video takes about a minute). Then:
+- show the user the titles + hook scores; `clips.export --id [--clipIds=[...]]`
+  writes MP4s to Movies/PandaStudio Clips/<video>/ (async, job.wait); every
+  export is recorded on the clip (`exports[]`).
+- change every clip's captions: `clips.set-caption --id --captionTemplate=<id>|none`
+  (finished clips are restyled in the background).
 - to polish one clip, edit its `projectPath` with any project verb (recipe
   styles, zooms, B-roll), then export it with `clips.export --clipIds`.
+- status `error`: `errorCode` says why (no_audio, no_speech, no_moments,
+  unreadable, transcription_failed, speech_model_missing); tell the user the
+  `error` text, fix the cause, then `clips.retry --id` (reuses the import and
+  transcript, keeps finished clips).
 - `usedModel:false` = the local AI model isn't downloaded, so moments came
   from the transcript alone; tell the user Settings → AI Model gives better
   picks and titles.
-Silent files fail up front. `clips.list` / `clips.delete` manage sets (delete
-keeps the projects and exports). The Home screen's Clips tab is the same flow.
+`clips.list` / `clips.delete` manage sets (delete keeps the projects and
+exports). The Home screen's Clips tab is the same flow.
 
 ## Shorts: turning an exported video into vertical clips
 
@@ -1373,7 +1382,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   generate-presenter (media-generation.md)
 - **asset** — list-music, list-sounds, list-fx, list-luts, list-transitions,
   list-emoji, resolve
-- **clips** — make, list, get, export, delete (long video → vertical clips)
+- **clips** — make, list, get, export, retry, set-caption, delete (long video → clips)
 - **llm** — generate-title, generate-description, generate-timestamps,
   generate-caption, infer, status (captions-metadata.md)
 - **export** — start, verify [check], list, get, update, delete, set-details,
