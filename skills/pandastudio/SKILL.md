@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.216.0 -->
+<!-- version: 3.217.0 -->
 
 # PandaStudio
 
@@ -175,6 +175,27 @@ the MP4 and creates a project). One recording at a time, no mic on this path
 Screen Recording grant returns a clear error you can't fix for them.
 `recording.get-countdown` / `set-countdown` read or change the HUD countdown.
 Full detail: [`reference/recording.md`](reference/recording.md).
+
+## Clips from a long video (`clips.make`)
+
+"Make clips / Shorts from this podcast / webinar / long video" with a FILE
+(not an open project) → `clips.make --file=<path> [--length=short|medium|long]
+[--footage=camera|screen] [--captionTemplate=<id>]`. One call does the whole
+OpusClip-style job with no agent work: import, transcribe, find the strongest
+self-contained moments across the WHOLE video (sentence-aligned, scored
+0-100), and fork each into its own 9:16 project with captions and
+face-following framing (whole picture over a blur when there's no face).
+Async: returns `{ clipSetId, jobId }`; poll `clips.get --id` until status
+`ready` (clips fill in best-first; a 12-min video takes about 1.5 min). Then:
+- show the user the titles + scores; `clips.export --id [--clipIds=[...]]`
+  writes MP4s to Movies/PandaStudio Clips/<video>/ (async, job.wait).
+- to polish one clip, edit its `projectPath` with any project verb (recipe
+  styles, zooms, B-roll), then export it with `clips.export --clipIds`.
+- `usedModel:false` = the local AI model isn't downloaded, so moments came
+  from the transcript alone; tell the user Settings → AI Model gives better
+  picks and titles.
+Silent files fail up front. `clips.list` / `clips.delete` manage sets (delete
+keeps the projects and exports). The Home screen's Clips tab is the same flow.
 
 ## Shorts: turning an exported video into vertical clips
 
@@ -1352,6 +1373,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   generate-presenter (media-generation.md)
 - **asset** — list-music, list-sounds, list-fx, list-luts, list-transitions,
   list-emoji, resolve
+- **clips** — make, list, get, export, delete (long video → vertical clips)
 - **llm** — generate-title, generate-description, generate-timestamps,
   generate-caption, infer, status (captions-metadata.md)
 - **export** — start, verify [check], list, get, update, delete, set-details,
