@@ -625,7 +625,10 @@ pandastudio motion.render-html --html="$(cat /tmp/scene.html)" \
 <img src="app@2x.png" alt="" class="app-shot">
 ```
 
-`--assets` does nothing with `--htmlPath`; with a path you stage files yourself.
+`--assets` works with `--html` and `--htmlPath` (with a path they are staged
+beside the file for the render and removed after; an existing different file of
+the same name is never overwritten). A local file the HTML references that
+doesn't exist comes back in `warnings`: read them, a broken image renders blank.
 This is strictly better than base64-inlining images (smaller HTML, cleaner
 caching, the renderer can pre-decode).
 
