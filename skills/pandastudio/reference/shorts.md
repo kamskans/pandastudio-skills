@@ -301,9 +301,21 @@ pandastudio project.auto-reframe --id=$PID --json
 # → { reframed: [{clipId, shots, shotsWithFace}], skipped: [...], activePicture: [{clipId, rect}] }
 # One clip only, or tune shot sensitivity / punch-in:
 pandastudio project.auto-reframe --id=$PID --clipId=clip-1 --threshold=0.3 --minShotMs=500 --zoom=1.3 --json
+# Podcast / interview WIDE (both people in one shot): stack them, one per half.
+pandastudio project.auto-reframe --id=$PID --split=true --json
+# → reframed[].splitShots = shots drawn as two tiles (left person on top)
+pandastudio caption.set-style --id=$PID --positionY=50 --json   # captions on the seam
 # Revert to the plain static cover-crop:
 pandastudio project.auto-reframe --id=$PID --clear=true --json
 ```
+
+- **`--split=true`** (9:16 only): a shot where two people are on screen
+  throughout and too far apart for one vertical crop becomes two stacked tiles,
+  each tracked on its own face and kept to its own side of the frame. Shots
+  with one person (close-ups in a multi-cam edit) still follow the speaker.
+  Default for podcast / interview wides; leave it off when the user wants the
+  camera to cut to whoever talks. `clips.make` turns it on and moves captions
+  to the seam itself. Editor: Video tab, Framing, "Stack two people".
 
 - **The right verb (NOT `project.set-focal-point`)** whenever a landscape source
   with multiple/alternating speakers is cut to 9:16. `set-focal-point` sets ONE

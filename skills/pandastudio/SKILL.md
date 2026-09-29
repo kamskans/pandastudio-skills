@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.219.0 -->
+<!-- version: 3.220.0 -->
 
 # PandaStudio
 
@@ -227,6 +227,7 @@ recipes, for a custom style no recipe covers:
 | Screen recording (± camera) | `project.set-vertical-screen-layout --fill=follow\|fit --corner=…` |
 | A PandaStudio podcast recording (each person on their own camera) | `project.follow-speaker` after the cuts: the frame follows whoever talks, both people during a quick back-and-forth |
 | Landscape with 2+ people (interview, podcast, talk show) | `project.auto-reframe` (tracked active-speaker camera; set 9:16 first) |
+| Podcast / interview WIDE (both people in one shot) to 9:16 | `project.auto-reframe --split=true`: two-person shots become two stacked tiles, left person on top; then `caption.set-style --positionY=50` to put captions on the seam. `clips.make` does both automatically. |
 | One stationary talking head, crop nudge | `project.set-focal-point` |
 
 Camera card ring / circle on a camera-only video: `project.set-style
