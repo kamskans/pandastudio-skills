@@ -106,3 +106,38 @@ When the user runs a recipe from the app, the in-app agent receives the same `ru
 
 - Recipes are guidance for an agent, not a macro: content steps (which beats get graphics, what the B-roll shows) are decided from the transcript each run, so results vary with the footage.
 - A recipe that asks for things the footage can't support (a Short recipe on landscape footage, chapters on a 40-second clip) should be flagged to the user before running.
+
+## Learn an editing style from a reference
+
+The Recipes tab has **Learn editing style**: choose a local reference or
+download a YouTube/video link, name the recipe, prepare evidence, then start
+the agent study. Preparation does not import the reference into the current
+project. The agent studies it and saves a personal recipe; running that recipe
+on new footage is a separate action. This does not retrain a model.
+
+CLI/MCP: `recipe.prepare-reference --file=<absolute-video-path> --title=<name>`
+returns a jobId. Wait for the job. Its result supplies a manifestPath, overview
+sheets spanning the reference plus opening/ending frames, dense motion sheets,
+scene-change candidates and mixed-audio excerpts. Read the manifest's sampling
+metadata before interpreting timestamps. Sampling is not exhaustive. Inspect
+additional native-rate windows for ambiguous motion; candidates can miss fades
+and can include changes that are not cuts. References are limited to 30 min.
+
+Read the whole-video evidence and record timestamped observations with
+confidence levels. Capture typography, palette, pacing, holds, camera framing,
+B-roll grammar, motion, transitions AND sound texture, envelope and event
+alignment. Include straight cuts and silence. Learn film burns and other effects
+when the reference uses them; never add a generic pack of effects by default.
+Reference audio is a mix: exact sound assets may be unknown. Map to supported
+bundled sounds/transitions/FX, label substitutions and unverified audio honestly.
+Do not carry source footage, brands, statistics or absolute timestamps into the
+new recipe; make the rules portable and content-dependent. Save through
+recipe.save, read it back and validate its defaults with recipe.render. Preserve
+the user's current project throughout the study.
+
+Review the recipe against evidence, fix the largest discrepancy and retain a
+short findings ledger. Review actual rendered frames and decoded audio on the
+next application, not only the plan. This evidence-first review approach is
+informed by [Motion Video Kit](https://github.com/echris6/motion-video-kit),
+particularly its motion vocabulary and render/critic/verification workflow.
+Its launch-film pacing targets are not universal defaults for other genres.

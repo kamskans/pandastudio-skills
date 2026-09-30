@@ -519,6 +519,46 @@ Omit `--atIndex` (or use a high number) to append at the end instead.
 
 ### Sound design: the sound map
 
+#### Match the movement before choosing the sound
+
+Apply this across the whole video, including motion inside imported B-roll
+and authored graphics. Build a sound map from visible actions, their start,
+peak/contact and settle times, and the narration beneath them. Inspect actual
+frames or the authored animation timeline; an overlay's start alone does not
+tell you when its internal elements enter. Choose sounds by motion and texture,
+not by assigning the same whoosh to every graphic or emphasized word.
+
+- **Scrolling years, counters, reels:** a rolling/ratcheting texture such as
+  `ui-scroll-*` while the numbers move. Match acceleration/deceleration: retime
+  the texture, or place short ticks at the actual digit/year crossings derived
+  from the animation. Start at movement onset and bound the sound to the settle
+  frame, with a brief tail fade; no clicks continuing over a stationary year.
+- **Counted staggered entrances:** one light, short tick/pop per visible item.
+  Five people entering means five cues, synced individually to their entrances
+  (not one generic whoosh for the group). Rotate compatible variants, shorten
+  tails below the entrance interval, and reduce their combined level. For an
+  authored stagger: `atMs = sceneStartMs + entranceStartMs + index * staggerMs`.
+  A rapid counted sequence is an exception to the usual cue-density restraint.
+- **Slides, flips, pushes, drawn strokes, presses:** match the corresponding
+  texture and duration in the sound map below. Use short pops for small spring
+  reveals, a slide/swipe for a panel travelling, a marker sound for a drawn
+  line, and a click at the press. Static cuts and incidental background motion
+  can stay quiet. Default region stingers must be audited, replaced or silenced
+  when they clash with this choice or duplicate a standalone cue.
+
+Keep narration dominant. Start normalized ticks/pops around 0.15–0.30 gain and
+rolling textures around 0.12–0.22 under speech, then listen and adjust; legacy
+sounds may be hotter and overlapping cues add together. If needed, duck effects
+from speech energy (`project.set-audio-ducking --source=energy`) rather than
+trusting an inaccurate transcript. Gain is not a loudness measurement: verify
+the combined mix, especially consonants and quiet words. Do not boost effects
+just because a single cue sounds quiet in isolation.
+
+When revising, read existing cues first and replace the relevant cue group so
+it does not double. Preserve unrelated music/voiceover and the user's edits.
+Verify a mixed preview around the scroll onset/settle, every counted entrance,
+and the loudest cluster; then audit the rest of the timeline by the same rules.
+
 Product demos, launch films and UI walkthroughs are carried by sound effects
 (plus a voiceover or a music bed): a click on every press, a pop as a card
 lands, a key per typed character, a whoosh on a scene change. ~190 bundled
@@ -549,12 +589,12 @@ higher with neither):
 | Toggle / switch | `ui-toggle-on-*`, `ui-toggle-off-*` | 0.4-0.5 | per toggle |
 | Chip, tag, checkbox, list item checks off | `ui-tap-*`, `ui-select-*` | 0.3-0.5 | per item, rotate variants |
 | Panel, menu, modal opens / closes | `ui-open`, `ui-close`, `ui-maximize`, `ui-minimize` | 0.4 | per open |
-| List scrolls | `ui-scroll-*` (cut with `durationMs`) | 0.2-0.3 | per gesture |
+| List / years / counter scrolls | `ui-scroll-*` or short ratchet ticks at actual crossings; end at settle | 0.12-0.22 under VO | follow gesture speed, including acceleration/deceleration |
 | Drag lands, item snaps into place | `ui-drop`, `impact-wood-knock` | 0.4 | per drop |
 | A character is typed | `type-key-soft-*` (laptop), `type-key-mech-*` (mechanical); `type-space-*`, `type-enter-*` on send | 0.25-0.4 | one per character at its real time |
 | A line appears typed all at once | `type-burst-*` cut to the typing span | 0.3-0.4 | per line |
 | Chat message arrives / is sent | `notif-message-in-*` / `notif-message-out-*` | 0.5 | per message |
-| Card, bubble, tooltip pops in | `notif-pop-small-*` (UI), `-medium-*`, `notif-pop-large` (hero) | 0.3-0.5 | per card; in a 4+ stagger only first, last or every other |
+| Card, bubble, tooltip pops in | `notif-pop-small-*` (UI), `-medium-*`, `notif-pop-large` (hero) | 0.15-0.3 under VO | per counted entrance; decorative 4+ staggers may use first/last or every other |
 | Notification / toast | `notif-chime-*`, `notif-ding` | 0.5-0.6 | at most ~one per 3 s |
 | Badge count goes up | `notif-badge-ping-*` | 0.3-0.4 | per increment |
 | Card / panel slides in or out | `motion-slide-in-*`, `motion-slide-out`, `motion-swipe-*` | 0.4-0.6 | per slide |
@@ -674,3 +714,27 @@ clip volumes (`project.set-clip-volume`) to make a quiet recording loud;
 normalisation does that on the whole mix. Relative balance still matters: keep
 music under the voice (ducking or overlay volume), then let normalisation set
 the overall level.
+
+#### Shared sound-pattern library
+
+PandaStudio bundles motion recipes for every user. Discover them with
+`asset.list-sound-patterns`, then call `asset.plan-sound-pattern` with
+`pattern`, edited-timeline `atMs`, `endMs` (the settle), and
+`eventOffsetsMs` (actual entrance/crossing/gesture times relative to `atMs`).
+Patterns: `counted-entrances`, `scroll-ratchet`, `slide`, `swipe`, `press`.
+For five staggered people, supply all five offsets; for scrolling years,
+supply each number crossing, including the easing. Never guess an even
+stagger for a nonuniform animation. The scroll recipe uses short ratchet
+textures at the crossings; use custom rolling audio for a continuous roll.
+
+The planner returns `cues` ready for `project.add-sound-cues`. Use a unique
+`group` per animation and `expectedRevision` from a fresh project read;
+re-planning replaces that group's cues. These remain ordinary editable
+audio clips, so users can replace sounds. Optional `sounds` rotates chosen
+ids/paths; optional `volume` overrides the quiet 0.16–0.18 starting gains.
+Listen to the complete mix before assuming a gain keeps effects below voice.
+
+Example: `asset.plan-sound-pattern --pattern=counted-entrances --atMs=1950
+--endMs=2600 --eventOffsetsMs='[50,150,250,350,450]' --json` produces five
+cues at 2000, 2100, 2200, 2300 and 2400 ms. Pass the returned `data.cues`
+array to `project.add-sound-cues`; planning itself never changes a project.

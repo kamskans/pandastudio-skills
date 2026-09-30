@@ -71,6 +71,7 @@ Project files are JSON on disk under the user's recordings dir. All paths are va
 | `project.locate` | `id` (req) | Look up a project's owning workspace WITHOUT reading the body. Returns `{ id, filePath, workspaceId, workspaceName, isInActiveWorkspace }`. Pre-flight check before any edit/export/publish on a bare project id — prevents publishing to the wrong client's YouTube channel. See projects-and-transcription.md "When given a project id with no other context". |
 | `project.read` | `id` \| `path` | Full JSON. **Pass back `project.revision` as `expectedRevision` on save.** |
 | `project.show` | `id` \| `path` (or no args) | Resolve to path + summary. With no args, returns recordingsDir + userDataDir. |
+| `project.current` | — | The project open in the editor (`{id,path,name,revision,clipCount}` or `null`) and the editor's LIVE playhead read at call time: `playhead { ms, timeBase: "edited", durationMs, inCut, playing }` (`null` + `playheadNote` when the editor can't answer). Use `playhead.ms` as `atMs` for "here" / "at the playhead". |
 | `project.new` | `name` (req), `withMedia` (string\[\] or comma-list of paths) | Create v3 project; if `withMedia` set, FFmpeg-probes each video and adds it as a clip. |
 | `project.save` | `id` \| `path`, `project` (req), `expectedRevision` (optional) | Overwrite. Returns `{ ok:false, details:{ code:"revision_conflict" } }` if expectedRevision is stale. |
 | `project.delete` | `id` \| `path` | Permanent delete (no trash). |
@@ -142,6 +143,8 @@ Bundled sound effects + FX overlays that ship inside the app installer.
 | Command | Args | Purpose |
 |---|---|---|
 | `asset.list-emoji` | `query` (optional) | Animated emoji available to `project.add-emoji` (char, Noto code, name, keywords). |
+| `asset.list-sound-patterns` | `query` (optional) | Bundled motion recipes with sounds, quiet default gain and timing guidance. Shared by all users. |
+| `asset.plan-sound-pattern` | `pattern`, `atMs`, `endMs`, `eventOffsetsMs` (array of actual offsets from atMs), `sounds` (optional array), `volume` (optional) | Read-only plan returns `{pattern,cues,guidance}`. Apply cues with `project.add-sound-cues` and a unique group per animation. Tails stop at next event or settle. |
 | `asset.list-sounds` | `category` (ui \| notification \| motion \| digital \| impact \| typing \| outcome \| ambience; comma-separate several), `tag` (all must match, e.g. `click,soft`), `mood`, `group` (variant group), `query`, `summary` (bool) | Bundled sounds (~190): `{ sounds: [{ id, name, category, file, absolutePath, tags, mood, durationMs, variantGroup, legacy? }], count, total, categories }`. `summary=true` returns only the categories with counts and variant groups. Filter rather than listing all 190. |
 | `asset.list-fx` | — | Every FX overlay: `{ id, title, blendMode, defaultOpacity, durationSeconds, defaultSoundId, absolutePath }`. |
 | `asset.list-transitions` | — | Every bundled transition: `{ id, title, kind, effect?, category, durationSeconds, defaultSoundId, file, absolutePath }`. kind `overlay` = a WebM over the cut; `native` = an effect on the footage (its absolutePath is only the gallery demo). Use the id with `project.add-transition`. |
@@ -159,7 +162,7 @@ Motion-graphic templates (title cards, lower thirds, end screens, etc.) with opt
 | `motion.render-film` | `frames` (req: `[{id, html|htmlPath, durationMs, transitionIn?}]`), `aspectRatio` or `width`+`height`, `groundColor`, `assets` (paths referenced by file name), `frameRate`, `outputName` | **Async.** Render a graphics-led film from per-beat frame compositions with between-frame transitions (`crossfade`, `blur-crossfade`, `push-slide DIR`, `zoom-through`, `squeeze`, `chromatic-wipe DIR`, `whip-pan DIR`, `iris`, `cut`; optional `0.4s`). Transitions extend the outgoing frame, so frame starts never move. Up to 180s. Result `{ outputPath, durationMs, frames[{id, startMs, durationMs}], transitions[], warnings[] }`. See reference/launch-video.md. |
 | `motion.catalog` | `query`, `kind` (`component`\|`block`), `tag`, `limit` | Search the ~390-item HyperFrames catalog (camera moves, transitions, kinetic type, stats, device mockups, logo stings, CTAs). Returns `{ total, items[{name, title, description, tags, variables}] }`. |
 | `motion.catalog-item` | `name` (req) | One item: `variables`, `htmlPath` (the recipe), `demoPath` (a working mount), `mount` snippet. Mount in any composition with `data-composition-src="catalog:<name>"`; renders stage it offline and hold it for the mount's `data-duration`. |
-| `motion.craft` | `id`, `kind` (`guide`\|`blueprint`\|`rule`\|`preset`) | Launch-film craft docs. No id lists topics; with id returns the doc (`story-design`, `visual-design`, `motion-language`, `cut-catalog`, `blueprints`, `rules`, `transitions`, `design-presets`, any blueprint, rule or preset). |
+| `motion.craft` | `id`, `kind` (`guide`\|`blueprint`\|`rule`\|`preset`) | Launch-film craft docs. No id lists topics; with id returns the doc (`story-design`, `visual-design`, `motion-language`, `cut-catalog`, `blueprints`, `rules`, `transitions`, `design-presets`, any blueprint, rule or preset). Ids tolerate case, spaces and `.md`; an unknown id fails with `details.didYouMean` and every valid id in `details.ids`. Not the custom motion-graphic HTML contract: that is SKILL.md "Custom motion graphics" (`skill.read --section="custom motion graphics"`) and `reference/custom-html.md`. |
 | `motion.render-html` | `html` OR `htmlPath` (one required), `aspectRatio` (`16:9`/`9:16`/`1:1`) or explicit `width`+`height`, `durationMs` (optional: the root `data-duration` sets the length and wins, a mismatch warns; default 2500 only when the HTML declares none; max 600000 = 10 min), `frameRate` (default 30), `outputName` | **Async.** Render arbitrary HTML/CSS/JS to MP4 — for custom scenes, and for rendering a `registryBlocks` block by its `htmlPath` (from `motion.list`). Returns `{ jobId, outputPath }`. |
 
 Theme application: pull `motion.themes`, find the theme the user wants, merge `theme.colors` into `slots` before sending. The backend doesn't know about themes — they're a pre-render layer.
@@ -292,7 +295,7 @@ Floating, always-on-top overlay window that mounts the editor's WYSIWYG canvas. 
 | Command | Args | Purpose |
 |---|---|---|
 | `preview.show` | `id` \| `path`, `atMs` (optional), `autoplay` (bool, default true), `width` (default 800), `height` (default 450) | Open or refocus the preview overlay on a project. |
-| `preview.seek` | `atMs` | Move the playhead in the open overlay. |
+| `preview.seek` | `atMs`, `id` \| `path` | Move the open editor's playhead to an edited time; waits until it lands. Read it back with `project.current` (`playhead.ms`). |
 | `preview.hide` | — | Close the overlay. |
 | `preview.list` | — | `{ open, size?, position?, url? }` — what's visible right now. |
 
@@ -374,3 +377,9 @@ The MCP tool descriptions are kept short to save context. These are the details 
 - `export.set-thumbnail`: copies the file into the managed thumbnails folder; prefer `export.generate-thumbnail` when you want iteration history.
 - `export.publish-youtube`: expect roughly 30 s per 100 MB to upload. To replace a thumbnail, `export.generate-thumbnail` output is already 1280x720.
 - Preview proxies are made for 10-bit, 4:2:2/4:4:4, HDR, ProRes/DNxHD, or over-150 Mbps sources.
+
+## Reference style learning
+
+| Verb | Arguments | Result |
+| --- | --- | --- |
+| `recipe.prepare-reference` | `file` (absolute path), `title`, `sourceUrl` (optional) | Async evidence preparation only: contact sheets, motion windows, mixed-audio excerpts, manifest and limitations. Agent inspects and saves with recipe.save; leaves projects unchanged. |

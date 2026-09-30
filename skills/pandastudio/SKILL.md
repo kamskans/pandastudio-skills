@@ -1,9 +1,9 @@
 ---
 name: pandastudio
-description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
+description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.223.0 -->
+<!-- version: 3.226.0 -->
 
 # PandaStudio
 
@@ -139,6 +139,17 @@ accounts use the ACTIVE workspace's credentials, so editing project A in
 workspace B and publishing lands it on the wrong client's channel. **Never call
 `export.publish-youtube` unless `isInActiveWorkspace === true`.** (`project.read`
 carries the same workspace fields.)
+
+### Which project a call targets
+
+Every verb resolves `id` / `path` the same way, so a project `project.read`
+finds is the one `transcript.*`, `render-frame`, `export.*` and the rest edit.
+`id` = the project open in the editor if it has that id, else the app's
+project library. `path` must be a library project (the recordings dir, the
+open project, or one the app saved elsewhere); pass one or the other, and if
+you pass both they must name the same project. A not-found error says why
+(no such id in THIS app's library, path outside the library, no file): take it
+at face value and run `project.list` rather than retrying other spellings.
 
 ### Project-look defaults and brand kit
 
@@ -674,6 +685,13 @@ give you.
 - `project.current` → the open editor project (`{id,path,name,revision,clipCount}`;
   `null` ≠ "no projects";
   fall back to `project.list`). Use it for "this one" instead of asking for an id.
+- **"Here" / "at the playhead" / "now" → `project.current` first.** Its
+  `playhead.ms` is the editor's LIVE playhead in EDITED ms (`timeBase: "edited"`),
+  read at call time, so pass it straight as `atMs` (for source-time verbs convert
+  with `timeline.edited-to-source`). The chat context's playhead is from when the
+  message was sent and goes stale once the user scrubs; never ask the user for a
+  timecode. `playhead: null` (see `playheadNote`) = no editor answering: then ask.
+  `inCut: true` = parked inside a cut (`ms` is the cut point).
 - `project.new --withMedia='["/a.mp4"]'` creates pre-loaded; `project.duplicate`
   makes an exact copy for a variant edit; `project.open` opens the full editor.
 - `project.read` shapes that trip agents: clips at `mainTrack.clips[]`
@@ -1078,6 +1096,19 @@ when nothing fits) and colour (`project.set-clip-color
 grades the camera separately). Detail + sound design + loudness:
 [`reference/audio-color-music.md`](reference/audio-color-music.md).
 
+**Shared motion recipes:** use `asset.list-sound-patterns` and
+`asset.plan-sound-pattern`, then apply returned cues with `project.add-sound-cues`.
+See `reference/audio-color-music.md` for timing inputs and replacement groups.
+
+**Match sound to movement, throughout the edit.** Before placing or revising
+effects, read the sound map in that reference. Choose by the visible action:
+rolling/ratcheting for scrolling numbers (follow their speed and stop at the
+settle), one light tick/pop per entrance in a counted stagger (five people =
+five cues at their actual entrance times), slides for slides, and clicks for
+presses. A graphic's default stinger is a starting point; replace or silence it
+when it does not fit. Keep the combined effects below narration, remove
+duplicate cues, and verify the two together in preview or a short mixed export.
+
 ### Timing to speech: zooms, graphics and sound on the stressed words
 
 For a talking head or a Short, **`project.style-edit` does this in one call**
@@ -1127,7 +1158,8 @@ rendered to a file, editable any time): `keyword` headline, `chip`, `stamp`,
   (`texts`) for non-Latin speech: its layouts are tuned for Latin words.
 - Long text: `ticker` (scrolling news band), `credits` (rolling credits),
   `crawl` (opening crawl on a tilted plane, `tilt` / `turn`); lower thirds
-  take `look: plate | plain | typewriter` and a subtitle that wraps. Style a
+  take `look: plate | plain | typewriter` (the typewriter's pace:
+  `typeSpeed`, 5-80 characters per second) and a subtitle that wraps. Style a
   smaller line on its own with `style.secondary { size, opacity, color }`
   (a count's label, a subtitle), the main text with `style.opacity`.
 - `zone: auto` keeps them off the face; `layer: behind` puts any element
@@ -1456,3 +1488,5 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - [`reference/fx-transitions.md`](reference/fx-transitions.md) — transitions and FX overlays with the restraint rules.
 - [`reference/publishing.md`](reference/publishing.md) — YouTube and social (Instagram, TikTok, Facebook, LinkedIn, X) publishing rules.
 - [`reference/projects-and-transcription.md`](reference/projects-and-transcription.md) — workspaces, brand kit, project defaults, folders, rename, transcription languages and providers, preview proxies, standalone transcription.
+
+When asked to learn or copy an editing style from a reference video, use `recipe.prepare-reference` and the reference-study workflow in `reference/recipes.md`. Save observed sound and transition behavior as reference-specific defaults; preserve the current project.
