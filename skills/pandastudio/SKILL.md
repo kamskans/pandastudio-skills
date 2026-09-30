@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Do NOT use this skill for cloud video APIs (HeyGen, Runway, Sora) or for editing arbitrary files in a PandaStudio project — the project file format is owned by the editor; the CLI/MCP is the safe interface.
 ---
 
-<!-- version: 3.222.0 -->
+<!-- version: 3.223.0 -->
 
 # PandaStudio
 
@@ -96,7 +96,7 @@ Run `pandastudio system.status --json` first and read `license`:
 | `licensed: true` | Full surface. |
 | `licensed: false` + `trialUsesRemaining > 0` | Active trial, full surface. |
 | `automationGated: true` | Trial expired, no license: only `system.*` and `window.focus` work. **Stop and tell the user to activate a license in Settings → License.** |
-| `agentEditing.allowed: false` | Solo plan (AppSumo entry tier): the editor works but agent editing (in-app agent, MCP, CLI) is not included, so every other command fails with `agent_not_in_plan`. **Stop and tell the user to upgrade their AppSumo plan to Starter or higher.** |
+| `agentEditing.allowed: false` | Solo plan ($49 entry tier from AppSumo or DealFuel): the editor works but agent editing (in-app agent, MCP, CLI) is not included, so every other command fails with `agent_not_in_plan`. **Stop and tell the user how to upgrade, using `agentEditing.message` (it names the right store).** |
 
 A connection error auto-launches PandaStudio (waits up to 60 s). `invalid or
 missing bearer token` = credentials rotated: wait 2 s, retry once.
