@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.226.0 -->
+<!-- version: 3.231.0 -->
 
 # PandaStudio
 
@@ -94,7 +94,8 @@ Run `pandastudio system.status --json` first and read `license`:
 | Field | Meaning |
 |---|---|
 | `licensed: true` | Full surface. |
-| `licensed: false` + `trialUsesRemaining > 0` | Active trial, full surface. |
+| `licensed: false` + `trialUsesRemaining > 0` | Active trial, full surface, except export quality: draft (720p) only. |
+| `exportQuality.allowed` | The `export.start --quality` values that work (trial: `draft`; licensed: all). `exportQuality.projectSettings` = the same for `project.set-export-settings` (trial: `medium`). Pick from these up front. |
 | `automationGated: true` | Trial expired, no license: only `system.*` and `window.focus` work. **Stop and tell the user to activate a license in Settings → License.** |
 | `agentEditing.allowed: false` | Solo plan ($49 entry tier from AppSumo or DealFuel): the editor works but agent editing (in-app agent, MCP, CLI) is not included, so every other command fails with `agent_not_in_plan`. **Stop and tell the user how to upgrade, using `agentEditing.message` (it names the right store).** |
 
@@ -151,6 +152,16 @@ you pass both they must name the same project. A not-found error says why
 (no such id in THIS app's library, path outside the library, no file): take it
 at face value and run `project.list` rather than retrying other spellings.
 
+**Omitting `id` and `path`:** read-only verbs that look at one project
+(`project.read`, `project.show`, `transcript.get`, `transcript.search`,
+`transcript.find-issues`, `audio.probe`, `project.render-frame`,
+`project.render-sheet`, `project.detect-face`, `project.inspect-footage`,
+`project.speech-map`, `project.list-broll`, `project.check-broll`,
+`project.list-motion-elements`, `timeline.source-to-edited`,
+`timeline.edited-to-source`, `llm.generate-*`, `export.verify`) then use the
+project open in the editor. Edits never do: always pass `id` (or `path`) to
+anything that changes a project.
+
 ### Project-look defaults and brand kit
 
 - `workspace.set-project-defaults --defaults='{…}'` saves the look every NEW
@@ -180,12 +191,22 @@ provider without asking**: `system.set-transcription-provider` sends their audio
 to a third party and bills them. A cloud provider with no key silently falls
 back to local.
 
+**Which language setting:** `auto` (the default, Parakeet TDT v3) detects the
+spoken language itself across 25 languages, English included: Bulgarian, Croatian, Czech, Danish, Dutch, English, Estonian, Finnish, French, German, Greek, Hungarian, Italian, Latvian, Lithuanian, Maltese, Polish, Portuguese, Romanian, Russian, Slovak, Slovenian, Spanish, Swedish, Ukrainian. For any
+of those (asked for Romanian, say) the setting is `auto`; their names and ISO
+codes are accepted and saved as `auto`. Only the Whisper languages (Chinese,
+Japanese, Korean, Hindi, Arabic, Thai and the Indic ones) need a switch.
+
 **A transcript in the wrong language** (English speech that came out as Tamil):
 fix the language (`system.set-transcription-language --language=auto`; English
 = auto, `english`/`en` are accepted as aliases), then `transcript.transcribe
 --force=true` (all clips) or `--clipId=…` (one). Plain `transcript.transcribe`
 skips clips that already have words. Report `droppedWordEdits[]` from the job
-result: those fixes need redoing.
+result: those fixes need redoing. A clip is transcribed only over the part it
+plays: from the end of its head trim (its in-point) to its out-point, so after
+`project.split-clip` re-transcribing one half returns that half's words only,
+in the media's own time (`transcribedRanges[]` in the job result). Remove a
+head trim first to transcribe what it hides.
 
 ## Recording the screen yourself (agent-driven, v1.86+)
 
@@ -268,7 +289,13 @@ subscription, not Starter: `system.status` → `license.socialPublishing`
 or publish; tell the user in one line that it's part of those plans (the
 Settings card links to them) and hand them the exported file instead. A
 `plan_required` / `subscription_ended` error means the same. YouTube publishing
-isn't plan-gated. Flows: [`reference/publishing.md`](reference/publishing.md).
+isn't plan-gated. Google lets the user untick permissions when they connect: an
+account with `permissionIssue` (or any youtube error with `details.code`
+`youtube_permission_missing`) is missing one. Relay `details.message`, then ask
+the user to click Reconnect in Settings > YouTube and leave every box ticked
+(you can't do the sign-in). If only the channel permission is missing, publishing
+still works: omit `channelId` and the video goes to that account's own channel.
+Flows: [`reference/publishing.md`](reference/publishing.md).
 
 ## Recipes — every edit style lives in a recipe
 
@@ -556,7 +583,7 @@ un-processed clips. `contentIssues.total > 0` → run `find-issues` in the polis
 `camera` (talking head) or `upload` (imported) → no screen to zoom into, so lead
 with a premium designed segment (`paper-panel` / `vox-side-panel` via
 `project.add-designed-segment`); `screen` → cursor-telemetry zooms, never
-clip-transform splits; `podcast` = a two-speaker composite (host + guest) that
+camera-only clip-transform splits; `podcast` = a multi-party composite (host + up to three guests) that
 edits as one clip. `kind` is stamped at capture since v1.28; older projects
 get an inferred one (paired webcam or cursor telemetry → `screen`, managed-dir
 media → `camera`, else `upload`) with `kindInferred: true`: **never assume `screen` when unsure** (it suppresses the camera
@@ -625,7 +652,7 @@ reference doc (for agents that can't install skills).
   quotes inside JSON; the CLI refuses with `looks like JSON that the shell
   changed`). Detail: [`reference/commands.md`](reference/commands.md).
 - `ok: false` = handler error with a machine-readable `details.code`
-  (`license_required` / `trial_expired`, `UNKNOWN_ARGUMENT`,
+  (`license_required` / `trial_expired`, `quality_requires_license`, `UNKNOWN_ARGUMENT`,
   `revision_conflict`, `confirmation_required`, …). Project paths must live
   under the recordings dir.
 
@@ -638,7 +665,12 @@ failed | canceled`; `result.outputPath` for renders). **Surface every
 `warning` / `warnings`** an export, render-frame or `recording.stop` returns
 (for example a source whose video ends before its audio, held on the last
 frame, or missing media files left out); never report a warned export as simply
-"done". `job.get`, `job.list`, `job.cancel` inspect and stop jobs.
+"done". A render that fails or warns about the **graphics driver** (no driver
+installed, "Microsoft Basic Render Driver", the renderer crashing in every
+mode) is a problem with the machine, not the project: relay the message's fix
+(install or update the graphics driver) and don't edit the project or retry in
+a loop; the app already retried on the software renderer and a second shader
+compiler. `job.get`, `job.list`, `job.cancel` inspect and stop jobs.
 
 ## Keep calls small and few
 
@@ -718,8 +750,12 @@ give you.
   `add-adjustment --layer=camera`). Overlay-scoped verbs take `--regionId`.
 - **Clips:** `add-clip` (`--atIndex=0` prepends; an image path makes a still
   clip, `set-clip-duration` resizes it), `move-clip`, `split-clip`,
-  `remove-clip` carry every region with the clip. Insert mid-recording =
-  `timeline.edited-to-source` → `split-clip` → `add-clip --atIndex`.
+  `remove-clip` carry every region with the clip. Insert at a moment (a
+  re-recorded take, a cutaway clip) = `add-clip --atMs=<edited ms>`: it splits
+  the clip under that moment and inserts between the halves (on a boundary,
+  no split). Replace a flubbed stretch with a new take = `add-clip
+  --atMs=<start> --replaceToMs=<end>` (cuts the range, restorable, and puts the
+  clip there). Then `transcript.transcribe` the new clip.
   `project.delete` is permanent and confirmed (keeps the source recording
   unless `--deleteRecording=true`). Detail: visual-edits.md.
 - **Motion graphics:** `--fromJob=<jobId>`, NOT `--file`, for render outputs
@@ -728,6 +764,21 @@ give you.
 - **Mid-video graphic on camera / upload footage:** `project.add-designed-segment`
   (host on one half, panel the other), not a full-frame cover. Screen
   recordings use zooms, never a split. Never zoom inside a split window.
+- **Stacking order (what draws on top).** Bottom to top: wallpaper →
+  `--layer=background` overlays → `layer: behind` motion elements → the video
+  and camera → **the foreground stack** → FX → adjustment layers → captions →
+  focus regions → watermark. The foreground stack is one order across types:
+  position = group base + `zIndex`, groups B-roll beats 0, media overlays
+  (images, videos, `media.image-to-video` overlays, rendered graphics,
+  transitions) 1000, annotations (`add-annotation`) 2000, front motion
+  elements 3000; higher draws on top. The add verbs give each type a small
+  per-type `zIndex` (1, 2, 3...), so by default titles and keyword graphics
+  read over the pictures, whatever order you added them in. To cross groups
+  set an explicit `zIndex`: `project.update-region --regionType=overlay
+  --regionId=<id> --zIndex=1005` draws that overlay over annotations with
+  zIndex < 5 (also `annotation`, and `fx` among FX);
+  `update-motion-element --zIndex=-2500` drops an element under the default
+  overlays. Never paint text into a PNG overlay to get it on top.
 - **SFX defaults:** `add-zoom` = swoosh, `add-motion-graphic` /
   `add-designed-segment` / `add-lower-third` = mouse-click; `--soundUrl=none`
   silences one; `project.set-region-sound` retunes a placed one.
@@ -1165,6 +1216,9 @@ rendered to a file, editable any time): `keyword` headline, `chip`, `stamp`,
 - `zone: auto` keeps them off the face; `layer: behind` puts any element
   behind the speaker; `sound` is a role the score plays (call
   compose-soundtrack last). Verify with `project.render-sheet`.
+- Front elements draw over every image / video overlay and annotation with a
+  default `zIndex`; `zIndex` orders them across types (see "Stacking order"
+  under Adding things).
 
 Full detail (content shapes, families, zones, layers, recipes, when to use
 HTML instead): [`reference/motion-elements.md`](reference/motion-elements.md).
@@ -1277,8 +1331,15 @@ user imported a font for that language, set it as the caption `fontFamily`
 `export.start --id --quality=draft|standard|high|ultra [--outputPath]
 [--normalizeLoudness] [--frameRate=30|60|source|auto]` (async; `job.wait` with
 a long timeout) renders everything in the project on the native engine (720p /
-1080p / 1080p / 4K; aspect from the project) and returns `{ outputPath,
-durationMs, width, height, frameRate: { fps, setting, reason }, loudness }`.
+1080p / source resolution up to 4K / same; aspect from the project) and returns
+`{ outputPath, durationMs, width, height, frameRate: { fps, setting, reason },
+loudness }`. **Free trial exports in 720p only: `standard`, `high` and `ultra`
+need a license** and fail with `details.code: quality_requires_license` (plus
+`upgradeUrl`); use `--quality=draft` (an omitted quality already defaults to
+draft on a trial, high when licensed). Tell the user 1080p and Highest come
+with a license and link `upgradeUrl`; don't retry a higher quality. Same for
+`project.set-export-settings --quality=good|source` (use `medium`).
+`clips.export` follows the same rule (1080p licensed, 720p on a trial).
 Frame rate: the project setting defaults to `auto` = 30 fps, or the sources'
 rate (60) when every main-track clip is a 50+ fps render (motion graphics
 rendered with `--frameRate=60`) and none is a screen / camera recording. Set
@@ -1377,6 +1438,8 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - **workspace** — list, current, switch, create, rename, delete, contents,
   get-brand, set-brand, capture-brand, get-project-defaults,
   set-project-defaults (projects-and-transcription.md)
+- **podcast**, live host — open-host, status, start-recording, stop-recording,
+  start-screen-share, stop-screen-share, open-in-editor (commands.md)
 - **project**, lifecycle — list, locate, current, read, show, new, open, save,
   duplicate, rename, set-folder, delete, fork-from-shot, batch, apply-edit-plan,
   clear-edits
@@ -1387,7 +1450,8 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   set-shorts-layout, set-vertical-screen-layout, set-webcam-layout,
   set-webcam-style, set-webcam-offset, center-camera-on-face, detect-face,
   add-clip-transform-region, add-podcast-clip, auto-sync-podcast, follow-speaker,
-  set-participant-offset (visual-edits.md, shorts.md, motion-templates.md)
+  set-participant-offset, set-podcast-source-crop, list-podcast-screen-shares
+  (visual-edits.md, shorts.md, motion-templates.md)
 - **project**, regions — add-trim, add-zoom, add-speed, add-speed-ramp,
   add-freeze-frame, add-reverse, add-annotation, add-emoji, add-fx,
   add-transition, add-motion-graphic, add-designed-segment, add-lower-third,

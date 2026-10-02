@@ -223,6 +223,22 @@ pandastudio project.follow-speaker --id=$ID [--dryRun=true]
 #   --exchangeTurnMs=2600 turns this short count toward a back-and-forth
 # One wide shot of several people isn't a podcast recording: project.auto-reframe.
 
+# PODCAST SOURCE FRAMING AND SCREEN-SHARE DISCOVERY
+# The editor's source framing controls have the same CLI + MCP API.
+# Frame each participant camera or screen-share track independently. The crop
+# rectangle is normalized to that recording, and preview/export match.
+pandastudio project.set-podcast-source-crop --id=$ID --clipId=clip-1 \
+  --source=guest-2 --x=0.15 --y=0.05 --width=0.7 --height=0.9
+pandastudio project.set-podcast-source-crop --id=$ID --clipId=clip-1 \
+  --source=share:0 --x=0 --y=0 --width=1 --height=1  # reset share framing
+# The timeline's violet screen-share marks come from these intervals. Edited
+# times account for cuts and speed changes; fully trimmed shares are flagged.
+pandastudio project.list-podcast-screen-shares --id=$ID --json
+# Participant-aware transforms: podcast-solo [one speaker], podcast-pair [two],
+# podcast-grid [subset or everyone], podcast-screen-share [share + people].
+# Use project.add-clip-transform-region with
+# --participants='["host","guest-2"]' and --transitionMs=320.
+
 # Podcast guest/host sync nudge — when the two speakers are slightly out of
 # sync. offsetMs shifts the guest vs the host (positive delays guest, 0 clears).
 # Honored in preview AND export (guest video + audio move together).
@@ -249,7 +265,7 @@ pandastudio project.duplicate-region --id=$ID --regionType=zoom --regionId=zoom-
 
 # Export defaults (pre-fills the Export dialog; CLI export.start uses its own --quality)
 # PandaStudio is a video-only exporter; format is always mp4.
-pandastudio project.set-export-settings --id=$ID --quality=source --format=mp4
+pandastudio project.set-export-settings --id=$ID --quality=source --format=mp4  # good/source need a license; on a trial use --quality=medium
 # Frame rate of every export: auto (default: 30, or 60 when every clip is a
 # 60 fps render and none a recording) | 30 | 60 | source (fastest source's rate)
 pandastudio project.set-export-settings --id=$ID --frameRate=60
@@ -267,10 +283,22 @@ pandastudio project.set-export-settings --id=$ID --frameRate=60
 - `add-clip` (`--atIndex=0` prepends), `move-clip`, `split-clip`, `remove-clip`
   all carry every region (trims, speeds, zooms, overlays, captions, anchors)
   with the clip it sits on; nothing is dropped by a move.
-- **Insert mid-recording = split, then add:** `timeline.edited-to-source
-  --editedMs=<playhead>` returns `clipId` + `clipSourceMs`; `project.split-clip
-  --clipId=<clipId> --atSourceMs=<clipSourceMs>` returns `rightClipIndex`;
-  `project.add-clip --media=<file> --atIndex=<rightClipIndex>`. `split-clip`
+- **Insert at a moment = `project.add-clip --media=<file> --atMs=<edited ms>`**
+  (same as the editor's "Insert at playhead"). Inside a clip it splits that
+  clip there and puts the new clip between the halves; within about a frame
+  of a clip boundary it inserts there without splitting. Returns `clipId`,
+  `clipIndex` and, after a split, `split { leftClipId, rightClipId }`. Don't
+  combine with `--atIndex`.
+- **Replace a stretch with a new take = `--atMs=<start> --replaceToMs=<end>`**
+  (edited ms, e.g. a flubbed sentence's `editedStartMs` / `editedEndMs` from
+  `transcript.get`): the range is cut with an ordinary trim (restorable) and
+  the clip goes where it was, in one write. Returns `cut { trimId, startMs,
+  endMs }` (source ms). The new clip has no transcript: `transcript.transcribe`
+  it before editing by words or captioning. The editor's equivalent is
+  right-click the words in the transcript → Replace with clip.
+- The manual route still works: `timeline.edited-to-source --editedMs=<t>` →
+  `project.split-clip --clipId --atSourceMs` (returns `rightClipIndex`) →
+  `project.add-clip --atIndex=<rightClipIndex>`. `split-clip`
   never changes the output: the left half ends at the split point, the right
   half covers the clip's full media with a head trim over the part the left
   half plays (clips play media from 0; in-points are head trims). Don't delete

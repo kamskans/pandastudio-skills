@@ -214,6 +214,14 @@ PandaStudio cuts the person out with the person matte and draws
 `project.render-frame` that the word still reads around the head. Any type can
 go behind (a count behind the speaker, a keyword), not just `behind`.
 
+Front elements are part of the foreground stack with media overlays and
+annotations: position = group base + `zIndex` (B-roll 0, media overlays 1000,
+annotations 2000, front elements 3000), higher on top, so by default an
+element draws over every picture and title on screen with it. `zIndex` on an
+element (default 0) orders it among elements and, past 1000, across groups:
+`-2500` puts it under the default overlays. Behind elements stay under the
+person whatever their `zIndex` (it orders them among themselves).
+
 ## Sound roles
 
 `sound`: auto (the type's role, table above) | none | pop | whoosh | hit | tick
