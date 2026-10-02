@@ -1,5 +1,26 @@
 <!-- Part of the pandastudio skill. Detail relocated from SKILL.md for progressive disclosure. -->
 
+Very quiet recordings (< -30 LUFS integrated) are boosted by `audio.clean`
+by default, before denoising and again afterward to -16 LUFS / -1.5 dBTP.
+Read the job’s `warnings` before adding music. `--normalize=false` opts out.
+`audio.probe --id=$ID` reports active-track `integratedLufs` and `tooQuiet`;
+null loudness means silent or measurement unavailable. Clips below -60 LUFS
+are not amplified automatically (noise/silence); a warning explains the skip.
+
+To boost speech without denoising:
+```bash
+pandastudio audio.normalize --id=$ID --clipId=clip-1 --targetLufs=-16 --json
+# Async: pass returned jobId to job.wait before adding music/exporting.
+pandastudio audio.reset-clean --id=$ID --clipId=clip-1 --json
+# Synchronous: restores original audio, including after normalization.
+# Omit clipId to reset all clips. Generated files stay on disk.
+```
+
+Normalization uses the active cleaned track when present, otherwise the source.
+Echo-off audio is retained. These operations preserve clip timing and volume;
+probe measures the audio file, before clip volume/keyframes and the music mix.
+
+
 # Audio cleanup, background audio, music, color (LUT)
 
 ### Audio cleanup (DeepFilter)

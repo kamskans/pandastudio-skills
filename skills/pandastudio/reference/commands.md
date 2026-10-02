@@ -241,8 +241,10 @@ The editorial primitive that makes PandaStudio PandaStudio. Every operation that
 
 | Command | Args | Purpose |
 |---|---|---|
-| `audio.clean` | `id` \| `path`, `clipId` (optional), `echo` (optional bool) | **Async.** Run DeepFilter denoising on each clip; writes a sibling `.cleaned.wav` and points `clip.cleanedAudioPath` at it. `--echo=true` also reduces room reverb (writes `.cleaned.dereverb.wav`, keeps the DeepFilter WAV); `--echo=false` switches back. Job result reports `rt60Ms`, `decayBeforeMs`, `decayAfterMs` per clip. |
-| `audio.probe` | `id` \| `path`, `clipId?`, `noiseDb?` (-30), `minSilenceSec?` (0.5) | EARS without export: per-clip hasAudio, mean/max dB, silence spans (clip-source time), + the project's music-bed overlays. Synchronous. |
+| `audio.clean` | `id` \| `path`, `clipId` (optional), `echo` (optional bool), `normalize` (default true) | **Async.** Run DeepFilter denoising on each clip; writes a unique sibling cleaned WAV and points `clip.cleanedAudioPath` at it. `--echo=true` also reduces room reverb (writes an echo-reduced sibling WAV, keeps the denoised WAV); `--echo=false` switches back. Very quiet speech (< -30 LUFS) is boosted to -16 LUFS / -1.5 dBTP by default; `--normalize=false` opts out. Job `warnings` explain boosts/skips. Job result reports `rt60Ms`, `decayBeforeMs`, `decayAfterMs` per clip. |
+| `audio.normalize` | `id` \| `path`, `clipId` (required), `targetLufs?` (-16; range -70 to -5) | **Async**, poll `job.wait`. Two-pass normalization of active audio without denoising, -1.5 dBTP ceiling. Original retained; silent/below -60 LUFS skipped with warnings. |
+| `audio.reset-clean` | `id` \| `path`, `clipId?` | Synchronous. Clear cleaned/normalized audio and echo metadata; original source plays again. Omit clipId for all clips. Files kept. |
+| `audio.probe` | `id` \| `path`, `clipId?`, `noiseDb?` (-30), `minSilenceSec?` (0.5) | EARS without export: per-clip hasAudio, integratedLufs (null if unavailable/silent), tooQuiet (< -30 LUFS), mean/max dB, silence spans (clip-source time), + the project's music-bed overlays. Synchronous. |
 
 ## caption.* (v1.9.1)
 
@@ -390,3 +392,16 @@ The MCP tool descriptions are kept short to save context. These are the details 
 | Verb | Arguments | Result |
 | --- | --- | --- |
 | `recipe.prepare-reference` | `file` (absolute path), `title`, `sourceUrl` (optional) | Async evidence preparation only: contact sheets, motion windows, mixed-audio excerpts, manifest and limitations. Agent inspects and saves with recipe.save; leaves projects unchanged. |
+
+### Concurrent project saves
+
+Concurrent editor saves: `project.batch` retries only the conflicting command
+(up to three attempts with a short backoff), preserving earlier steps. Async
+transcription, voiceover, audio cleanup and rendered graphics, plus face tracking
+and auto-reframe, plus downloaded-media placement, merge computed results onto the latest project and retry saves.
+They preserve unrelated editor edits; transcription also reapplies current word
+fixes and skips clips removed during the job. Explicit `expectedRevision`
+preconditions still apply. Exhausted conflicts use `code: "revision_conflict"`,
+`status: 409`, `expected`, and `actual`: HTTP 409 for thrown save conflicts,
+`results[].details` for batch failures, and `job.errorDetails` for failed jobs.
+Re-read before trying again; do not overwrite with an old project snapshot.

@@ -3,9 +3,20 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.231.0 -->
+<!-- version: 3.232.0 -->
 
 # PandaStudio
+
+Concurrent editor saves: `project.batch` retries only the conflicting command
+(up to three attempts with a short backoff), preserving earlier steps. Async
+transcription, voiceover, audio cleanup and rendered graphics, plus face tracking
+and auto-reframe, plus downloaded-media placement, merge computed results onto the latest project and retry saves.
+They preserve unrelated editor edits; transcription also reapplies current word
+fixes and skips clips removed during the job. Explicit `expectedRevision`
+preconditions still apply. Exhausted conflicts use `code: "revision_conflict"`,
+`status: 409`, `expected`, and `actual`: HTTP 409 for thrown save conflicts,
+`results[].details` for batch failures, and `job.errorDetails` for failed jobs.
+Re-read before trying again; do not overwrite with an old project snapshot.
 
 > ## Pick your interface FIRST
 >
@@ -1121,8 +1132,16 @@ store: [`reference/transcript-editing.md`](reference/transcript-editing.md).
 
 ### Audio cleanup, background audio, music, and color grading
 
-`audio.clean` (DeepFilter, `--echo=true` for rooms), `audio.probe` (levels
-without exporting), `project.add-audio` / `project.remove-audio` (music, SFX,
+`audio.clean` denoises and boosts speech below -30 LUFS to -16 LUFS / -1.5 dBTP
+by default; `--normalize=false` opts out and `--echo=true` reduces room reverb.
+Read the async job’s `warnings` before adding music.
+`audio.normalize --id=$ID --clipId=clip-1 --targetLufs=-16` normalizes active
+clip audio without denoising (async: `job.wait`).
+`audio.reset-clean --id=$ID --clipId=clip-1` restores original audio synchronously;
+omit clipId for all clips. Generated files stay on disk.
+`audio.probe` reports `integratedLufs`, `tooQuiet`, and levels without exporting.
+
+ `project.add-audio` / `project.remove-audio` (music, SFX,
 VO; `--fadeIn/--fadeOut`, `--ducking=true`), `project.set-clip-volume` (balance
 clips, 0–2), mute a stretch without cutting the picture
 (`project.add-mute-region` / `remove-mute-region`), bleep a word instead
@@ -1476,7 +1495,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   (transcript-editing.md)
 - **timeline** — source-to-edited, edited-to-source
 - **caption** — toggle, set-template, set-style, move (captions-metadata.md)
-- **audio** — clean, probe (audio-color-music.md)
+- **audio** — clean, probe, normalize, reset-clean (audio-color-music.md)
 - **motion** — list, generate, render-html, screenshot, concat, verify-frames,
   themes, list-storyboards, generate-storyboard, catalog [catalog-search],
   catalog-item, craft, render-film (motion-templates.md, custom-html.md,
