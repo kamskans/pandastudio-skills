@@ -231,7 +231,8 @@ The editorial primitive that makes PandaStudio PandaStudio. Every operation that
 
 | Command | Args | Purpose |
 |---|---|---|
-| `transcript.transcribe` | `id` \| `path`, `clipId` (optional) | **Async.** Run Parakeet TDT 0.6B on each clip's audio. Returns `{ jobId }`. Re-transcribing a clip keeps its word fixes (find-replace / insert-words / app edits): the job result reports `wordEditsReapplied`, `wordEditsDropped`, `droppedWordEdits[]`. |
+| `transcript.transcribe` | `id` \| `path`, `clipId`, `force`, `language`, `provider` (optional) | **Async.** Transcribe with per-run language/provider overrides or workspace preferences. Cloud requires an explicit language. Surface result `warnings` for local fallback. Returns `{ jobId }`. Re-transcribing a clip keeps its word fixes (find-replace / insert-words / app edits): the job result reports `wordEditsReapplied`, `wordEditsDropped`, `droppedWordEdits[]`. |
+| `transcript.detect-language` | `id` \| `path`, `clipId` (optional) | Local language ID over up to 30 seconds of the clip. Returns `{ guess: { language, confidence } \| null }`. Confirm the guess before cloud transcription. |
 | `transcript.get` | `id` \| `path` (default: open project), `fromMs`/`toMs` (EDITED-timeline window), `format` (`compact` default \| `text` \| `words` \| `full`) | `compact`: segments with words as `[id, text, startMs (source), editedStartMs\|null]`, ids shortened to a unique prefix. `text`: `"[m:ss.s] segment text"` lines in edited time, cut words left out (best for reading/planning). `words`: flat `words[]` with full ids and both time bases (use for jq scripts). `full`: the old `{words[], segments[]}` shape. Ids (full or prefix ≥4 chars) feed `delete-words` / `restore-words` / `insert-words`; unknown or ambiguous ids fail. |
 | `transcript.delete-words` | `id` \| `path`, `wordIds` (string[]) | Translate word IDs into trim regions. Coalesces adjacent deletions. |
 | `transcript.remove-fillers` | `id` \| `path`, `includeRepeats` (bool, default true) | Auto-detect filler words ('um','uh','you know',…) plus back-to-back repeats. Bulk-trims them. |
@@ -405,3 +406,42 @@ preconditions still apply. Exhausted conflicts use `code: "revision_conflict"`,
 `status: 409`, `expected`, and `actual`: HTTP 409 for thrown save conflicts,
 `results[].details` for batch failures, and `job.errorDetails` for failed jobs.
 Re-read before trying again; do not overwrite with an old project snapshot.
+
+### Confirm language before re-transcription
+
+`pandastudio transcript.detect-language --id=PROJECT --clipId=CLIP` runs local
+language ID on up to 30 seconds and returns `{ guess: { language, confidence } | null }`.
+It needs the bundled Whisper model and never downloads it or uploads audio.
+Ask/confirm the language when a transcript looks wrong or speech is non-English.
+`pandastudio transcript.transcribe --id=PROJECT --clipId=CLIP --force=true --language=tamil --provider=deepgram`
+overrides workspace preferences for this run only. Supported language names include
+English, Parakeet's European set and the Whisper languages. Provider is
+`local|deepgram|elevenlabs`. Never use cloud with `auto`; choose a language first.
+Cloud needs a connected key and user consent to upload audio. Surface job `warnings`
+when a network/provider failure caused a local fallback.
+
+`pandastudio system.set-transcription-preferences --language=tamil --provider=deepgram`
+saves both workspace defaults in one write. Use only when the user wants future
+videos to use these choices, and confirm cloud upload consent first.
+
+
+## Automatic project folders
+
+Shorts, clip batches, forks and duplicates made from a project are filed with
+that source automatically. Plain recordings and imports stay top-level until
+they have children. Agents should not manually create one folder per Short.
+Use `project.new --name="Short" --parentProjectId=<source-id>` for agent-created
+projects and `--originKind=recipe` for a recipe with a known source.
+
+- `pandastudio folder.list --json`: active-workspace folders, counts and activity.
+- `pandastudio folder.create --name="Campaign" --json`: create a flat folder.
+- `pandastudio folder.rename --id=<folder-id> --name="Launch"`: rename it and mirror the name into its projects.
+- `pandastudio folder.contents --id=<folder-id> --json`: list its projects.
+- `pandastudio folder.delete --id=<folder-id> --deleteProjects=false`: keep projects and move them to top level.
+- `pandastudio folder.delete --id=<folder-id> --deleteProjects=true`: delete the folder and project files using project.delete. Media and exports are kept.
+- `pandastudio project.set-folder --id=<project-id> --folderId=<folder-id>`: move a project. `--folder="Name"` creates a missing named folder; `--folderId=null` clears it.
+- `pandastudio project.list --folderId=<folder-id> --json` or `--topLevel=true`: filter projects. Rows include folderId, folderName, parentProjectId and origin.
+
+`project.new`, `project.duplicate` and `project.fork-from-shot` accept an optional
+`--folderId` destination. Folders are workspace-scoped and have no nesting.
+Migration changes only metadata, never file locations.

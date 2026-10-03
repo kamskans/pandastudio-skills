@@ -281,8 +281,9 @@ transcript will be rough and that Settings → Transcription can switch to a
 cloud provider. **Do not switch it yourself without asking**:
 `system.set-transcription-provider` sends their audio to a third party and
 bills their account there. Ask, then switch if they say yes. If a cloud
-provider is set but has no key, transcription silently falls back to local, so
-check `ready` before assuming the good path ran.
+provider is set but has no key, transcription asks you to connect it. Check
+`ready` first. Cloud requires an explicit language; network/provider failures
+can fall back to local and return a warning that you must surface.
 
 ## Smooth preview for heavy camera footage
 
@@ -444,3 +445,20 @@ user explicitly wants karaoke-style timing.
 - **The desktop app must be running** (the CLI auto-launches it if not). Transcription uses the
   app's bundled FFmpeg + Whisper sidecar; there's no fully-headless mode.
 
+
+### Confirm language before re-transcription
+
+`pandastudio transcript.detect-language --id=PROJECT --clipId=CLIP` runs local
+language ID on up to 30 seconds and returns `{ guess: { language, confidence } | null }`.
+It needs the bundled Whisper model and never downloads it or uploads audio.
+Ask/confirm the language when a transcript looks wrong or speech is non-English.
+`pandastudio transcript.transcribe --id=PROJECT --clipId=CLIP --force=true --language=tamil --provider=deepgram`
+overrides workspace preferences for this run only. Supported language names include
+English, Parakeet's European set and the Whisper languages. Provider is
+`local|deepgram|elevenlabs`. Never use cloud with `auto`; choose a language first.
+Cloud needs a connected key and user consent to upload audio. Surface job `warnings`
+when a network/provider failure caused a local fallback.
+
+`pandastudio system.set-transcription-preferences --language=tamil --provider=deepgram`
+saves both workspace defaults in one write. Use only when the user wants future
+videos to use these choices, and confirm cloud upload consent first.

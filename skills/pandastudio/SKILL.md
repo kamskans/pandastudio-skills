@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.232.0 -->
+<!-- version: 3.234.0 -->
 
 # PandaStudio
 
@@ -199,19 +199,23 @@ Kannada, Malayalam), say so before you edit**: everything downstream inherits
 the transcript's mistakes. `system.get-transcription-provider` shows `local` /
 `deepgram` / `elevenlabs` and which have a key (`ready`). **Never switch the
 provider without asking**: `system.set-transcription-provider` sends their audio
-to a third party and bills them. A cloud provider with no key silently falls
-back to local.
+to a third party and bills them. Missing keys fail clearly. Network/provider failures
+can use the local engine; always surface job `warnings` to the user.
 
-**Which language setting:** `auto` (the default, Parakeet TDT v3) detects the
-spoken language itself across 25 languages, English included: Bulgarian, Croatian, Czech, Danish, Dutch, English, Estonian, Finnish, French, German, Greek, Hungarian, Italian, Latvian, Lithuanian, Maltese, Polish, Portuguese, Romanian, Russian, Slovak, Slovenian, Spanish, Swedish, Ukrainian. For any
-of those (asked for Romanian, say) the setting is `auto`; their names and ISO
-codes are accepted and saved as `auto`. Only the Whisper languages (Chinese,
-Japanese, Korean, Hindi, Arabic, Thai and the Indic ones) need a switch.
+If a transcript looks wrong or the user speaks a non-English language, ask or
+confirm the spoken language. `transcript.detect-language --id=$ID --clipId=…`
+returns a cheap local guess from up to 30 seconds, or null if unavailable.
+Pass explicit per-run `--language` and `--provider`; never use cloud with auto:
 
-**A transcript in the wrong language** (English speech that came out as Tamil):
-fix the language (`system.set-transcription-language --language=auto`; English
-= auto, `english`/`en` are accepted as aliases), then `transcript.transcribe
---force=true` (all clips) or `--clipId=…` (one). Plain `transcript.transcribe`
+```bash
+pandastudio transcript.transcribe --id=$ID --clipId=… --force=true --language=tamil --provider=deepgram
+```
+
+Language names include English and Parakeet's European set. These explicit
+names use Parakeet locally and an explicit ISO language with cloud.
+Overrides do not change workspace preferences. Confirm consent to send audio
+before selecting cloud. `--force=true` targets all clips; `--clipId` targets one.
+Plain `transcript.transcribe`
 skips clips that already have words. Report `droppedWordEdits[]` from the job
 result: those fixes need redoing. A clip is transcribed only over the part it
 plays: from the end of its head trim (its in-point) to its out-point, so after
@@ -1449,7 +1453,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 
 - **system** — status, list, ping, echo, get-transcription-language,
   set-transcription-language, is-whisper-model-downloaded,
-  get-transcription-provider, set-transcription-provider, get-narration-engine,
+  get-transcription-provider, set-transcription-provider, set-transcription-preferences, get-narration-engine,
   set-narration-engine, download-kokoro-model, is-kokoro-model-downloaded,
   preview-proxy-status, get-preview-proxy-mode, set-preview-proxy-mode
   (projects-and-transcription.md, media-generation.md)
@@ -1490,7 +1494,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   remove-volume-keyframe (audio-color-music.md)
 - **project**, check and export settings — render-frame, render-sheet,
   set-export-settings (visual-edits.md)
-- **transcript** — transcribe, get, search, remove-fillers, remove-silences,
+- **transcript** — transcribe, detect-language, get, search, remove-fillers, remove-silences,
   find-issues, delete-words, restore-words, find-replace, insert-words
   (transcript-editing.md)
 - **timeline** — source-to-edited, edited-to-source
@@ -1573,3 +1577,29 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - [`reference/projects-and-transcription.md`](reference/projects-and-transcription.md) — workspaces, brand kit, project defaults, folders, rename, transcription languages and providers, preview proxies, standalone transcription.
 
 When asked to learn or copy an editing style from a reference video, use `recipe.prepare-reference` and the reference-study workflow in `reference/recipes.md`. Save observed sound and transition behavior as reference-specific defaults; preserve the current project.
+
+`pandastudio system.set-transcription-preferences --language=tamil --provider=deepgram`
+saves both workspace defaults in one write. Use only when the user wants future
+videos to use these choices, and confirm cloud upload consent first.
+
+
+## Automatic project folders
+
+Shorts, clip batches, forks and duplicates made from a project are filed with
+that source automatically. Plain recordings and imports stay top-level until
+they have children. Agents should not manually create one folder per Short.
+Use `project.new --name="Short" --parentProjectId=<source-id>` for agent-created
+projects and `--originKind=recipe` for a recipe with a known source.
+
+- `pandastudio folder.list --json`: active-workspace folders, counts and activity.
+- `pandastudio folder.create --name="Campaign" --json`: create a flat folder.
+- `pandastudio folder.rename --id=<folder-id> --name="Launch"`: rename it and mirror the name into its projects.
+- `pandastudio folder.contents --id=<folder-id> --json`: list its projects.
+- `pandastudio folder.delete --id=<folder-id> --deleteProjects=false`: keep projects and move them to top level.
+- `pandastudio folder.delete --id=<folder-id> --deleteProjects=true`: delete the folder and project files using project.delete. Media and exports are kept.
+- `pandastudio project.set-folder --id=<project-id> --folderId=<folder-id>`: move a project. `--folder="Name"` creates a missing named folder; `--folderId=null` clears it.
+- `pandastudio project.list --folderId=<folder-id> --json` or `--topLevel=true`: filter projects. Rows include folderId, folderName, parentProjectId and origin.
+
+`project.new`, `project.duplicate` and `project.fork-from-shot` accept an optional
+`--folderId` destination. Folders are workspace-scoped and have no nesting.
+Migration changes only metadata, never file locations.
