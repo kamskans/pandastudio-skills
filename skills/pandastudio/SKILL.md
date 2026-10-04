@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.234.0 -->
+<!-- version: 3.235.0 -->
 
 # PandaStudio
 
@@ -827,7 +827,9 @@ retry. Every `project.add-*` accepts it.
 
 ### Preview without exporting
 
-`preview.show --id [--atMs --autoplay]` pops the live WYSIWYG overlay (~1–2s);
+`preview.show --id [--atMs=17000 --autoplay=true]` shows and focuses the editor, waits for project/media readiness, seeks within one frame, and optionally starts playback (default false). Returns `playheadMs` and `playing`; a failure reports actual state.
+`project.add-clip --id=<uuid> --media=<path> --atMs=3000 --replaceToMs=5000` replaces that edited range. Partial cuts remain trims; fully trimmed clips are removed and overlapping or adjacent trims are merged. Existing affected projects are normalized in memory when loaded and persisted through the normal editor save path.
+
 `preview.seek --atMs`, `preview.hide`, `preview.list`. Call `preview.show` after
 every significant edit. `window.*` verbs (`window.editor`, `window.home`,
 `window.focus`, …) bring app windows forward.
@@ -1603,3 +1605,8 @@ projects and `--originKind=recipe` for a recipe with a known source.
 `project.new`, `project.duplicate` and `project.fork-from-shot` accept an optional
 `--folderId` destination. Folders are workspace-scoped and have no nesting.
 Migration changes only metadata, never file locations.
+
+For a plain blend between shots, use `project.add-transition --id=<id>
+--transitionId=cross-dissolve --atMs=<edited-cut-ms> --durationMs=1000
+--sound=none`. Required: project id and cut time. Place repeated loop clips
+next to one another and dissolve their junction. See reference/fx-transitions.md.

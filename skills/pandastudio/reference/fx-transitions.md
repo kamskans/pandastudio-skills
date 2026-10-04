@@ -139,3 +139,17 @@ pandastudio project.add-fx --id=$PROJECT \
 > the particle FX. Keep opacity restrained — a texture you *notice* is usually
 > too strong.
 
+
+### Plain cross dissolve
+
+`pandastudio project.add-transition --id=<project-id> --transitionId=cross-dissolve --atMs=3000 --durationMs=1000 --sound=none`
+
+Blends the outgoing and incoming shots across a clip boundary or jump cut.
+Use for gentle scene changes and the junction between repeated loop clips.
+The default window is 1000 ms, centred on the cut. Captions and foreground
+graphics stay above the blend. Source handles keep both shots moving; at a file edge the boundary frame holds.
+Discover this silent native transition with `asset.list-transitions`.
+
+Clip audio crossfades with complementary linear gain over the same window.
+Trim handles supply outgoing post-roll and incoming pre-roll; absent audio
+handles are silence. Music overlays keep their precise edited-time placement.
