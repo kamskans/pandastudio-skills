@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.236.0 -->
+<!-- version: 3.237.0 -->
 
 # PandaStudio
 
@@ -48,13 +48,21 @@ Re-read before trying again; do not overwrite with an old project snapshot.
 > the user to update (`npx @writepanda/mcp@latest`) and restart their agent.
 > Native-motion verbs (keyframes, ramps, masks, adjustment layers) need app 2.0.
 
-> ## Motion graphics: templates over footage, custom when graphics ARE the video
+> ## Motion graphics: design the moment first, then pick the tool
 >
-> - **Mode A — graphics layered OVER footage** (lower thirds, stat callouts,
->   side panels on a talking head or screen recording): bundled templates are
->   the default (`motion.list` → `motion.generate` → `job.wait` →
->   `project.add-motion-graphic --fromJob`). Custom HTML only when no template
->   fits. See "Motion graphics".
+> - **Mode A — graphics layered OVER footage** (a talking head or screen
+>   recording): for each beat, first decide what the viewer should SEE that the
+>   words alone don't give them. Then pick the tool that shows it best:
+>   - **Functional elements** (a name strap, subscribe/follow, a real number,
+>     a countdown, an end card): bundled templates are the default
+>     (`motion.list` → `motion.generate` → `job.wait` →
+>     `project.add-motion-graphic --fromJob`).
+>   - **Explaining something** (how it works, what connects to what, a
+>     comparison with nuance, a visual of the actual topic): author it with
+>     `motion.render-html` when no template shows that specific idea. A template
+>     that only holds the words is not a fit. Authoring is a first-class choice,
+>     not a fallback, and needs no apology.
+>   See "Motion graphics".
 > - **Mode B — a video built FROM SCRATCH** (promo, launch, teaser, app ad,
 >   explainer, intro/outro, CTA; no source clip): hand-authored scenes via
 >   `motion.render-html`, NOT templates. **Every one follows the house
@@ -341,9 +349,13 @@ On an app without `recipe.pick` (2.0.5 and older: "unknown command"), use
 `recipe.list --format=short|long` (9:16 = short) and choose by each recipe's
 `description` and `footage` the same way.
 
-The recipe owns the creative choices: captions, graphics, zooms, transitions,
-music, sound. Don't layer the generic pipeline's captions / graphics / zooms on
-top of it. A single named operation ("just add captions", "cut the silences")
+The recipe owns the style: captions, pacing, which kinds of moves, music and
+sound, the look and its checklist. Don't layer the generic pipeline's captions /
+graphics / zooms on top of it. Inside that style, the graphics are designed by
+you: a template a recipe names is its reference look, not a required part. When
+a beat needs something the named template can't show (a diagram of this
+specific idea, a real screenshot, an object the speaker describes), author a
+graphic in the same palette, type and motion with `motion.render-html`. A single named operation ("just add captions", "cut the silences")
 is exactly that, no recipe.
 
 **Blanks.** Blanks you omit come back as "(you decide this from the video: …)":
@@ -410,11 +422,13 @@ Word and filler cuts now land on measured audio pauses. Fillers reported as `ski
    its prompt). It covers captions, graphics, zooms and sound, so skip 8-10.
    Without a recipe: **captions** — `caption.toggle` + `caption.set-template`
    (`glowStack` unless the destination profile says otherwise).
-8. **Motion graphics** — follow the Motion-graphics Rules: `motion.list` first,
-   vary by beat, prefer the featured templates; camera-only / imported footage
-   leads with `paper-panel` / `vox-side-panel` designed segments; on a talking
-   head (`kind === "camera"`) open with a `caption-editorial-emphasis` TOPIC card
-   in the first 10–30s; explainer beats get authored diagrams, not bullets.
+8. **Motion graphics** — follow the Motion-graphics Rules: decide what each
+   beat should show, then choose a template or author it; vary by beat. Featured
+   templates are good starting points for functional elements; camera-only /
+   imported footage can lead with a `paper-panel` / `vox-side-panel` designed
+   segment; on a talking head (`kind === "camera"`) open with a TOPIC card in
+   the first 10–30s (`caption-editorial-emphasis` or your own); explainer beats
+   get authored diagrams, not bullets.
 9. **Emphasis zooms** on the key beats (below), and **plan the 2.0 moves**
    ("Which tool for which moment") on the beat map. They are part of the plan,
    not extras. Long-form on camera: for each chapter, one title (behind the
@@ -838,17 +852,25 @@ every significant edit. `window.*` verbs (`window.editor`, `window.home`,
 
 ## Motion graphics
 
-Curated YouTube-creator templates are the primary way to add graphics over
-footage; custom HTML is for briefs no template fits.
+Two tools, chosen per beat. Curated templates are the quick, reliable way to
+place functional elements (name straps, CTAs, real numbers, lists of short
+items, end cards). Authored graphics (`motion.render-html`) are how you SHOW an
+idea: diagrams, mechanisms, comparisons, the actual thing being talked about.
+The best edits mix both.
 
 ### Rules — recommendations, not rigid law (bias toward DOING)
 
-1. **`motion.list` FIRST, every time** (templates, slots, featured flags,
-   registry blocks). Never generate from memory.
-2. **Add a graphic on most meaningful beats** — name-drops, claims, numbers,
-   lists, comparisons, tool mentions, section changes. Ten clear points in a
-   5-minute video ≈ ten graphics. Under-graphicking is as much a failure as the
-   wrong graphic.
+1. **Design the beat before choosing the tool.** For each beat, write one line:
+   what should the viewer see, and why does it help them understand or feel it?
+   Then check `motion.list` (never generate from memory) for a template that
+   shows exactly that. If none does, author it. Filling a template's slots with
+   the spoken words is not design: if the graphic would only repeat the
+   sentence, show something else or show nothing.
+2. **Every graphic must earn its place** — name-drops, claims, numbers, lists,
+   comparisons, tool mentions and section changes are candidates, and a video
+   with no graphics on its key points reads as unedited. But the bar is "it
+   shows something the words alone don't", not a count. A few strong, specific
+   graphics beat many interchangeable ones.
 3. **Vary every scene; consistency comes from a shared SYSTEM** (palette, type,
    motion vocabulary), not a repeated layout. Reusing one layout beat after beat
    is the #1 templated-slideshow tell. The only repetition that belongs is a
@@ -856,9 +878,9 @@ footage; custom HTML is for briefs no template fits.
 4. **Never misuse a purpose-specific template:** `stat-reveal` → a real number;
    `comparison` → exactly two things; `flowchart` → an actual sequence;
    `list` → a real list; charts → real data; `yt-lower-third` → introducing a person/channel.
-5. **Camera-only / imported footage → lead with a PREMIUM designed segment**
-   (`paper-panel` or `vox-side-panel` via `project.add-designed-segment`),
-   alternating side and content.
+5. **Camera-only / imported footage → a designed segment is a strong default**
+   (`paper-panel` or `vox-side-panel` via `project.add-designed-segment`, or an
+   authored panel in the same layout), alternating side and content.
    `kind === "screen"` → cursor zooms, no splits.
 6. **Find templates by job, not by scrolling**: `motion.list --query="…"`,
    `--family=…`, `--aspect=…` (families, search and the retired policy:
@@ -866,12 +888,16 @@ footage; custom HTML is for briefs no template fits.
    ones (`featured: true`) are the best starting points. Retired templates are
    hidden; if a render returns a `warnings` entry naming a replacement, tell the
    user and use the replacement.
-7. **Text isn't your only option:** logos, screenshots and animated diagrams
-   are authored graphics (below).
+7. **Text isn't your only option:** logos, screenshots, product UI, animated
+   diagrams, simple illustrations of the thing described and data drawn to
+   scale are authored graphics (below). Reach for them whenever the topic has
+   something real to show.
 
 ### Selection guide (beat → template)
 
-Generic = any beat · Purpose = only when the content matches. Vary across the video.
+A map of starting points, not a lookup table: use it after you've decided
+what the beat should show. Generic = any beat · Purpose = only when the content
+matches. Vary across the video.
 
 | What's happening | Reach for | Class |
 |---|---|---|
@@ -898,10 +924,14 @@ Generic = any beat · Purpose = only when the content matches. Vary across the v
 
 ### Authored graphics — your repertoire is bigger than the gallery
 
-When a beat needs a visual no template captures — an animated diagram or
+When a beat needs a visual no template captures (an animated diagram or
 flowchart for "how it works", a chart, a logo-card row, a screenshot showcase,
-an icon callout — author it as a transparent overlay with `motion.render-html`.
-A first-class capability, not a fallback. Detail and patterns:
+an icon callout, a visual metaphor for the idea), author it as a transparent
+overlay with `motion.render-html`. A first-class capability, not a fallback:
+on explainer and educational edits, expect most of the "how/why" beats to be
+authored. Keep it in the video's system (brand palette, the same type and the
+house motion grammar) so authored and template graphics read as one edit, and
+verify it with `motion.screenshot` before rendering. Detail and patterns:
 [`reference/custom-html.md`](reference/custom-html.md),
 [`reference/examples.md`](reference/examples.md).
 
