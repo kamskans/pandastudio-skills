@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.235.0 -->
+<!-- version: 3.236.0 -->
 
 # PandaStudio
 
@@ -383,6 +383,8 @@ recipe runs (no candidate fits, or the user asked for a plain clean-up).
 
 When the user asks to **edit / polish / clean up** without naming an
 operation, run this in order:
+
+Word and filler cuts now land on measured audio pauses. Fillers reported as `skipped` ("no pause around it") are intentionally kept. Results include `snapped` edge counts and `warnings`; `--snapToAudio=false` restores legacy timing. Silence cuts keep a 50 ms hold after measured decay.
 
 1. **Transcribe** clips where `clipStates[i].transcribed === false` (`transcript.transcribe`).
 2. **Remove fillers + immediate repeats** (`transcript.remove-fillers`; safe
@@ -1610,3 +1612,7 @@ For a plain blend between shots, use `project.add-transition --id=<id>
 --transitionId=cross-dissolve --atMs=<edited-cut-ms> --durationMs=1000
 --sound=none`. Required: project id and cut time. Place repeated loop clips
 next to one another and dissolve their junction. See reference/fx-transitions.md.
+
+### Cutout camera
+
+Use Cutout for a screen recording + camera when the presenter should stand over the screen without a camera box. `project.set-webcam-layout --preset=cutout` removes the camera background; use the same command with `--scale=1` (default height 55% of the frame) and `--cx=0.8 --cy=0.9` to resize and position the person, including partly below the bottom edge. Preview shows the raw camera with Preparing background progress until that source frame’s matte is ready.

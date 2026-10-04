@@ -114,7 +114,7 @@ pandastudio project.set-focal-point --id=$ID --clear            # back to center
 
 # Webcam overlay — preset or manual position (PROJECT-LEVEL)
 pandastudio project.set-webcam-layout --id=$ID --preset=picture-in-picture
-# presets: none | picture-in-picture | vertical-stack | side-by-side | podcast
+# presets: none | cutout | picture-in-picture | vertical-stack | side-by-side | podcast
 #          | podcast-host-full | podcast-guest-full
 #   podcast = two co-equal speaker tiles (host=mediaPath, guest=webcamPath).
 #   podcast-host-full  = ONLY speaker 1 (host) full-frame.
