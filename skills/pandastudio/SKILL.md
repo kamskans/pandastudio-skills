@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.239.0 -->
+<!-- version: 3.241.0 -->
 
 # PandaStudio
 
@@ -360,7 +360,10 @@ lands in My Exports.
 ## Publishing (YouTube + social)
 
 YouTube `privacyStatus` defaults to `unlisted`: never public without the
-user's explicit say. Instagram, TikTok, Facebook, LinkedIn and X go through
+user's explicit say. Publishing has daily limits (all installs share one
+YouTube API quota): an error with `details.code` `daily_limit` or
+`youtube_quota_exceeded` carries `details.resetsAt`; tell the user when it
+resets and never retry before then. Instagram, TikTok, Facebook, LinkedIn and X go through
 `social.channels` → `export.publish-social` (the active workspace's own
 accounts only; Instagram needs a Business/Creator account). Confirm the caption
 and accounts before posting, and never publish from the wrong workspace.
@@ -1276,13 +1279,16 @@ cleaned before 2.2 reads as `light` with `legacy: "clean"`).
 The noise-removal engine is automatic: the studio model (MossFormer2) once the
 app has downloaded it in the background, DeepFilterNet3 before that, offline,
 or if the studio model fails (`denoiser` / `denoiserReason` in the result).
-`--restore=true` adds Restore voice quality (TF-Restormer, a one-time download)
-for a thin, muffled or call-quality voice (laptop mic, phone, Zoom); it
-regenerates the high frequencies, so never use it on a good mic, and only when
-the user asks for better-sounding audio from a bad mic. Apple silicon Macs on
-macOS 14 or later only (the job refuses elsewhere and says why). It takes
-about half the recording's length on a recent Mac, so mention that before a
-long take.
+`--restore=true` adds Studio mic sound (the app's name for it; a one-time
+download) for a thin, muffled or call-quality voice (laptop or webcam mic,
+phone, Zoom); it regenerates the high frequencies, so never use it on a good
+mic, and only when the user asks for better-sounding audio from a bad mic. It
+runs on every computer: TF-Restormer on Apple silicon Macs with macOS 14+
+(about half the recording's length), AP-BWE on Windows and Intel Macs (on the
+CPU, faster than real time). Both rebuild laptop, webcam and call mics (an
+8 kHz band) and phone lines (a 4 kHz band); a recording that is already full
+band comes back unchanged.
+The result's `restoreEngine` says which model ran.
 Aliases kept for older recipes: `audio.clean` = enhance `--strength=light`
 (`--echo` passes through, same rule: skipped when the Studio AI model ran); `audio.reset-clean --id=$ID --clipId=clip-1` =
 `--off` on every source of that clip (omit clipId for all clips).

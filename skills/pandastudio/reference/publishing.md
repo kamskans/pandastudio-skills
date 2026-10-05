@@ -21,7 +21,7 @@ PandaStudio uploads directly to YouTube via the Google Data API v3 — no PandaS
 **Hard caveats:**
 - **`privacyStatus` defaults to `unlisted`** — never publish public without the user's explicit word; ask "Public, unlisted, or private?" before a first publish.
 - **Metadata edits are currently unavailable to agents** — `export.update-youtube` needs the `youtube.force-ssl` scope (pending Google review); it fails with "insufficient scope". Direct the user to YouTube Studio (`https://studio.youtube.com/video/<VID>/edit`). **Thumbnail replacement works now** via `export.update-youtube-thumbnail` (same `youtube.upload` scope).
-- **Quota:** on a `quotaExceeded` error, stop and surface it (resets daily) — don't retry blindly.
+- **Daily limits:** every PandaStudio install shares one YouTube API quota, so publishing has fair-use caps: 20 YouTube uploads and 40 thumbnail/metadata updates per license per day (Pacific time), and 25 social posts per workspace per rolling 24 hours (a post to 3 accounts counts 3). At a cap, the verb fails with `details.code: "daily_limit"` and `details.resetsAt`. When PandaStudio's shared YouTube quota itself is used up, it fails with `details.code: "youtube_quota_exceeded"` and `details.resetsAt` (midnight Pacific). Either way: tell the user when it resets (in their local time) and **do not retry, loop, or switch accounts before `resetsAt`**; it fails the same way. It isn't a bug, so don't report it with `system.report-issue`.
 - **Don't cross workspaces:** if the active workspace lacks the connected account, ASK before switching — publishing to the wrong client's channel is the worst mistake.
 
 (Full arg schemas for every `youtube.*` / `export.*-youtube` verb: `reference/commands.md`.)
@@ -45,6 +45,7 @@ Social publishing runs through PandaQueue. Each PandaStudio workspace has its OW
 - **TikTok** wants 9:16 vertical video. **LinkedIn** and **Facebook** take 16:9 or square too. **X** captions are 280 characters.
 - **Never cross workspaces:** if the account isn't in the active workspace, ASK before `workspace.switch`. An export from another workspace is refused.
 - A `failed` channel carries the network's reason in `error`; report it rather than retrying blindly.
+- **Daily limit:** 25 posts per workspace per rolling 24 hours, counting each account posted to. A publish job that fails with `errorDetails.code: "daily_limit"` has `errorDetails.resetsAt`: tell the user when it resets and don't retry before then.
 
 The older `instagram.*` verbs and `export.publish-instagram` still work (they're the same thing with `--networks=instagram`); prefer the social verbs.
 
