@@ -143,9 +143,9 @@ never cut. Chapter boundaries are where the standard allows a cut.
 # From-scratch promo (no host footage): scenes become MAIN TRACK clips via
 # project.add-clip. NOT add-motion-graphic — that's for graphics layered on
 # top of existing footage (lower thirds, callouts), and there's no footage
-# here. Adding overlays to an empty main track produces a project the
-# editor opens to "No video to load" because overlays compose ON the main
-# track and there's nothing under them.
+# here. Overlays on an empty main track have nothing under them: the
+# editor shows its empty canvas and the export has no length, because
+# overlays compose ON the main track.
 for SCENE in intro problem demo cta; do
   JOB=$(pandastudio motion.render-html --htmlPath="/tmp/$SCENE.html" \
     --durationMs=6000 --json | jq -r '.data.jobId')

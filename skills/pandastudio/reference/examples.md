@@ -222,8 +222,8 @@ echo "Project: $ID"
 JOB=$(pandastudio transcript.transcribe --id=$ID --json | jq -r '.data.jobId')
 pandastudio job.wait --id=$JOB --timeoutMs=600000 --json | jq '.data.job.status'
 
-# Step 3: Clean up the audio (DeepFilter denoising)
-JOB=$(pandastudio audio.clean --id=$ID --json | jq -r '.data.jobId')
+# Step 3: Enhance voice (noise removal, level, tone, -16 LUFS)
+JOB=$(pandastudio audio.enhance --id=$ID --json | jq -r '.data.jobId')
 pandastudio job.wait --id=$JOB --timeoutMs=600000 --json | jq '.data.job.status'
 
 # Step 4: Auto-trim filler words and back-to-back repeats

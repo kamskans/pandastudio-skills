@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.237.0 -->
+<!-- version: 3.238.0 -->
 
 # PandaStudio
 
@@ -205,9 +205,13 @@ transcription → text/SRT/VTT and smooth-preview proxies
 **When the language is one the on-device models are weak at (Tamil, Telugu,
 Kannada, Malayalam), say so before you edit**: everything downstream inherits
 the transcript's mistakes. `system.get-transcription-provider` shows `local` /
-`deepgram` / `elevenlabs` and which have a key (`ready`). **Never switch the
+`apple` / `deepgram` / `elevenlabs` and which have a key (`ready`). **Never switch the
 provider without asking**: `system.set-transcription-provider` sends their audio
-to a third party and bills them. Missing keys fail clearly. Network/provider failures
+to a third party and bills them. `apple` (Apple's on-device speech, Macs only)
+is the user's opt-in for speed: it needs a chosen language, keeps fewer filler
+words than local, and does not support Tamil, Telugu, Kannada or Malayalam;
+`apple.languages[]` lists what it can do on this Mac (`fillers: false` = it
+leaves out um/uh, so `transcript.remove-fillers` finds nothing). Missing keys fail clearly. Network/provider failures
 can use the local engine; always surface job `warnings` to the user.
 
 If a transcript looks wrong or the user speaks a non-English language, ask or
@@ -239,6 +243,9 @@ the MP4 and creates a project). One recording at a time, no mic on this path
 (add narration after), surface `lowDisk: true` and any `warnings`. A missing OS
 Screen Recording grant returns a clear error you can't fix for them.
 `recording.get-countdown` / `set-countdown` read or change the HUD countdown.
+A take interrupted by a crash, force-quit or power loss is kept:
+`recording.unfinished` lists them, `recording.recover --recordingId=…` rebuilds
+one into a project (tell the user any `warnings`).
 Full detail: [`reference/recording.md`](reference/recording.md).
 
 ## Clips from a long video (`clips.make`)
@@ -277,7 +284,9 @@ exports). The Home screen's Clips tab is the same flow.
 ## Shorts: turning an exported video into vertical clips
 
 Discover shots (`export.generate-shots`), fork one project per shot
-(`project.fork-from-shot`), then edit it as a Short:
+(`project.fork-from-shot`), then edit it as a Short. No export yet? Pass the
+project instead: `export.generate-shots --projectId=$ID`, then
+`project.fork-from-shot --projectId=$ID --shotId=…`. Details:
 [`reference/shorts.md`](reference/shorts.md). Its style comes from a recipe
 (`recipe.pick`, see "Pick the style" below). The retention grammar behind the
 recipes, for a custom style no recipe covers:
@@ -298,6 +307,55 @@ recipes, for a custom style no recipe covers:
 Camera card ring / circle on a camera-only video: `project.set-style
 --borderWidth --borderColor [--shape=circle]` (not `set-webcam-style`).
 Camera looks flipped: `project.set-webcam-style --mirror=true`.
+
+## Audio-only podcasts
+
+An MP3 / WAV / M4A / AAC / FLAC / OGG file is an **audio-only project** (a
+podcast episode with no video): `project.new --name --withMedia=episode.mp3`.
+Speakers recorded apart (one file each, host first) are one multi-speaker clip,
+synced by audio: `project.new --name --speakers=host.wav,guest.wav` (or
+`project.add-podcast-clip` with audio files). Embedded cover art and title /
+artist tags are picked up on import. `project.read` marks these clips
+`audioOnly: true`. Audio and video don't mix in one project.
+
+Everything sound-related works as on video: transcript editing, fillers,
+silences, `audio.enhance`, `audio.clean`, music / SFX (`project.add-audio`),
+mute regions and bleeps, clip volume. Picture-only verbs (zooms, crops,
+layouts, background effects, auto-reframe) don't apply. The canvas is the
+**audio stage**: cover art, a live waveform, the episode title and who is
+speaking; `project.set-cover-art --image`, `project.set-episode-info
+--show --title --episode`, `project.set-audio-stage --style=waveform|cover
+--accent`. Captions (`caption.toggle`) draw under the waveform.
+
+Default pipeline for an audio project ("edit my podcast"), in order:
+1. `transcript.transcribe` (each speaker separately on a multi-speaker clip).
+2. `transcript.remove-fillers`, then `transcript.find-issues` /
+   `transcript.delete-words` for false starts and retakes (keep the last take).
+3. `transcript.remove-silences`.
+   **TTS / ElevenLabs narration** (generated speech that runs sentences
+   together): skip remove-silences and run `transcript.space-out
+   --preset=natural` right after transcribing instead. It tops up the gap after
+   commas (0.15 s), sentences (0.42 s) and paragraph / speaker changes (0.7 s)
+   with pauses filled with the take's own room tone, never shortening a gap
+   (`--dryRun=true` first to tell the user "adds 34 pauses, +18.2 s";
+   `relaxed` / `tight` for a slower or faster pace). One pause by hand:
+   `transcript.insert-pause --afterWordId --ms=500`; undo with
+   `project.remove-pause --afterWordId | --regionId | --all=true`.
+4. `audio.enhance --preset=podcast` (every speaker of the clip).
+5. Cover art + episode info if the user has them (ask once).
+6. `export.start --format=mp3` (CBR 192 kbps, podcast loudness -16 LUFS /
+   -1 dBTP by default, ID3 tags, cover embedded). `--bitrate=128|320`,
+   `--format=wav` (24-bit master) or `m4a`, `--channels=mono` with
+   `--normalizeLoudness=spoken` (-19 LUFS) for spoken-word mono feeds.
+
+Video from an audio project: `export.start --audiogram=true
+--aspectRatio=1:1|9:16|16:9` (cover art + waveform + captions; captions are
+switched on when there is a transcript), `--rangeStartMs --rangeEndMs` (edited
+ms) for a clip, or `--audiogram=cover --aspectRatio=16:9` for a plain
+cover-art video for YouTube. Audiogram Shorts from AI-picked moments:
+`export.generate-shots --projectId --render=true` (async job; one 9:16
+audiogram per shot). Every audio and audiogram export counts as an export and
+lands in My Exports.
 
 ## Publishing (YouTube + social)
 
@@ -416,8 +474,10 @@ Word and filler cuts now land on measured audio pauses. Fillers reported as `ski
    button) after content cleanup. Steps 2, 4, 5 add trims and shift the edited
    timeline, so finish cleanup BEFORE placing graphics/zooms; anything placed
    earlier from a transcript word needs `--anchorSourceMs`.
-6. **Clean audio** (`audio.clean`) where `audioCleaned === false`
-   (`--echo=true` only when the user mentions echo / a boomy room).
+6. **Enhance voice** (`audio.enhance`) where `voiceEnhanced` is absent: one
+   step, strength `natural` (the default). `--keepBackground=true` for vlogs /
+   ambience where the room is part of the video; `--echo=true` only when the
+   user mentions echo / a boomy room.
 7. **Style: run the recipe** (`recipe.pick` → apply-style → render → follow
    its prompt). It covers captions, graphics, zooms and sound, so skip 8-10.
    Without a recipe: **captions** — `caption.toggle` + `caption.set-template`
@@ -458,7 +518,7 @@ a full polish: `transcript.remove-fillers`, `find-issues` → `delete-words`
 **Ask once, for scope.** For a vague "edit my video", confirm in ONE message
 (combined with the destination question if that's unknown too): *"Want the
 full polish — fillers/repeats/silences, transcript typos, bad takes (keeping
-the latest), clean audio, captions, motion graphics and emphasis zooms? Or just
+the latest), enhance voice, captions, motion graphics and emphasis zooms? Or just
 some of it?"* On yes / "just go" / "do everything", run it all without
 per-step asking. A named operation ("just add captions") → exactly that.
 
@@ -498,6 +558,7 @@ and the doc named in the row.
 | Text, emoji, lower third, image or graphic entering / leaving (any entrance or exit, including a card sliding away) | ALWAYS `--enter` / `--exit` on `add-annotation` / `add-emoji` / `add-lower-third`, or `project.set-animation` | a keyframe track |
 | Restyle or retime a region already placed | `project.update-region`, `project.set-animation`, `project.set-keyframes` | `project.save` with the whole project JSON |
 | Privacy on a person who moves | `project.add-spotlight --kind=blur` + `project.track-focus-face --regionId` | a static blur box |
+| Blur / spotlight on something else that moves (a window, a card, a scrolling email) | `project.add-spotlight` around it at the frame it shows, then `project.track-region --regionId --atMs=<that frame>` | hand-made keyframes |
 | Presenter filmed on green (main video or camera tile) | `project.set-clip-chroma-key --target=screen\|camera` (on an overlay: `set-overlay-chroma-key`) | `add-background-effect` (AI matte for real rooms) |
 | Messy real room behind the presenter | `project.add-background-effect --mode=blur\|image` | chroma key |
 | Music under a voice | `project.set-audio-ducking --regionId` or `project.add-audio --ducking=true` | hand-drawn volume dips (volume keyframes are for deliberate swells) |
@@ -607,7 +668,7 @@ Run these without asking and say what you did; all are reversible (trims are
 spans, cleaned audio is a sibling file, generated text is text).
 
 **Read `clipStates` first** (`project.read`): skip `transcript.transcribe` where
-`transcribed: true` and `audio.clean` where `audioCleaned: true`; only pass
+`transcribed: true` and `audio.enhance` where `voiceEnhanced` is set; only pass
 un-processed clips. `contentIssues.total > 0` → run `find-issues` in the polish.
 
 **`kind` decides the visual strategy** (don't guess from aspect ratio):
@@ -626,7 +687,7 @@ enhancements); treat doubt as `camera` or ask, then lock it with
 | `transcript.remove-fillers` | Safe tier (um/uh/uhm/umm/hmm/hm + immediate repeats). `--aggressive=true` (like / you know / I mean…) only for a requested thorough cleanup. |
 | `transcript.find-issues` → `delete-words` | Keep the most recent take; keep `severity: "low"`; ask when a repeat might be deliberate emphasis. |
 | `transcript.remove-silences` | After content cleanup; 600ms default (don't raise it "to be safe"); two passes (word gaps + audio-level detection) like the UI button. |
-| `audio.clean` | Un-cleaned clips only; `--echo=true` only for echo / reverb / "studio sound". |
+| `audio.enhance` | Un-enhanced clips only, strength `natural`. `--keepBackground=true` for vlogs / ambience; `--echo=true` only for echo / reverb; `--strength=light` when the user wants a lighter touch, `strong` for punchy broadcast sound. Report the before/after loudness it returns. (`audio.clean` is a deprecated alias: Light.) |
 | `caption.set-template` ("add captions", no style named) | `glowStack` (app default since 1.94); a recipe's caption setting wins (some turn captions off). Animated styles for Shorts energy, `bold` / `editorial` for long-form: captions-metadata.md. "Highlight the key word" / Hormozi / Captions.ai-style looks → an emphasis template (`hormoziEmphasis`, `tiltedBox`, `serifItalic`, `condensedCaps`, `scriptKeyword`, `wordBoxes`, `goldSerif`, `keywordBox`, `limeItalic`): it marks the IMPORTANT word of each phrase (detected from the audio on apply), not the spoken one. |
 | `llm.generate-title` / `-description` / `-timestamps` | After the edit pass; show them, let the user regenerate or edit. |
 | Zoom moments | Pick from the transcript ("you said 'click here' at 12.4s — adding a zoom"). Don't pre-ask. |
@@ -810,16 +871,33 @@ give you.
   zIndex < 5 (also `annotation`, and `fx` among FX);
   `update-motion-element --zIndex=-2500` drops an element under the default
   overlays. Never paint text into a PNG overlay to get it on top.
-- **SFX defaults:** `add-zoom` = swoosh, `add-motion-graphic` /
-  `add-designed-segment` / `add-lower-third` = mouse-click; `--soundUrl=none`
-  silences one; `project.set-region-sound` retunes a placed one.
+- **SFX defaults:** `add-zoom` = swoosh. Graphics OWN their sound (it moves
+  with them through drags, trims and ripple edits): new motion graphics and
+  motion elements start with the workspace's Default graphic sound, a
+  mouse-click on card / callout graphics (`add-lower-third` included) and none
+  on titles, panels, intros and HTML graphics, played on each step of a
+  flowchart / list / comparison. `--soundUrl=none` silences one at creation;
+  `project.set-graphic-sound --overlayId --sound --volume --beats` retunes a
+  placed graphic or element; `workspace.set-default-graphic-sound` changes the
+  default. Prefer these over timeline cues for a graphic's beats
+  (audio-color-music.md "Graphics own their sounds").
 - **Lower thirds:** `project.add-lower-third --name --title --atMs` renders AND
   places in one async call, in the project's aspect (default `lt-vox-marker`;
   also `lt-glass-card`, `lt-minimal-line`, `lt-bold-bar`, `lt-logo-name` with a
   logo, `lt-duo` for two speakers).
 - **Focus regions:** `project.add-spotlight` (dim outside / `--kind=blur` /
   `--style=pixelate` for privacy, `--shape=ellipse` for faces),
-  `update-spotlight`, `remove-spotlight`, `track-focus-face` for a moving face.
+  `update-spotlight`, `remove-spotlight`, `track-focus-face` for a moving face,
+  `track-region --regionId [--atMs]` for any other moving content ("Track this
+  area": correlation tracking forward and backward from the frame the box was
+  drawn on; it stops where the content is lost and holds there, so read
+  `lostForwardAtMs` / `lostBackwardAtMs` and tell the user. Needs the media
+  engine; draw the box tightly around something with texture).
+- **Backgrounds from the recording:** `project.set-wallpaper --source=edges`
+  ("Match video edges": a soft gradient from the video's border colours that
+  follows the content slowly; analysed once per source, so the first preview
+  may show a neutral gradient for a moment) or `--source=desktop` (a kept still
+  of the user's desktop wallpaper, macOS and Windows).
 - **Speaker background:** `project.add-background-effect
   --mode=blur|remove|image` (AI person matte, camera footage only; `remove`
   puts the outline on by default; `image` = virtual studio plates).
@@ -828,7 +906,9 @@ give you.
   detects the key; always check with `render-frame` and nudge `--similarity` by
   0.05.
 - **Cursor (screen recordings):** `project.set-style --cursorScale
-  --cursorHideIdle --cursorHideDuringZoom`.
+  --cursorHideIdle --cursorHideDuringZoom --cursorStyle=classic|modern|bold|soft`
+  (modern: clean dark arrow, white outline; bold: high contrast for busy or
+  bright screens; soft: rounded, light).
 - **Reset / repeat:** `project.clear-edits` for "start over" (don't loop
   `remove-region`); `project.duplicate-region` copies a styled region
   (Cmd/Ctrl+D).
@@ -1170,13 +1250,40 @@ store: [`reference/transcript-editing.md`](reference/transcript-editing.md).
 
 ### Audio cleanup, background audio, music, and color grading
 
-`audio.clean` denoises and boosts speech below -30 LUFS to -16 LUFS / -1.5 dBTP
-by default; `--normalize=false` opts out and `--echo=true` reduces room reverb.
-Read the async job’s `warnings` before adding music.
-`audio.normalize --id=$ID --clipId=clip-1 --targetLufs=-16` normalizes active
-clip audio without denoising (async: `job.wait`).
-`audio.reset-clean --id=$ID --clipId=clip-1` restores original audio synchronously;
-omit clipId for all clips. Generated files stay on disk.
+**Enhance voice** (`audio.enhance --id=$ID [--strength=light|natural|strong]
+[--keepBackground=true] [--echo=true] [--restore=true] [--clipId]
+[--source=host|guest|guest-2] [--reference=<clipId or file>]`, async:
+`job.wait`) is THE audio cleanup step, one call: noise removal, coughs and
+bumps out of pauses, mouth-click repair, broadcast tone, boom control, level
+riding (it lifts very quiet speech too), de-esser, quieter pauses, -16 LUFS /
+-1 dBTP. `natural` (default) is the full chain; `light` is a gentle tidy
+(softer noise removal, no gating); `strong` is assertive broadcast processing.
+`--keepBackground=true` keeps the room (no noise removal, event remover or
+pause expander) for vlogs and ambience; level, tone and loudness still run.
+`--echo=true` adds Reduce echo (late-reverb suppression) for bare, echoey
+rooms. Podcast clips are processed per speaker. `--reference` makes this take
+sound like another clip or file (two takes, two speakers). Every run starts
+from the original media, so running it again replaces the result; `--off=true`
+restores the original audio. The job result has `before` / `after` per source
+(`integratedLufs`, `loudnessRangeLu`, `truePeakDbtp`, `speechToPauseDb`,
+`balanceDeviationDb`): tell the user the headline ("-24 to -16 LUFS, pauses
+12 dB quieter"). `project.read` shows `voiceEnhanced` per clip (a project
+cleaned before 2.2 reads as `light` with `legacy: "clean"`).
+The noise-removal engine is automatic: the studio model (MossFormer2) once the
+app has downloaded it in the background, DeepFilterNet3 before that, offline,
+or if the studio model fails (`denoiser` / `denoiserReason` in the result).
+`--restore=true` adds Restore voice quality (TF-Restormer, a one-time download)
+for a thin, muffled or call-quality voice (laptop mic, phone, Zoom); it
+regenerates the high frequencies, so never use it on a good mic, and only when
+the user asks for better-sounding audio from a bad mic. Apple silicon Macs on
+macOS 14 or later only (the job refuses elsewhere and says why). It takes
+about half the recording's length on a recent Mac, so mention that before a
+long take.
+Aliases kept for older recipes: `audio.clean` = enhance `--strength=light`
+(`--echo` passes through); `audio.reset-clean --id=$ID --clipId=clip-1` =
+`--off` on every source of that clip (omit clipId for all clips).
+`audio.normalize --id=$ID --clipId=clip-1 --targetLufs=-16` is loudness only
+(skips enhanced clips, which are already at -16 LUFS).
 `audio.probe` reports `integratedLufs`, `tooQuiet`, and levels without exporting.
 
  `project.add-audio` / `project.remove-audio` (music, SFX,
@@ -1390,7 +1497,7 @@ user imported a font for that language, set it as the caption `fontFamily`
 a long timeout) renders everything in the project on the native engine (720p /
 1080p / source resolution up to 4K / same; aspect from the project) and returns
 `{ outputPath, durationMs, width, height, frameRate: { fps, setting, reason },
-loudness }`. **Free trial exports in 720p only: `standard`, `high` and `ultra`
+loudness }`. Audio only: `--format=mp3|wav|m4a` (see "Audio-only podcasts"). **Free trial exports in 720p only: `standard`, `high` and `ultra`
 need a license** and fail with `details.code: quality_requires_license` (plus
 `upgradeUrl`); use `--quality=draft` (an omitted quality already defaults to
 draft on a trial, high when licensed). Tell the user 1080p and Highest come
@@ -1516,7 +1623,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   add-caption-region [hide-captions], remove-caption-region [show-captions],
   add-mute-region, remove-mute-region, add-bleep, update-bleep, remove-bleep,
   update-region, remove-region,
-  duplicate-region, set-region-sound, update-motion-graphic,
+  duplicate-region, set-region-sound, set-graphic-sound, update-motion-graphic,
   set-overlay-crop, set-overlay-backdrop-blur, set-overlay-chroma-key,
   set-clip-chroma-key (visual-edits.md, fx-transitions.md, motion-templates.md)
 - **project**, native motion and looks (2.0) — add-motion, set-keyframes,
@@ -1533,7 +1640,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   (transcript-editing.md)
 - **timeline** — source-to-edited, edited-to-source
 - **caption** — toggle, set-template, set-style, move (captions-metadata.md)
-- **audio** — clean, probe, normalize, reset-clean (audio-color-music.md)
+- **audio** — enhance (aliases: clean, reset-clean), probe, normalize (audio-color-music.md)
 - **motion** — list, generate, render-html, screenshot, concat, verify-frames,
   themes, list-storyboards, generate-storyboard, catalog [catalog-search],
   catalog-item, craft, render-film (motion-templates.md, custom-html.md,
@@ -1645,4 +1752,39 @@ next to one another and dissolve their junction. See reference/fx-transitions.md
 
 ### Cutout camera
 
+Cutout and Speaker remove/image automatically bake the whole source in the background, including on project open. `project.read` reports `clipStates[].matte.main/camera` (none / baking with percent / ready). Use `matte.status --id=PROJECT --clip=CLIP [--source=camera|main]` to inspect (it also reports `engine`: vision or rvm, and any `fallbackReason`), or `matte.bake --id=PROJECT --clip=CLIP [--engine=auto|vision|rvm] [--quality=accurate|balanced]` to trigger; await its jobId with `job.wait`, cancel with `job.cancel`. On macOS 12+ the default engine is Apple Vision accurate (about 1 s per video-second); elsewhere, or if Vision fails, RVM bakes at reduced resolution (about 1 to 1.5 s per video-second). Only pass `--engine`/`--quality` when the user asks: an explicit choice becomes that source's matte and rebakes if it differs (`--quality=balanced` is ~3x faster, softer edges). Completed prefixes are usable; uncovered frames keep the exact live-matte preparing behaviour. Completed bakes survive restart; interrupted bakes restart on demand.
+
 Use Cutout for a screen recording + camera when the presenter should stand over the screen without a camera box. `project.set-webcam-layout --preset=cutout` removes the camera background; use the same command with `--scale=1` (default height 55% of the frame) and `--cx=0.8 --cy=0.9` to resize and position the person, including partly below the bottom edge. Preview shows the raw camera with Preparing background progress until that source frame’s matte is ready.
+
+Annotation restyling: `project.update-region --regionType=annotation --regionId=ann-1 --fontSize=48 --fontFamily=Poppins --textColor="#ff8800" --backgroundColor="#111111"`. Style fields also include color (alias textColor), fontWeight, fontStyle, textDecoration and textAlign. A `patch` object may supply flat fields or nested `style` / legacy `styles`; these merge into canonical `style`, preserving unspecified fields. Flat values win over `styles`, then `style`. Existing projects with legacy annotation `styles` heal on normalization (legacy values win).
+
+Saved conversations: `agent.session-search --query="text"` searches Home and project history; `agent.session-read --sessionId=<chat-or-backend-id>` reads messages and tool results, including interrupted calls. Reopen History in the app to continue; continuation requires an explicit user message.
+
+### Checking audio before export
+
+Use `pandastudio audio.preview-mix --id=$ID [--fromMs=0 --toMs=30000] --json`,
+then `job.wait --id=<jobId>`. It renders the export mix (cleaned/trimmed/speed-adjusted
+voice, podcast/overlay video audio, ducked music, region sounds/SFX and project loudness)
+to a temporary `.m4a` in `temp/previews`. Default is the whole edited project; calls
+longer than 10 minutes require a smaller range. The result includes `describe`,
+500ms voice/music/SFX RMS, and `audibleUnderVoice` flags. Explicit music or overlays
+at least 10s long (including uncapped beds) are music; other audio overlays are SFX.
+Overlay video audio and recorded/generated/transcribed voiceovers belong to voice. Music is sensible at -6 to -30 dB relative to
+speech; flags mark music above voice, music below -30 dB relative, and SFX masked by
+more than 18 dB by speech or music at their strongest 20ms moment within each 500ms window. These are heuristics; inspect the numbers and
+surface warnings. Final stem RMS estimates common normalization gain; raw levels
+are also supplied. Stems never normalize independently.
+
+Use `pandastudio audio.describe --path=/absolute/reference.mp3 --json` (audio or video),
+or `audio.describe --id=$ID [--fromMs=... --toMs=...]`, then `job.wait`. Returns
+integrated LUFS, true peak dBTP, LRA, decoded clipping count, short-term loudness
+(one point/second, at most 600), silence spans (-50 dBFS for at least 300ms),
+low-confidence speech/music windows, estimated BPM/beats, attacks and centroid.
+Times in a description are relative to the analyzed file/excerpt; stem times are
+edited project times. Analysis is capped at the first 10 minutes and reports truncation.
+Short-term LUFS needs a 3s warm-up. Energy activity is not speech recognition, and
+attacks can be words or percussion as well as SFX. Never identify a specific song,
+whoosh or click from these numbers. Reference studies now include `audioDescription`
+for each excerpt and its source `audioStartMs`; use that evidence without claiming
+that the agent listened or recognized a sound. Preview uses export preparation,
+and normalizes the whole project before slicing; long projects can take longer.

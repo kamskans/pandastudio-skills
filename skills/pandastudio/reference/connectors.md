@@ -17,6 +17,34 @@ you only want what's usable right now.
 pandastudio connector.list --no-launch --json | jq '.data.connected'
 ```
 
+`state` is what the agent runtime reports. When PandaStudio's own last use of a
+connector (tool discovery or a call) failed, its row says
+`status: "connected, last check failed"`, `connected: false`, and `lastCheck`
+gives when, why (`reason`), the server `host` and the `fix`. It is left out of
+`data.connected` and listed in `data.connectedLastCheckFailed`. Run
+`connector.tools --connector=<id>` to check it again; a success clears it.
+
+## When a connector fails
+
+`connector.tools` and `connector.call` explain a failure instead of a bare
+"fetch failed". The error says what happened and what to do; `details` has:
+
+- `reason`: `dns` (the address doesn't resolve) or `refused` (nothing answers
+  there): the server is unreachable, so the URL is wrong or the service is
+  down. `timeout`, `reset`: a slow or dropped connection. `http` (with
+  `httpStatus`): the server answered an error, e.g. 404 = no MCP server at
+  that address, 5xx = the service is having trouble. `auth` (401 / 403): the
+  sign-in expired or is missing. `protocol`: the address isn't an MCP endpoint.
+- `host`: the server's host only (addresses can carry API keys; never ask the
+  user to paste theirs into the chat).
+- `fix`: tell the user this, e.g. "Check the connector URL in Settings >
+  Integrations > Connectors" or "Sign in again" (press Reconnect there).
+
+Transient failures (unreachable for a moment, a timeout, a 5xx) are already
+retried once automatically, so don't loop on them: report the fix. A paid
+`connector.call` is never resent once the request may have reached the
+service.
+
 ## Use a connector's tools: `connector.tools`, then `connector.call`
 
 Inside PandaStudio's own chat the connectors' tools are NOT in your tool list

@@ -26,6 +26,15 @@ pandastudio export.generate-shots --id="$EXPORT" --json
 
 If the model reply is unusable, it falls back to pause-based ~45 s segments (title = the opening words, score 5). Shots under 10 s are dropped.
 
+**No export yet?** Run it on the project itself: same model, prompt and scoring, over what the project plays (cut words left out). Nothing is written to the project; each shot also carries `sourceStartMs` / `sourceEndMs`. Fork with the same `projectId` + the shot id (kept until the app restarts), or pass the source range directly:
+
+```bash
+pandastudio export.generate-shots --projectId="$ID" --json
+# → .data = { projectId, shots: [{ id, startMs, endMs, sourceStartMs, sourceEndMs, title, description, score }] }
+pandastudio project.fork-from-shot --projectId="$ID" --shotId="$SHOT" --json
+# or: --projectId="$ID" --sourceStartMs=120000 --sourceEndMs=165000 --title="The hook"
+```
+
 ### Step 2 — Fork the source project for ONE shot (the right path almost always)
 
 `project.fork-from-shot` makes a **new 9:16 project** from the original source project — NOT from the flat exported MP4. Use this whenever the source project still exists and you want the short fully re-editable:

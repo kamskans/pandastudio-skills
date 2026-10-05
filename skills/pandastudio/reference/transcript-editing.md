@@ -7,7 +7,7 @@ skips — identical to deleting the word in the editor's transcript pane.
 
 ## Read clip state first
 
-Before `transcript.transcribe` or `audio.clean`, call `project.read` and read
+Before `transcript.transcribe` or `audio.enhance`, call `project.read` and read
 `clipStates[]`:
 
 ```json
@@ -20,8 +20,11 @@ Before `transcript.transcribe` or `audio.clean`, call `project.read` and read
   only with `--clipId` when the transcript is genuinely wrong (new audio, a bad
   run): word fixes survive it (below), but it costs time and can drop fixes
   whose words the new run hears differently.
-- `audioCleaned: true` → skip `audio.clean`. `echoReduced: true` means
-  room-echo reduction is on too (`roomRt60Ms` = the reverb time it measured).
+- `voiceEnhanced` present → skip `audio.enhance` for that clip (each entry has
+  `strength` and a `summary`; `legacy: "clean"` is a Clean audio result from
+  before 2.2, which plays as Light with only noise removal; run `audio.enhance`
+  on it only if the user wants the full chain). `audioCleaned: true` just means
+  the clip plays a processed track.
 - `wordFixes: n` → the clip carries n stored text fixes.
 - `contentIssues` (top level, only when something is transcribed) →
   `{ total, duplicateTakes, falseStarts, adjacentRepeats }`. If `total > 0`,
@@ -125,6 +128,38 @@ voiced part, and a quiet word the audio reads as silence stays guarded whole. Ru
 content cleanup. If the user already removed silences in the UI, a fresh
 `project.read` shows the new `trimCount` / `editedDurationMs` /
 `totalTrimmedMs`: treat that as done.
+
+## Adding pauses (pacing)
+
+The opposite of removing silences: give speech room to breathe. Ideal for
+TTS / ElevenLabs narration (writing pauses into the script makes the voice
+speed up instead), so for generated narration run `space-out` right after
+transcribing it.
+
+```bash
+# Plan first: how many pauses, how much longer (writes nothing)
+pandastudio transcript.space-out --id "$ID" --preset=natural --dryRun=true
+# → { pauses: 34, addedMs: 18200, description: "Adds 34 pauses, +18.2 s", items: [...], skipped }
+pandastudio transcript.space-out --id "$ID" --preset=natural   # one revision
+# One pause after a word (250 / 500 / 1000 / 2000 typical, 30..60000 ms)
+pandastudio transcript.insert-pause --id "$ID" --afterWordId=w123 --ms=500
+pandastudio project.remove-pause --id "$ID" --afterWordId=w123   # or --regionId, --all=true
+```
+
+- Targets (natural / relaxed / tight): after a comma 0.15 / 0.2 / 0.12 s,
+  after a sentence 0.42 / 0.5 / 0.35 s, at a paragraph or speaker change
+  0.7 / 0.8 / 0.6 s. The gap heard NOW (after cuts and earlier pauses) is
+  topped up; a longer gap is never shortened, and rerunning adds nothing (an
+  existing pause is lengthened, not duplicated). `--fromMs --toMs` (edited ms)
+  limits it to a stretch.
+- A pause is extra timeline time filled with the take's own room tone (the
+  quietest nearby gap between words, looped); it is silent only when the take
+  has no pause anywhere. On video the frame holds. Everything after it
+  (captions, anchored zooms / overlays / graphics) moves later with its words.
+- Stored as a speed region with `freezeMs` (the length) and `pause`; change the
+  length with `project.update-region --regionType=speed --regionId --freezeMs`.
+  A pause can't go inside a speed change (those joints are listed in `skipped`).
+- Run it AFTER cuts and remove-silences, and BEFORE graphics / B-roll timing.
 
 ## Fixing words
 

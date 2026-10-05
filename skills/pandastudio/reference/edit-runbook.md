@@ -102,11 +102,11 @@ ID=$(pandastudio project.current --json | jq -r '.data.project.id // empty')
 pandastudio project.set-aspect-ratio --id=$ID --ratio=$ASPECT
 
 # 1. PACING — the default cleanup pipeline (SKILL.md "default edit pipeline").
-#    audio.clean runs async; wait on it before export. First read pulls the
+#    audio.enhance runs async; wait on it before export. First read pulls the
 #    transcript; later reads pass --includeTranscript=false.
 pandastudio project.read --id=$ID --json
 pandastudio transcript.transcribe --id=$ID               # skip if transcribed
-AUDIO_CLEAN_JOB=$(pandastudio audio.clean --id=$ID --json | jq -r '.data.jobId // empty')
+AUDIO_CLEAN_JOB=$(pandastudio audio.enhance --id=$ID --json | jq -r '.data.jobId // empty')
 pandastudio transcript.remove-fillers --id=$ID
 # find-issues is READ-ONLY — delete the discarded wordIds (keep the most recent
 # take; keep severity "low" candidates unless clearly abandoned).
@@ -222,7 +222,7 @@ rounding error.
 - **`motion.render-html` renders run one at a time.** App >= 1.60 queues them
   (submit several, keep editing, `job.wait` each when placing); older apps
   return `RENDER_BUSY` for a second concurrent render.
-- **Run `audio.clean` in the background** (capture its jobId after transcribe;
+- **Run `audio.enhance` in the background** (capture its jobId after transcribe;
   `job.wait` only before `export.start`). Safe to overlap with a render.
 - **Pre-flight HTML with `motion.screenshot`** before a full render — a ~2s
   screenshot at `--atMs=<mid-scene>` beats a 20–45s wasted render. It inlines

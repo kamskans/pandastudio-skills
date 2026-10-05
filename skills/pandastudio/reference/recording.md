@@ -49,6 +49,24 @@ Notes:
 - `recording.stop` results can carry a `warnings` array (capture-helper
   problems such as a stalled video feed padded with the last frame). Surface
   them to the user.
+- `recording.stop` results can also carry a `health` array: `low-disk` (under
+  2 GB free during the take), `disk-critical` (under 0.5 GB: the capture
+  stopped and saved itself early, so the recording is shorter than you drove
+  it), `capture-stopped-by-system`. Tell the user.
+- **Crash-safe.** Recordings are written so a crash, force-quit or power loss
+  keeps what was captured (everything up to the last ~2 s on macOS, ~30 s on
+  Windows). Find them and rebuild them into a normal recording + project:
+
+  ```bash
+  pandastudio recording.unfinished --json
+  #   → { recordings:[{ recordingId, bytes, hasScreen, hasWebcam, hasMic, screenBackend, via, health }] }
+  pandastudio recording.recover --recordingId=1791125062160 --json
+  #   → { screenPath, webcamPath?, durationMs, projectId, projectPath, warnings? }
+  ```
+
+  Recovery lines the mic and camera up with the screen from the start times
+  recorded during the take. `screenBackend: "legacy"` entries come from older
+  builds; the user recovers those from the home screen.
 - **Countdown:** `recording.start --countdownSeconds=3` shows a 3-2-1 overlay
   (0-10 s, default 0) before capture starts. Use it when the USER is about to
   present or act on screen, not when you drive the capture yourself. The
@@ -59,3 +77,13 @@ Notes:
   bar count down first (timer button: Off / 3s / 5s / 10s, default 3s; Esc or
   the record button cancels). Read or change it with `recording.get-countdown`
   / `recording.set-countdown --seconds=5` when the user asks.
+- **Clean desktop:** full-screen recordings hide the desktop icons by default
+  (macOS: Finder's desktop is switched off and Finder relaunches before the
+  countdown; Windows: the shell's Show desktop icons toggle). They always come
+  back: on stop, a cancelled or failed start, a crash (a watchdog process) or
+  quit, and at the next launch if all else failed. Window recordings are left
+  alone. `recording.start --cleanDesktop=false` skips it for one take;
+  `recording.get-clean-desktop` / `recording.set-clean-desktop --enabled=false`
+  read or change the setting (the desktop button on the recording bar). The app
+  can't switch on Do Not Disturb (no public API); `recording.start` returns a
+  `tip` asking the user to, so pass it on before they present.

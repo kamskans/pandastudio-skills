@@ -113,8 +113,8 @@ none does.
 >    specific time windows.
 >
 > Picking the wrong verb produces a broken project: `project.add-motion-graphic`
-> on an EMPTY main track produces an editor that opens to "No video to load"
-> because overlays compose ON the main track, and there's nothing there.
+> on an EMPTY main track leaves the editor on its empty canvas with nothing to
+> export, because overlays compose ON the main track, and there's nothing there.
 >
 > **Chain for a brand-new promo / explainer / video-from-scratch**
 > (the from-scratch case — use `project.add-clip`):

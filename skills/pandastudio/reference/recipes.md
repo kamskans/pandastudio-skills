@@ -30,7 +30,7 @@ A recipe's former ids (`aliases`, e.g. `saas-launch-film` after it merged into `
 
 ## Running a recipe
 
-Every recipe has an **input**: `footage` (the default; it edits a recording), `none` (it builds the whole video from scratch: promo, whiteboard) or `optional` (it uses the project's clips when there are any, otherwise builds from scratch). `recipe.get` returns it. Run a `none` recipe in an empty project: if the current project already has clips, ask the user before creating a new one with `project.new`. From the home screen, picking a no-footage recipe offers **Start a new video**, which creates the empty project and opens it with the recipe ready.
+Every recipe has an **input**: `footage` (the default; it edits a recording), `none` (it builds the whole video from scratch: promo, whiteboard) or `optional` (it uses the project's clips when there are any, otherwise builds from scratch). `recipe.get` returns it. Run a `none` recipe in an empty project: if the current project already has clips, ask the user before creating a new one with `project.new`. From the home screen, picking a no-footage recipe offers **Start a new video**, which creates the empty project and opens it with the recipe ready. That project opens on an empty canvas at the recipe's aspect ratio; no step needs an existing clip. Narration can come first: `project.add-audio --transcribe=true` on a project with no clip keeps the words and puts them on the first clip you add (a `media.image-to-video` still or a `project.add-clip` video / rendered graphic), so captions work once the pictures are in.
 
 ```bash
 # 1. Find one (filter by format when you know the destination)

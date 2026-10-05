@@ -1,71 +1,62 @@
 <!-- Part of the pandastudio skill. Detail relocated from SKILL.md for progressive disclosure. -->
 
-Very quiet recordings (< -30 LUFS integrated) are boosted by `audio.clean`
-by default, before denoising and again afterward to -16 LUFS / -1.5 dBTP.
-Read the job’s `warnings` before adding music. `--normalize=false` opts out.
-`audio.probe --id=$ID` reports active-track `integratedLufs` and `tooQuiet`;
-null loudness means silent or measurement unavailable. Clips below -60 LUFS
-are not amplified automatically (noise/silence); a warning explains the skip.
-
-To boost speech without denoising:
-```bash
-pandastudio audio.normalize --id=$ID --clipId=clip-1 --targetLufs=-16 --json
-# Async: pass returned jobId to job.wait before adding music/exporting.
-pandastudio audio.reset-clean --id=$ID --clipId=clip-1 --json
-# Synchronous: restores original audio, including after normalization.
-# Omit clipId to reset all clips. Generated files stay on disk.
-```
-
-Normalization uses the active cleaned track when present, otherwise the source.
-Echo-off audio is retained. These operations preserve clip timing and volume;
-probe measures the audio file, before clip volume/keyframes and the music mix.
-
-
 # Audio cleanup, background audio, music, color (LUT)
 
-### Audio cleanup (DeepFilter)
+### Enhance voice (`audio.enhance`): the one cleanup step
 
 ```bash
-# Check clipStates first — skip if all clips are already cleaned
-JOB=$(pandastudio audio.clean --id=$ID --json | jq -r '.data.jobId')
-pandastudio job.wait --id=$JOB --timeoutMs=600000 --json
-# → only un-cleaned clips are processed; already-cleaned clips are skipped automatically
-# → each processed clip gets a sibling .cleaned.wav file; export auto-uses it
+# Check clipStates first: skip clips that already have voiceEnhanced
+JOB=$(pandastudio audio.enhance --id=$ID --json | jq -r '.data.jobId')
+pandastudio job.wait --id=$JOB --timeoutMs=900000 --json
+# -> data.result.results[i]: { clipId, source, strength, path, denoiser,
+#      denoiserReason, echo, restored, before, after, warnings }
+# -> each source gets a sibling .enhanced-<strength>.<id>.wav; preview and export use it
 ```
 
-### Room echo / reverb (`--echo`)
+One chain does everything: noise removal, coughs and bumps out of pauses,
+mouth-click repair, broadcast tone match, boom control, level riding, de-esser,
+quieter pauses, -16 LUFS / -1 dBTP. Very quiet speech is lifted by the input
+normalize and the leveller (there is no separate boost step any more).
 
-DeepFilter removes steady noise (fans, hum, hiss) but NOT room reverb: in a
-bare or hard-walled room every phrase still trails off. `--echo=true` adds a
-second stage on the cleaned track that shortens that tail (statistical
-late-reverb suppression with the room's reverb time measured from the
-recording itself). Soft speech is not gated, and the speech level is kept the
-same, so switching it on and off is a clean A/B.
+| Option | Use it when |
+|---|---|
+| `--strength=natural` (default) | Almost always. |
+| `--strength=light` | The user wants a lighter touch: softer noise removal that keeps a little room, gentle level and tone. |
+| `--strength=strong` | Punchy broadcast sound: closer tone match, tighter level riding, deeper pauses. |
+| `--keepBackground=true` | Vlogs, travel, ambience, live music: the room is part of the video. Skips noise removal, the event remover and the pause expander; level, tone and loudness still run. |
+| `--echo=true` | The user mentions echo, reverb, a boomy / hollow / "bathroom" sound. Off by default. |
+| `--restore=true` | Thin laptop / phone / call audio, and only when asked (Apple silicon, slow). |
+| `--reference=<clipId or file>` | Two takes or two speakers should sound alike. |
+| `--off=true` | Back to the original audio. |
 
+- Every run processes the ORIGINAL media and replaces the previous result, so
+  re-running with other options never stacks processing.
+- The noise-removal engine is automatic: the studio model (MossFormer2) once
+  the app has downloaded it in the background, DeepFilterNet3 before that or
+  if it fails. The result names it (`denoiser`, `denoiserReason`).
+- Echo: verify from `echo.decayBeforeMs` / `echo.decayAfterMs` (typically about
+  half). `echo.rt60Ms` above ~600 means a very live room: tell the user it helps
+  but can't fully fix it, and suggest soft furnishings or a closer mic.
+- Measured on real takes (60 s, before -> after): every strength lands at
+  -16.1 LUFS / -1.1 dBTP; speech over pauses rises from ~41-47 dB to ~54-59 dB
+  (Light ~54-58, Natural ~53-59, Strong ~55-57); tone deviation from the
+  broadcast target falls from ~5-6 dB to ~2.7-4.1 (Light), ~1.8-2.4
+  (Natural), ~1.6-2.0 (Strong).
+- In the app: Audio panel -> Enhance voice.
+
+Compatible aliases (older recipes): `audio.clean` = `audio.enhance
+--strength=light` (`--echo` passes through, `--normalize` is ignored; clips
+already enhanced are skipped unless `--clipId` is given); `audio.reset-clean`
+= `--off` on every source.
+
+Loudness only, no other processing:
 ```bash
-# Clean + reduce echo in one job
-JOB=$(pandastudio audio.clean --id=$ID --echo=true --json | jq -r '.data.jobId')
-pandastudio job.wait --id=$JOB --timeoutMs=600000 --json
-# → data.result.results[i]: { clipId, cleanedPath, denoisedPath, echoReducedPath,
-#     rt60Ms, decayBeforeMs, decayAfterMs }
-
-# Already cleaned? Only the fast echo stage runs (well under a second per minute of audio)
-pandastudio audio.clean --id=$ID --clipId=clip-1 --echo=true --json
-# Back to noise removal only (instant, the DeepFilter WAV is kept)
-pandastudio audio.clean --id=$ID --clipId=clip-1 --echo=false --json
+pandastudio audio.normalize --id=$ID --clipId=clip-1 --targetLufs=-16 --json
+# Async: job.wait. Skips an enhanced clip (it is already at -16 LUFS).
 ```
-
-- Opt-in. Turn it on when the user mentions echo, reverb, a boomy/hollow/
-  "bathroom" sound, or asks for a studio sound. Don't add it to every clean.
-- Files: `x.cleaned.wav` (DeepFilter only, kept) and `x.cleaned.dereverb.wav`
-  (+ echo reduction). `clip.cleanedAudioPath` points at whichever is active;
-  `clip.cleanedAudioDenoisedPath` holds the DeepFilter one while echo is on.
-- Verify from the job result: `decayAfterMs` well below `decayBeforeMs`
-  (typically ~50% shorter). `rt60Ms` above ~600 means a very live room: tell
-  the user it helps but can't fully fix it, and suggest soft furnishings or a
-  closer mic for the next take.
-- `project.read` → `clipStates[i].echoReduced` / `roomRt60Ms` show the state.
-- In the app: Audio panel → Clean Audio → **Reduce echo** switch.
+`audio.probe --id=$ID` reports active-track `integratedLufs` and `tooQuiet`;
+null loudness means silent or measurement unavailable. Probe measures the audio
+file, before clip volume/keyframes and the music mix.
 
 ### Per-clip volume (balance loudness across clips)
 
@@ -539,6 +530,38 @@ pandastudio project.add-clip --id=$ID --media="$MERGED" --atIndex=0 --json
 Omit `--atIndex` (or use a high number) to append at the end instead.
 
 ### Sound design: the sound map
+
+#### Graphics own their sounds
+
+A motion graphic or motion element carries its own sound, stored on the
+graphic and timed from it, so a drag, trim, retime or ripple edit keeps it in
+sync with no separate timeline item to re-adjust. For a sound that belongs to a
+graphic's beat (a card landing, a callout appearing, each flowchart step or
+list item), set it ON the graphic, not as a timeline cue:
+
+```bash
+pandastudio project.set-graphic-sound --id=$ID --overlayId=overlay-3 --sound=notif-pop-small-1 --volume=0.4
+pandastudio project.set-graphic-sound --id=$ID --overlayId=overlay-3 --beats=true   # one per step / item / card
+pandastudio project.set-graphic-sound --id=$ID --overlayId=el-2 --sound=none        # a motion element
+```
+
+- New graphics start with the workspace's **Default graphic sound**: a mouse
+  click on card and callout graphics (callouts, lists and steps, stats,
+  comparisons, product, social proof, end cards, lower thirds; chip, steps,
+  count, lowerThird, highlight, endCard, sticker elements), none on the rest,
+  and on each beat of a flowchart, comparison, list or glow-steps template and
+  of a steps element. `workspace.set-default-graphic-sound --sound=<id>|none
+  [--scope=cards|all]` changes it for new graphics (the user may have chosen
+  one: keep it unless asked).
+- Beats (`--beats=true`) follow the template's own timing: `flowchart` steps,
+  `list` and `glow-steps` items, `comparison` left card / right card / verdict,
+  a `steps` element's item cues. They replace the single entrance sound.
+- Use timeline cues (`project.add-sound-cues`, `project.add-audio`) for sounds
+  that are NOT one graphic's: footage actions, typing, transitions between
+  scenes, motion inside B-roll. Timeline sound items keep working as before.
+- Before adding a cue at a graphic's start, read the graphic's own sound
+  (`project.read`: `soundUrl`, `soundBeats`) so it doesn't double; retune it
+  with `set-graphic-sound` instead.
 
 #### Match the movement before choosing the sound
 

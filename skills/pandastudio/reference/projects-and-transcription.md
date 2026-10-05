@@ -90,9 +90,9 @@ and thumbnails. Read it with `workspace.get-brand`.
 # Manual: set any subset.
 pandastudio workspace.set-brand --brand='{"name":"Acme","colors":{"primary":"#2563EB","ink":"#111827","background":"#FFFFFF"},"typography":{"display":"Inter"}}' --json
 
-# Auto: pull the real brand off a website (HyperFrames capture, classifies the
+# Auto: pull the real brand off a website (in-app capture, classifies the
 # site's colors/fonts/logo, MERGES into the kit; hand-set fields survive).
-# ASYNC; the first run downloads the capture CLI, so use a long timeout.
+# ASYNC; loads the live site with the app’s bundled browser.
 JOB=$(pandastudio workspace.capture-brand --url=https://acme.com --json | jq -r '.data.jobId')
 pandastudio job.wait --id="$JOB" --timeoutMs=300000 --json | jq '.data.job.result.brand'
 
@@ -102,6 +102,8 @@ JOB=$(pandastudio workspace.capture-brand --url=https://acme.com --apply=false -
 pandastudio job.wait --id="$JOB" --timeoutMs=300000 --json \
   | jq '.data.job.result | {brand, logo: .captured.logoPath, og: .captured.ogImagePath, shots: [.captured.screenshots[].path]}'
 ```
+
+Capture runs in the app with the same bundled browser as motion rendering; no system Node/npm or HyperFrames CLI setup is required.
 
 Reach for `workspace.capture-brand` when the user says "use my brand", "make it
 match my site", or you're onboarding a client and only have a URL. Needs
@@ -268,9 +270,21 @@ captions, `transcript.remove-fillers`, `transcript.remove-silences`, shorts
 detection and any edit-by-text all inherit its mistakes.
 
 `system.get-transcription-provider` reports who transcribes: `local` (default),
-`deepgram` (Nova-3) or `elevenlabs` (Scribe), plus `ready` saying which cloud
-providers have a key. Both cloud providers transcribe those languages properly
-for roughly a penny a minute.
+`apple` (Apple's on-device speech, opt-in, Macs only), `deepgram` (Nova-3) or
+`elevenlabs` (Scribe), plus `ready` saying which cloud providers have a key.
+Both cloud providers transcribe those languages properly for roughly a penny a
+minute. Apple does not support Tamil, Telugu, Kannada or Malayalam at all.
+
+Apple speech never leaves the Mac. On macOS 26 with Apple silicon it uses
+Apple's long-form model for English, German, Spanish, French, Italian,
+Portuguese, Chinese, Japanese and Korean: 4-9x faster than local with similar
+accuracy, but it keeps fewer filler words (about 70% of local's), so local stays
+the default and the better choice when filler removal matters. Elsewhere, and
+for Arabic, Thai and Hindi, Apple's engines leave out filler words entirely, so
+they are only offered for languages local can't do with Parakeet. The response's
+`apple.languages[]` lists what this Mac offers, each with `fillers`. Apple needs
+an explicit language (it can't detect one), and the first use of a language
+downloads Apple's model for it.
 
 ```bash
 pandastudio system.get-transcription-provider --no-launch --json
@@ -455,7 +469,7 @@ Ask/confirm the language when a transcript looks wrong or speech is non-English.
 `pandastudio transcript.transcribe --id=PROJECT --clipId=CLIP --force=true --language=tamil --provider=deepgram`
 overrides workspace preferences for this run only. Supported language names include
 English, Parakeet's European set and the Whisper languages. Provider is
-`local|deepgram|elevenlabs`. Never use cloud with `auto`; choose a language first.
+`local|apple|deepgram|elevenlabs`. Never use cloud or apple with `auto`; choose a language first.
 Cloud needs a connected key and user consent to upload audio. Surface job `warnings`
 when a network/provider failure caused a local fallback.
 
