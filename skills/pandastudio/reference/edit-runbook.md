@@ -83,7 +83,7 @@ opt-outs.
 | `project.add-lower-third` | `--anchorSourceMs`, `--anchorSourceEndMs` | Same |
 | `project.add-annotation` | `--anchorSourceMs`, `--anchorSourceEndMs` | Always when startMs comes from a transcript word |
 | `project.add-designed-segment`, `add-motion`, `add-adjustment`, `add-emoji`, `add-background-effect`, `caption.move` | `--anchorSourceMs` | Same |
-| `project.add-audio` | `--anchorSourceMs`, `--anchorSourceEndMs` | SFX pinned to a word. **NEVER for background music** (keep it free-floating) |
+| `project.add-audio` | `--anchorSourceMs`, `--anchorSourceEndMs` | SFX pinned to a word. Not needed for background music: every audio overlay ripples with later cuts (a bed under a cut gets shorter, sounds after it move earlier, a sound inside it is parked until the content is restored) |
 
 Free-floating is OK when the user placed a region by edited time (an outro
 card in "the last 5 seconds"). `anchorSourceMs` is global source time (ms from

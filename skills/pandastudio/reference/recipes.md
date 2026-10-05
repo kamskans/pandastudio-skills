@@ -92,7 +92,7 @@ pandastudio recipe.render --id=faceless-short \
   --values='{"topic":"Every summer the Eiffel Tower grows...","topicKind":"script"}' --json
 ```
 
-Then do the edit on the current project: follow `prompt` for the content-dependent work, do anything listed in the apply-style `notes` yourself, and before reporting done, verify each checklist item with `project.render-frame` or `project.read`. When the user pressed Run in the app, the style was already applied for you — verify it rather than redoing it. Report anything you couldn't complete.
+Then do the edit on the current project: follow `prompt` for the content-dependent work, do anything listed in the apply-style `notes` yourself, and before reporting done, verify each checklist item with `project.render-frame` or `project.read`. When the user pressed Run in the app, the app ran apply-style first; the run context lists what the project holds (read back after applying) and anything that is NOT in it. Set what's missing rather than redoing the rest, and never assume a part is applied because a recipe says so. Report anything you couldn't complete.
 
 When the user runs a recipe from the app, the in-app agent receives the same `runContext` in its editor context for that turn, so the flow is identical.
 
@@ -106,6 +106,7 @@ When the user runs a recipe from the app, the in-app agent receives the same `ru
 
 - Recipes are guidance for an agent, not a macro: content steps (which beats get graphics, what the B-roll shows) are decided from the transcript each run, so results vary with the footage.
 - A recipe that asks for things the footage can't support (a Short recipe on landscape footage, chapters on a 40-second clip) should be flagged to the user before running.
+- Recipes declare the footage they need (`footageKinds`: camera, screen, podcast, audio, none). An audio-only project (a WAV / MP3 episode with no video) takes only recipes made for audio: `recipe.pick` offers no others, and `recipe.apply-style` / `recipe.render` fail on a camera or screen recipe with "This recipe needs camera footage; this project is audio only" without changing anything.
 
 ## Learn an editing style from a reference
 

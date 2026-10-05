@@ -3,7 +3,9 @@
 Connectors are hosted MCP servers the user signs in to (Settings →
 Integrations → Connect), billed to their own plan credits. They power the
 agent AND built-in features (Replicate for images / TTS / presenters,
-ElevenLabs for cloned voices).
+ElevenLabs for cloned voices). A server the user added themselves can sign in
+with an API key instead of a browser sign-in (Vocallab, for example): the user
+pastes the key in Settings, it's stored encrypted, and you never see it.
 
 ## Check what's actually connected: `connector.list`
 
@@ -24,6 +26,12 @@ gives when, why (`reason`), the server `host` and the `fix`. It is left out of
 `data.connected` and listed in `data.connectedLastCheckFailed`. Run
 `connector.tools --connector=<id>` to check it again; a success clears it.
 
+A row with `auth: "api-key"` is a server that signs in with the user's API key.
+`needsKey: true` means the key is missing, can't be read on this computer, or
+was refused: its `howToConnect` line asks the user to press Edit on it in
+Settings and paste a valid key. Never ask for the key in the chat, and never
+put one in a server address.
+
 ## When a connector fails
 
 `connector.tools` and `connector.call` explain a failure instead of a bare
@@ -34,7 +42,8 @@ gives when, why (`reason`), the server `host` and the `fix`. It is left out of
   down. `timeout`, `reset`: a slow or dropped connection. `http` (with
   `httpStatus`): the server answered an error, e.g. 404 = no MCP server at
   that address, 5xx = the service is having trouble. `auth` (401 / 403): the
-  sign-in expired or is missing. `protocol`: the address isn't an MCP endpoint.
+  sign-in expired or is missing (for an API-key server: the key was refused,
+  so the fix is pasting a new one). `protocol`: the address isn't an MCP endpoint.
 - `host`: the server's host only (addresses can carry API keys; never ask the
   user to paste theirs into the chat).
 - `fix`: tell the user this, e.g. "Check the connector URL in Settings >
@@ -63,7 +72,9 @@ pandastudio connector.call --connector=higgsfield --tool=<name> \
 
 - `connector.call` returns `data` (parsed JSON), `text`, `structured`, `links`
   (remote URLs) and `files` (images/audio the service sent inline, already
-  saved to disk: use the `path`). Remote links still go through `media.import`.
+  saved to disk: use the `path`). Media a service puts in its JSON as base64
+  (an `audio_base64` field, a data: URI) is saved the same way and replaced by
+  `{ savedTo, mimeType }`. Remote links still go through `media.import`.
 - Slow generations: add `--async=true` and poll `job.wait --id=<jobId>`, or
   raise `--timeoutMs` (default 120000, max 1800000). Many services also return
   their own job id to poll with a second tool; follow that tool's description.
@@ -181,3 +192,10 @@ so say what you're about to do first:
   description back only when asked.
 - **Dropbox**: find footage or assets; get a download link, `media.import` it,
   then `project.add-clip`.
+- **Vocallab** (a custom connector with an API key, Pro plan): the user's own
+  cloned and designed voices. `list_voices` for their voices, `generate_speech`
+  for a line (poll `get_speech` if it hands back an id), `get_balance` before a
+  long script. The audio comes back as a file path or a URL: `media.import` it,
+  then `project.add-audio` (or use it as narration). `clone_voice` needs a voice
+  sample the user owns and their go-ahead; `delete_voice` / `delete_speech` are
+  permanent, so confirm first.

@@ -21,10 +21,10 @@ normalize and the leveller (there is no separate boost step any more).
 | Option | Use it when |
 |---|---|
 | `--strength=natural` (default) | Almost always. |
-| `--strength=light` | The user wants a lighter touch: softer noise removal that keeps a little room, gentle level and tone. |
+| `--strength=light` | The user wants a lighter touch: noise removal that keeps a little room between phrases, gentle automatic echo reduction (only in echoey rooms), gentle level and tone. |
 | `--strength=strong` | Punchy broadcast sound: closer tone match, tighter level riding, deeper pauses. |
 | `--keepBackground=true` | Vlogs, travel, ambience, live music: the room is part of the video. Skips noise removal, the event remover and the pause expander; level, tone and loudness still run. |
-| `--echo=true` | Rarely. Enhance voice already removes room echo with the Studio AI model; only use `--echo` when the result reports the model did not run (fallback) (`denoiser: deepfilternet3`, or `--keepBackground`) and the user mentions echo / reverb. When the model runs, echo is skipped (`echoSkipped: "ai-model-removes-echo"`). Off by default. |
+| `--echo=true` | Rarely. Enhance voice already removes room echo with the Studio AI model; only use `--echo` when the result reports the model did not run (fallback) (`denoiser: deepfilternet3`, or `--keepBackground`) and the user mentions echo / reverb. When the model runs, echo is skipped (`echoSkipped: "ai-model-removes-echo"`). Light reduces echo by itself (a gentle automatic stage, reported as `echo.auto: true`), so `--echo` changes nothing there unless `--keepBackground`. Off by default. |
 | `--restore=true` | Thin laptop / phone / call audio, and only when asked (Apple silicon, slow). |
 | `--reference=<clipId or file>` | Two takes or two speakers should sound alike. |
 | `--off=true` | Back to the original audio. |
