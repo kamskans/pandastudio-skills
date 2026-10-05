@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.238.0 -->
+<!-- version: 3.239.0 -->
 
 # PandaStudio
 
@@ -476,8 +476,10 @@ Word and filler cuts now land on measured audio pauses. Fillers reported as `ski
    earlier from a transcript word needs `--anchorSourceMs`.
 6. **Enhance voice** (`audio.enhance`) where `voiceEnhanced` is absent: one
    step, strength `natural` (the default). `--keepBackground=true` for vlogs /
-   ambience where the room is part of the video; `--echo=true` only when the
-   user mentions echo / a boomy room.
+   ambience where the room is part of the video. No `--echo`: Enhance voice
+   already removes room echo with the Studio AI model; only use `--echo` when
+   the result reports the model did not run (fallback: `denoiser` is
+   `deepfilternet3`, or `--keepBackground`) and the user mentions echo.
 7. **Style: run the recipe** (`recipe.pick` → apply-style → render → follow
    its prompt). It covers captions, graphics, zooms and sound, so skip 8-10.
    Without a recipe: **captions** — `caption.toggle` + `caption.set-template`
@@ -687,7 +689,7 @@ enhancements); treat doubt as `camera` or ask, then lock it with
 | `transcript.remove-fillers` | Safe tier (um/uh/uhm/umm/hmm/hm + immediate repeats). `--aggressive=true` (like / you know / I mean…) only for a requested thorough cleanup. |
 | `transcript.find-issues` → `delete-words` | Keep the most recent take; keep `severity: "low"`; ask when a repeat might be deliberate emphasis. |
 | `transcript.remove-silences` | After content cleanup; 600ms default (don't raise it "to be safe"); two passes (word gaps + audio-level detection) like the UI button. |
-| `audio.enhance` | Un-enhanced clips only, strength `natural`. `--keepBackground=true` for vlogs / ambience; `--echo=true` only for echo / reverb; `--strength=light` when the user wants a lighter touch, `strong` for punchy broadcast sound. Report the before/after loudness it returns. (`audio.clean` is a deprecated alias: Light.) |
+| `audio.enhance` | Un-enhanced clips only, strength `natural`. `--keepBackground=true` for vlogs / ambience; no `--echo` (Enhance voice already removes room echo with the Studio AI model; only use `--echo` when the result reports the model did not run, i.e. fallback `denoiser: deepfilternet3`); `--strength=light` when the user wants a lighter touch, `strong` for punchy broadcast sound. Report the before/after loudness it returns. (`audio.clean` is a deprecated alias: Light.) |
 | `caption.set-template` ("add captions", no style named) | `glowStack` (app default since 1.94); a recipe's caption setting wins (some turn captions off). Animated styles for Shorts energy, `bold` / `editorial` for long-form: captions-metadata.md. "Highlight the key word" / Hormozi / Captions.ai-style looks → an emphasis template (`hormoziEmphasis`, `tiltedBox`, `serifItalic`, `condensedCaps`, `scriptKeyword`, `wordBoxes`, `goldSerif`, `keywordBox`, `limeItalic`): it marks the IMPORTANT word of each phrase (detected from the audio on apply), not the spoken one. |
 | `llm.generate-title` / `-description` / `-timestamps` | After the edit pass; show them, let the user regenerate or edit. |
 | Zoom moments | Pick from the transcript ("you said 'click here' at 12.4s — adding a zoom"). Don't pre-ask. |
@@ -1260,8 +1262,10 @@ riding (it lifts very quiet speech too), de-esser, quieter pauses, -16 LUFS /
 (softer noise removal, no gating); `strong` is assertive broadcast processing.
 `--keepBackground=true` keeps the room (no noise removal, event remover or
 pause expander) for vlogs and ambience; level, tone and loudness still run.
-`--echo=true` adds Reduce echo (late-reverb suppression) for bare, echoey
-rooms. Podcast clips are processed per speaker. `--reference` makes this take
+`--echo=true` adds Reduce echo (late-reverb suppression). Enhance voice already removes room echo with the Studio AI model; only use `--echo` when the result reports the model did not run (fallback) (`denoiser: deepfilternet3`, or `--keepBackground`). When the model
+runs, `--echo` is skipped and the result says `echoSkipped:
+"ai-model-removes-echo"` with `echoSkippedReason`: stacking both makes the
+voice sound electronic. Podcast clips are processed per speaker. `--reference` makes this take
 sound like another clip or file (two takes, two speakers). Every run starts
 from the original media, so running it again replaces the result; `--off=true`
 restores the original audio. The job result has `before` / `after` per source
@@ -1280,7 +1284,7 @@ macOS 14 or later only (the job refuses elsewhere and says why). It takes
 about half the recording's length on a recent Mac, so mention that before a
 long take.
 Aliases kept for older recipes: `audio.clean` = enhance `--strength=light`
-(`--echo` passes through); `audio.reset-clean --id=$ID --clipId=clip-1` =
+(`--echo` passes through, same rule: skipped when the Studio AI model ran); `audio.reset-clean --id=$ID --clipId=clip-1` =
 `--off` on every source of that clip (omit clipId for all clips).
 `audio.normalize --id=$ID --clipId=clip-1 --targetLufs=-16` is loudness only
 (skips enhanced clips, which are already at -16 LUFS).

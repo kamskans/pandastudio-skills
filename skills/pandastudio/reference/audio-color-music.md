@@ -24,7 +24,7 @@ normalize and the leveller (there is no separate boost step any more).
 | `--strength=light` | The user wants a lighter touch: softer noise removal that keeps a little room, gentle level and tone. |
 | `--strength=strong` | Punchy broadcast sound: closer tone match, tighter level riding, deeper pauses. |
 | `--keepBackground=true` | Vlogs, travel, ambience, live music: the room is part of the video. Skips noise removal, the event remover and the pause expander; level, tone and loudness still run. |
-| `--echo=true` | The user mentions echo, reverb, a boomy / hollow / "bathroom" sound. Off by default. |
+| `--echo=true` | Rarely. Enhance voice already removes room echo with the Studio AI model; only use `--echo` when the result reports the model did not run (fallback) (`denoiser: deepfilternet3`, or `--keepBackground`) and the user mentions echo / reverb. When the model runs, echo is skipped (`echoSkipped: "ai-model-removes-echo"`). Off by default. |
 | `--restore=true` | Thin laptop / phone / call audio, and only when asked (Apple silicon, slow). |
 | `--reference=<clipId or file>` | Two takes or two speakers should sound alike. |
 | `--off=true` | Back to the original audio. |
@@ -34,7 +34,8 @@ normalize and the leveller (there is no separate boost step any more).
 - The noise-removal engine is automatic: the studio model (MossFormer2) once
   the app has downloaded it in the background, DeepFilterNet3 before that or
   if it fails. The result names it (`denoiser`, `denoiserReason`).
-- Echo: verify from `echo.decayBeforeMs` / `echo.decayAfterMs` (typically about
+- Echo: when a result has `echoSkipped`, relay its `echoSkippedReason` and do
+  not retry with `--echo`. When Reduce echo did run (fallback), verify from `echo.decayBeforeMs` / `echo.decayAfterMs` (typically about
   half). `echo.rt60Ms` above ~600 means a very live room: tell the user it helps
   but can't fully fix it, and suggest soft furnishings or a closer mic.
 - Measured on real takes (60 s, before -> after): every strength lands at
@@ -45,7 +46,7 @@ normalize and the leveller (there is no separate boost step any more).
 - In the app: Audio panel -> Enhance voice.
 
 Compatible aliases (older recipes): `audio.clean` = `audio.enhance
---strength=light` (`--echo` passes through, `--normalize` is ignored; clips
+--strength=light` (`--echo` passes through under the same rule, `--normalize` is ignored; clips
 already enhanced are skipped unless `--clipId` is given); `audio.reset-clean`
 = `--off` on every source.
 
