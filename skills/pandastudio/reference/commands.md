@@ -242,7 +242,7 @@ The editorial primitive that makes PandaStudio PandaStudio. Every operation that
 | `transcript.delete-words` | `id` \| `path`, `wordIds` (string[]) | Translate word IDs into trim regions. Coalesces adjacent deletions. |
 | `transcript.remove-fillers` | `id` \| `path`, `includeRepeats` (bool, default true) | Auto-detect filler words ('um','uh','you know',…) plus back-to-back repeats. Bulk-trims them. |
 | `transcript.search` | `id` \| `path`, `query` | Find a phrase across the merged transcript. Returns matches with their word IDs. |
-| `transcript.insert-pause` | `id` \| `path`, `afterWordId` \| `sourceMs`, `ms` (30..60000) | Add `ms` of room-tone pause after a word (video holds the frame); a pause already there gets the new length. Returns `{ regionId, anchorMs, roomTone, updated }`. |
+| `transcript.insert-pause` | `id` \| `path`, `afterWordId` \| `sourceMs`, `ms` (30..60000) | Add `ms` of room-tone pause after a word (video holds the frame); a pause already there gets the new length. Placed at the real end of the word in the audio (`snappedTo`: measured / before-next / transcript). Returns `{ regionId, anchorMs, snappedTo, roomTone, updated }`. |
 | `transcript.space-out` | `id` \| `path`, `preset` (natural \| relaxed \| tight), `fromMs`/`toMs` (edited), `dryRun` | Natural pacing: tops up gaps after commas, sentences and paragraph / speaker changes to the preset's targets with room-tone pauses. Never shortens; idempotent. Returns `{ pauses, addedMs, description, added, lengthened, skipped, items }`. Run after generating TTS narration. |
 | `project.remove-pause` | `id` \| `path`, `regionId` \| `regionIds` \| `afterWordId` \| `all` | Remove inserted pauses (never freeze frames or speed changes). Returns `{ removed, notFound }`. |
 

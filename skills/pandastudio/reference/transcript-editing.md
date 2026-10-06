@@ -152,6 +152,10 @@ pandastudio project.remove-pause --id "$ID" --afterWordId=w123   # or --regionId
   topped up; a longer gap is never shortened, and rerunning adds nothing (an
   existing pause is lengthened, not duplicated). `--fromMs --toMs` (edited ms)
   limits it to a stretch.
+- Pauses go where the word really ends in the audio, not at the transcript's
+  word end (speech-to-text ends words early, most of all on TTS): the start of
+  the measured silence after the word, else just before the next word. So a
+  pause never splits a word; insert-pause reports it as `snappedTo`.
 - A pause is extra timeline time filled with the take's own room tone (the
   quietest nearby gap between words, looped); it is silent only when the take
   has no pause anywhere. On video the frame holds. Everything after it
