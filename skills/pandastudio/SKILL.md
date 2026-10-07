@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.244.0 -->
+<!-- version: 3.245.0 -->
 
 # PandaStudio
 
@@ -1505,7 +1505,10 @@ Gujarati, Punjabi, Odia, Sinhala, Arabic, Hebrew and Thai fall back per
 character to a bundled Noto font, and Chinese / Japanese / Korean to an
 installed system font. For a non-English video, check `custom` first: when the
 user imported a font for that language, set it as the caption `fontFamily`
-(it's what they want, not the Noto fallback).
+(it's what they want, not the Noto fallback). A font that isn't there
+(not bundled, imported or installed): import it yourself with
+`asset.import-font --path=<font file>` or `--google="<Google Fonts family>"`,
+then use the returned `family`; don't send the user to the font picker.
 
 ## Export — produce the final MP4
 
@@ -1673,7 +1676,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   compose-soundtrack (soundtrack.md), generate-music, generate-sound-effect,
   generate-presenter (media-generation.md)
 - **asset** — list-music, list-sounds, list-fx, list-luts, list-transitions,
-  list-emoji, resolve
+  list-emoji, list-fonts, import-font, resolve
 - **clips** — make, list, get, export, retry, set-caption, delete (long video → clips)
 - **llm** — generate-title, generate-description, generate-timestamps,
   generate-caption, infer, status (captions-metadata.md)

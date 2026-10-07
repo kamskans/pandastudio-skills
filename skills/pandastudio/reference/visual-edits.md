@@ -255,6 +255,10 @@ pandastudio project.update-region --id=$ID \
   --regionType=audio-overlay --regionId=audio-1 \
   --startMs=2000 --endMs=15000 --sourceStartMs=4000 --volume=0.55
 # regionType: zoom | trim | speed | annotation | fx | overlay | audio-overlay
+# Annotation text: --text (MCP patch { text }) sets the words shown (stored as
+# content + textContent; patching content or textContent sets both too).
+# A field the region type doesn't have is not applied: the result lists it in
+# ignoredKeys with a warning, and the call fails when nothing applies.
 
 # Duplicate a placed region (all settings, new id), right after the original
 pandastudio project.duplicate-region --id=$ID --regionType=annotation --regionId=ann-1

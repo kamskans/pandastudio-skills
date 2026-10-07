@@ -388,6 +388,7 @@ The MCP tool descriptions are kept short to save context. These are the details 
 - `motion.screenshot`: `atMs` snaps to the 30 fps frame grid and clamps to the composition's `data-duration` (result `atMs` = time captured, `warnings` when clamped). `outputPath` is 1920x1080; `previewPath` is a 1280-wide copy.
 - `system.report-issue --title --details [--kind --key --userGoal --command --workaround --agent --id|--path --userContent --userConsented]` → `{ sent, id?, fingerprint, reason? }`: report a PandaStudio problem to the team.
 - `asset.list-fonts [--includeSystem]` → `{ bundled, scriptFallbacks, custom, system? }`: families for caption / annotation `fontFamily`.
+- `asset.import-font --path=<.ttf|.otf|.woff|.woff2> [--family]` or `--google="Montserrat"` → `{ family, fileFamilies, kind, alreadyImported, warnings? }`: imports a font the same as the font picker (copied into PandaStudio, shows in the pickers and `asset.list-fonts` custom, draws in preview and export). Use the returned `family` as `fontFamily`. Only fonts the user owns or openly licensed ones (Google Fonts are).
 - `asset.list-luts` categories: natural, cinematic, dramatic, vintage, modern. `asset.list-music` `recommendedFor`: youtube-long, shorts, linkedin, loom.
 - `preview.show`: a single window, takes 1-2 s to boot.
 
