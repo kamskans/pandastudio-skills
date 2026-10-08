@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.245.0 -->
+<!-- version: 3.247.0 -->
 
 # PandaStudio
 
@@ -193,6 +193,8 @@ anything that changes a project.
   isn't overwritten; it also returns the real logo and 1920×1080 screenshots
   to use instead of drawing a fake UI.
 
+Brand kits also store `savedColors` (up to 24 hex colors). Reusable brand media is workspace-scoped: `brand.list-assets`, `brand.add-asset`, `brand.remove-asset` and `project.add-brand-asset`. See [Brand assets and saved colors](reference/projects-and-transcription.md#brand-assets-and-saved-colors).
+
 ## Organising projects, renaming, transcription languages
 
 Folders (`project.set-folder`), `project.rename`, transcription language
@@ -236,6 +238,8 @@ in the media's own time (`transcribedRanges[]` in the job result). Remove a
 head trim first to transcribe what it hides.
 
 ## Recording the screen yourself (agent-driven, v1.86+)
+
+Area recording: `recording.start --area='{"displayId":1,"x":100,"y":80,"width":640,"height":360}' --aspectRatio=16:9`. Coordinates are display-local points (minimum 32 x 32). `recording.list-sources` returns displayId, bounds and scaleFactor. Aspect presets: Free, 16:9, 9:16, 1:1, 4:3. Without area, aspectRatio fits a region on the selected display. Native cropped files preserve framing through pause/recovery. See [recording.md](reference/recording.md). Requires the app build containing these source changes; no package release is implied.
 
 `recording.list-sources` → `recording.start [--source=window:…]
 [--countdownSeconds=3]` → do the thing → `recording.stop --name=…` (finalizes
@@ -555,6 +559,7 @@ and the doc named in the row.
 | The moment | Reach for | Not |
 |---|---|---|
 | Chapter title or the video's key claim, speaker full frame on camera | `project.add-title-behind --text="FOCUS" --atMs [--style=3d\|bold\|serif --durationMs=2000–4000]` then `job.wait --id=<jobId>`: ONE call renders 1–3 huge words, sets them at head height from face detection and places them behind the presenter (the head passes in front); the result has `regionId` and the `face` box used. Then `project.render-frame --atMs=<midpoint>`. No face in that span fails with a clear message: pick a moment with the presenter full frame, don't force it. Annotations cannot go behind the presenter; if the verb fails, skip the move rather than substituting an annotation. | a card that hides the face; an annotation as the title |
+| The HOOK (or one punchline) of a talking-head video, speaker full frame in a locked medium shot, 16:9 | `project.add-3d-captions --id --startMs --endMs [--style=bold\|editorial --heroWords --accent]` then `job.wait`: ONE call renders 5-20 s of 3D camera captions (camera whips in and trucks between caption groups at different depths, a hero word behind the head, an optional ring of words turning in front of the speaker, a staircase finale) from the clip's own footage, matte and word timings, and places it over the range (the editor's captions hide there). Do it AFTER the cuts. Look at every `beats[].still` in the result. At most one per Short, one per 2-3 min of long-form. Refuses a moving camera or an extreme close-up: pick another moment, don't force it. Detail: [`reference/3d-captions.md`](reference/3d-captions.md). | plain subtitles; a handheld or moving shot; stacking zooms or graphics inside its range |
 | Dull stretch: setup, install, B-roll, a demo with no speech you need | `project.add-speed --speed=2–4 --rampIn --rampOut` (eases 1x → fast → 1x) or `project.add-speed-ramp` for a timelapse build | a hard cut that loses context; speeding up talk |
 | Lower third, camera card or top graphic sitting where captions are | `caption.move --whileRegionId=<overlayId> --positionY=<clear zone>` for exactly its span | moving the global caption position |
 | Mood shift, flashback, aside, "imagine…", emphasis beat | `project.add-adjustment` over that span with `--fadeInMs/--fadeOutMs` (desaturate, cool, vignette, grain, blur); ONE look per meaning | a different LUT per clip |
@@ -1005,6 +1010,7 @@ matches. Vary across the video.
 | Talking-head OPENER (topic in the first 10–30s) | `caption-editorial-emphasis` | Default for `kind === "camera"` |
 | ONE thesis sentence / pull-quote | `caption-editorial-emphasis` | Purpose — 2–3 per video max |
 | A quote from a named person | `serif-statement` with `attribution` | Purpose |
+| A paragraph, scripture, notes or any longer text on screen | `plain-text` (fades in) or `typewriter-text` (types out with a cursor and keystroke sound) | Purpose |
 | Logos / tools / partners · a screenshot · the app itself | author a graphic, `image-showcase` for one screenshot, or `app-showcase` for the app big in a browser / Mac / phone frame | Authored |
 
 ### Authored graphics — your repertoire is bigger than the gallery
@@ -1202,6 +1208,14 @@ safe", and relay `warnings`.
   (native alpha, else a flat magenta backdrop keyed out locally). Check
   `transparency`: `native`/`keyed` worked, `none` = background kept (say so).
   Place it as an overlay (`project.add-motion-graphic` / image overlay).
+- **Remove the background of an existing picture** (the user's photo, a
+  product shot, a logo; free, on this computer, no connector): `media.remove-background
+  --path=<abs image> [--trim=false]` writes `<name>-cutout.png` next to it
+  (trimmed sticker by default; `--trim=false` keeps the canvas size). For an
+  image overlay already placed: `project.remove-overlay-background --id
+  --regionId` (same size and position, original kept; `--restore=true` undoes).
+  Relay `warnings` (no clear subject). Auto sends logos / text graphics to
+  BiRefNet (`engineReason` says why); lettering missing anyway: `--engine=birefnet`. Flat green / blue backdrop: chroma key instead.
 - **No image connector** (`connector.list` shows neither Replicate nor
   Higgsfield connected, or the call fails with `details.code:
   "NO_IMAGE_CONNECTOR"`): don't give up and don't substitute text cards. Ask
@@ -1300,7 +1314,9 @@ Aliases kept for older recipes: `audio.clean` = enhance `--strength=light`
 `audio.probe` reports `integratedLufs`, `tooQuiet`, and levels without exporting.
 
  `project.add-audio` / `project.remove-audio` (music, SFX,
-VO; `--fadeIn/--fadeOut`, `--ducking=true`), `project.set-clip-volume` (balance
+VO; `--fadeIn/--fadeOut`, `--ducking=true`; retime or re-fade a placed track
+with `project.update-region --regionType=audio-overlay`, same `fadeIn/fadeOut`
+names), `project.set-clip-volume` (balance
 clips, 0–2), mute a stretch without cutting the picture
 (`project.add-mute-region` / `remove-mute-region`), bleep a word instead
 of cutting it (`project.add-bleep --wordIds='[...]'`: silenced, a tone of
@@ -1644,12 +1660,13 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   add-mute-region, remove-mute-region, add-bleep, update-bleep, remove-bleep,
   update-region, remove-region,
   duplicate-region, set-region-sound, set-graphic-sound, update-motion-graphic,
-  set-overlay-crop, set-overlay-backdrop-blur, set-overlay-chroma-key,
+  set-overlay-crop, set-overlay-backdrop-blur, set-overlay-chroma-key, remove-overlay-background,
   set-clip-chroma-key (visual-edits.md, fx-transitions.md, motion-templates.md)
 - **project**, native motion and looks (2.0) — add-motion, set-keyframes,
   add-keyframe, remove-keyframe, convert-to-keyframes, set-animation,
   set-overlay-mask, track-focus-face, add-adjustment, update-adjustment,
-  set-clip-color, set-clip-lut (native-motion.md, audio-color-music.md)
+  set-clip-color, set-clip-lut, add-3d-captions (native-motion.md,
+  audio-color-music.md, 3d-captions.md)
 - **project**, audio — add-audio, add-sound-cues, remove-audio, set-clip-volume,
   set-audio-ducking, set-volume-keyframes, add-volume-keyframe,
   remove-volume-keyframe (audio-color-music.md)
@@ -1672,7 +1689,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - **project**, native motion elements — add-motion-element,
   add-motion-elements, update-motion-element, remove-motion-element,
   list-motion-elements (motion-elements.md)
-- **media** — import, generate-image, image-to-video, generate-narration,
+- **media** — import, generate-image, remove-background, image-to-video, generate-narration,
   compose-soundtrack (soundtrack.md), generate-music, generate-sound-effect,
   generate-presenter (media-generation.md)
 - **asset** — list-music, list-sounds, list-fx, list-luts, list-transitions,
@@ -1697,6 +1714,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - **connector** — list, tools, call (connectors.md)
 - **preview** — show, seek, hide, list; **window** — editor, home, exports,
   preview, focus, list
+- **matte** — status, bake, export-cutout (person cutout as a transparent file)
 - **job** — wait, get, list, cancel
 - **agent** — session-list, session-stop
 
@@ -1708,6 +1726,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - [`reference/native-motion.md`](reference/native-motion.md) — keyframes, motion tracks, speed ramps, freeze, reverse, adjustment layers, blend modes, masks, enter/exit, caption moves, Ken Burns stills.
 - [`reference/visual-edits.md`](reference/visual-edits.md) — zooms, trims, speed, crop, style, webcam and podcast layouts, clips, focus regions, speaker background, green screen, frame checks, reset.
 - [`reference/motion-elements.md`](reference/motion-elements.md) — native motion elements (keyword, chip, stamp, count, steps, slam, behind, lowerThird, highlight, endCard, progress, iconPop): content shapes, style families, zones, behind-the-speaker, sound roles, word anchoring, `project.style-edit` rules tables, Shorts vs long-form recipes, when HTML instead.
+- [`reference/3d-captions.md`](reference/3d-captions.md): `project.add-3d-captions`, 3D camera captions on a talking-head hook (when to use, args, the result, limits).
 - [`reference/speech-timing.md`](reference/speech-timing.md) — timing zooms, keyword graphics, sound effects and music to the words the speaker stresses, for any format: speech map → cue sheet → picture → score; density by format; import checks (flat colour, green backdrop, vertical footage); a worked example.
 - [`reference/soundtrack.md`](reference/soundtrack.md) — `media.compose-soundtrack`: the one-timeline method, score format, every sound, tempo maths, recipes, the PandaCrawl worked example.
 - [`reference/audio-color-music.md`](reference/audio-color-music.md) — audio cleanup, volume, ducking, volume keyframes, music, sound design, loudness, colour correction and LUTs.
@@ -1773,6 +1792,10 @@ next to one another and dissolve their junction. See reference/fx-transitions.md
 ### Cutout camera
 
 Cutout and Speaker remove/image automatically bake the whole source in the background, including on project open. `project.read` reports `clipStates[].matte.main/camera` (none / baking with percent / ready). Use `matte.status --id=PROJECT --clip=CLIP [--source=camera|main]` to inspect (it also reports `engine`: vision or rvm, and any `fallbackReason`), or `matte.bake --id=PROJECT --clip=CLIP [--engine=auto|vision|rvm] [--quality=accurate|balanced]` to trigger; await its jobId with `job.wait`, cancel with `job.cancel`. On macOS 12+ the default engine is Apple Vision accurate (about 1 s per video-second); elsewhere, or if Vision fails, RVM bakes at reduced resolution (about 1 to 1.5 s per video-second). Only pass `--engine`/`--quality` when the user asks: an explicit choice becomes that source's matte and rebakes if it differs (`--quality=balanced` is ~3x faster, softer edges). Completed prefixes are usable; uncovered frames keep the exact live-matte preparing behaviour. Completed bakes survive restart; interrupted bakes restart on demand.
+
+### Person cutout for other tools
+
+When the user wants the person on their own, outside PandaStudio (a transparent clip for Premiere / Final Cut / Resolve / After Effects / Keynote, an OBS or stream overlay, a thumbnail or Canva cutout): `matte.export-cutout --id=PROJECT [--clip=CLIP] [--format=webm|mov|png] [--startMs --endMs | --atMs] [--inverse] [--audio=false] [--outPath]`, then `job.wait`. Pick `mov` (ProRes 4444) for editing apps and Keynote, `webm` (VP9 alpha, the default) for OBS and the web, `png` (one frame at `atMs`) for thumbnails and design tools. The clip defaults to the camera clip; times are edited-timeline ms and cuts are skipped (speed changes play at 1x). `--inverse` also writes the background plate with the person removed. It bakes the matte first when needed. Give the user the job result's `outputPath` (and `backgroundPath`) and its `usedIn` note. Not for in-app looks: text behind the person, backdrop swap and blur stay `project.add-title-behind` / `project.add-background-effect`.
 
 Use Cutout for a screen recording + camera when the presenter should stand over the screen without a camera box. `project.set-webcam-layout --preset=cutout` removes the camera background; use the same command with `--scale=1` (default height 55% of the frame) and `--cx=0.8 --cy=0.9` to resize and position the person, including partly below the bottom edge. Preview shows the raw camera with Preparing background progress until that source frame’s matte is ready.
 

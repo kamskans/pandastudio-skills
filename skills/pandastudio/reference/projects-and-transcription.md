@@ -476,3 +476,27 @@ when a network/provider failure caused a local fallback.
 `pandastudio system.set-transcription-preferences --language=tamil --provider=deepgram`
 saves both workspace defaults in one write. Use only when the user wants future
 videos to use these choices, and confirm cloud upload consent first.
+
+
+## Brand assets and saved colors
+
+`workspace.get-brand` returns `savedColors`. `workspace.set-brand` replaces the kit;
+read first and preserve its other fields when changing saved colors. Hex colors
+accept three or six digits, normalize to lower-case #rrggbb, deduplicate and cap at 24.
+
+```bash
+pandastudio workspace.set-brand --brand='{"colors":{"primary":"#2563eb"},"savedColors":["#ff8800","#123456"]}' --json
+pandastudio brand.add-asset --path="/absolute/client/outro.mp4" --name="Client outro" --role=outro --json
+pandastudio brand.list-assets --json
+pandastudio project.add-brand-asset --id="$PROJECT" --assetId="$ASSET" --atMs=2500 --json
+pandastudio brand.remove-asset --id="$ASSET" --json
+```
+
+Files are copied under userData/brand/<workspace>/ with a manifest and stable IDs.
+Roles: logo, outro, intro, cta, watermark, other (default). Images insert as image
+overlays for five seconds; videos insert as clips; audio inserts as audio tracks
+using its measured duration. `atMs` is edited time, default 0; the editor passes
+the playhead. `placement=overlay` puts a video over existing footage;
+`placement=clip` makes an image a clip; `placement=append` appends. Outro roles
+always append to the main-track end. Removal hides the library entry and retains
+the managed file so existing projects keep working. Libraries do not cross workspaces.

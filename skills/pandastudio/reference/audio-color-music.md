@@ -119,6 +119,11 @@ pandastudio project.add-audio --id=$ID \
 pandastudio project.update-region --id=$ID \
   --regionType=audio-overlay --regionId=audio-1 \
   --startMs=5000 --endMs=20000 --sourceStartMs=2000 --volume=0.7 --json
+# Fades on a placed track: same names as add-audio (ms; 0 or null removes).
+# MCP: project_update_region { regionType: "audio-overlay", regionId: "audio-1",
+#      patch: { fadeIn: 500, fadeOut: 2000 } }  (fadeInMs / fadeOutMs also work)
+pandastudio project.update-region --id=$ID \
+  --regionType=audio-overlay --regionId=audio-1 --fadeIn=500 --fadeOut=2000 --json
 
 # 5) Remove (a transcribed voiceover's words go with it → { transcriptWordsRemoved })
 pandastudio project.remove-audio --id=$ID --overlayId=audio-1 --json
@@ -133,7 +138,8 @@ pandastudio project.remove-audio --id=$ID --overlayId=audio-1 --json
 4. Probed real file duration (when nothing else is specified)
 
 **Fades** — `--fadeIn` / `--fadeOut` (ms) add a ramp at the overlay's audible
-start / end; the export mixer applies them (`afade`). Fade-out needs a bounded
+start / end; the export mixer applies them (`afade`). `project.update-region`
+takes the same `fadeIn` / `fadeOut` names on a placed track. Fade-out needs a bounded
 overlay (`endMs`/`maxDurationMs` set) so the end time is known; it's ignored on an
 uncapped full-length overlay. Use a fade-out on the final music region so the bed
 doesn't cut off hard, and short (~500ms) fades at a loop seam to hide the join.

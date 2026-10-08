@@ -87,3 +87,34 @@ Notes:
   read or change the setting (the desktop button on the recording bar). The app
   can't switch on Do Not Disturb (no public API); `recording.start` returns a
   `tip` asking the user to, so pass it on before they present.
+
+## Record an area (source changes, available with the matching app build)
+
+The app source picker offers **Area**: choose a display, drag a box, move it or
+resize its corners, and press Enter or Record. Esc cancels. Aspect choices are
+Free, 16:9, 9:16, 1:1 and 4:3. Pixel-size presets lock the box size while allowing
+movement. The last box is remembered per display. A thin, capture-excluded border
+marks the area during recording, including pauses.
+
+`recording.list-sources` returns each display's `displayId`, `bounds` (global
+points), and `scaleFactor`. `area` uses **display-local points**, so x/y start at
+0 on that display, even when its global origin is negative. Minimum 32 x 32
+points. Rectangles are clamped to the display, scaled for Retina/DPI, and rounded
+inward to even pixel dimensions for H.264. The start result reports the effective
+`area` and `pixelSize`. Areas cannot target window sources.
+
+```bash
+pandastudio recording.list-sources --json
+pandastudio recording.start --area='{"displayId":1,"x":100,"y":80,"width":640,"height":360}' --aspectRatio=16:9 --json
+# Or fit a portrait area on the chosen display:
+pandastudio recording.start --source=screen:1:0 --aspectRatio=9:16 --json
+pandastudio recording.stop --name="Area demo" --json
+```
+
+macOS crops through ScreenCaptureKit sourceRect; Windows crops the native frame
+before encoding. The file itself is the selected area, so crash recovery and
+pause/resume keep the same framing. New area projects use the source's native
+aspect with zero padding; cursor positions are relative to the area and clicks
+outside it are ignored. Native capture must be available for area recording;
+an encoder/permission failure returns an error instead of recording the full
+screen. Existing whole-screen browser fallback is unchanged.
