@@ -525,3 +525,11 @@ Shared rules:
   the copy moves to the first gap that fits (`shiftedMs`) or fails. Returns
   `{ regionId, startMs, endMs, shiftedMs, created[] }`. Same as Cmd/Ctrl+D
   (Cmd/Ctrl+C then V pastes at the playhead).
+
+Removing one `follow-speaker` clip-transform region removes that speaker turn
+only. The other generated turns remain; re-running `follow-speaker` replaces
+the generated sequence.
+
+`project.remove-region --regionType=… --regionId=…` removes only that region.
+Add `--group=true` to remove all peers with the same `linkGroupId`, including
+both halves of a designed segment or a 3D camera segment with its caption mask.

@@ -96,6 +96,9 @@ All accept `id` or `path`, plus optional `expectedRevision` for conflict-safe wr
 | `project.add-volume-keyframe` | same target args, `timeMs`, `volume` (0–2), `easing` | Add or update one volume keyframe (same time merges). |
 | `project.remove-volume-keyframe` | same target args, `timeMs` | Remove the volume keyframe at that time. |
 | `project.set-audio-ducking` | `regionId` (audio overlay, or a media overlay with `target=overlay`; `overlayId` alias), `amountDb`, `attackMs`, `releaseMs`, `source` (`transcript`\|`energy`), `enabled`, `remove` | Lower music (or an overlay video's sound) under the voice automatically. |
+| `project.set-audio-carve` | `trackId` (music overlay id), `enabled?`, `amount?` (0..1), `lowHz?`, `highHz?` (160..6000), `remove?`, `expectedRevision?` | Dip the bed's speech band while the voice plays (up to 2 + 16 x amount dB). Export accurate; preview does not carve. |
+| `project.set-audio-fx` | `trackId` (overlay id or `main`) or `main=true`, `fx` (ordered array, [] clears), `expectedRevision?` | Replace a track's FX rack (EQ, compressor, de-esser, reverb, gain). |
+| `project.set-audio-buses` | `voice?`, `music?`, `sfx?` (dB, -60..12), `reset?`, `expectedRevision?` | Mix group gains, preview and export. |
 | `project.set-clip-chroma-key` | `clipId` (req), `target` (`screen` default \| `camera`), `color` (`auto` default \| `#RRGGBB`), `similarity`, `smoothness`, `spill` (0–1), `keepCard` (camera only), `enabled` (false removes) | Green screen on a main-track clip: the main video (wallpaper / background overlays show through) or its camera layer (the person stands on the screen; no card box unless `keepCard`). Keyed before the clip's grade. Check with `render-frame`. |
 | `project.set-overlay-crop` | `regionId` (req), `x`, `y`, `width`, `height` (0–1 of the overlay SOURCE; omit or pass 0,0,1,1 to clear) | Crop an image/video/graphic overlay's source pixels: cut black bars off B-roll, take the centre of a wide clip for a vertical short. |
 | `project.set-overlay-backdrop-blur` | `regionId` (req), `strength`, `tint` | Frosted-glass blur of whatever is under an overlay, shaped by the overlay's alpha (use a transparent overlay; opaque ones show nothing). |
@@ -163,12 +166,16 @@ Motion-graphic templates (title cards, lower thirds, end screens, etc.) with opt
 
 | Command | Args | Purpose |
 |---|---|---|
-| `motion.list` | `family`, `tags`, `query`, `aspect`, `includeRetired`, `includeBlocks` (all optional) | Returns `{ templates, families, registryBlocks }`. `templates`: live slot-parameterized templates `{ id, name, family, tags, slots, defaults, aspectRatios, durationMs, fileUrl }`, filtered by family / tags / aspect and ranked by `query`; retired ones only with `includeRetired` (they carry `retired` + `replacement`). `families`: `[{ family, label, count }]` (render with `motion.generate`). `registryBlocks`: standalone Hyperframes blocks `{ name, kind, title, tags, durationMs, dimensions, htmlPath }` (render the `htmlPath` with `motion.render-html`; no slots). |
+| `motion.list` | `family`, `tags`, `query`, `aspect`, `includeRetired`, `includeBlocks` (all optional) | Returns `{ templates, families, registryBlocks }`. `templates`: live slot-parameterized templates `{ id, name, family, tags, slots, defaults, variables, aspectRatios, durationMs, fileUrl }` (`variables` = the typed model: `{ id, type, label, default, min, max, step, maxLength, options }`, type one of text / multiline / number / color / image / font / boolean / enum / list), filtered by family / tags / aspect and ranked by `query`; retired ones only with `includeRetired` (they carry `retired` + `replacement`). `families`: `[{ family, label, count }]` (render with `motion.generate`). `registryBlocks`: standalone Hyperframes blocks `{ name, kind, title, tags, durationMs, dimensions, htmlPath, variables }` (render the `htmlPath` with `motion.render-html`; no slots). |
 | `motion.themes` | — | Every style pack: `{ id, name, swatch, colors }`. |
-| `motion.generate` | `templateId` (string, required), `slots` (object, required), `aspectRatio` (`16:9` \| `9:16` \| `1:1`), `outputName` (string) | **Async.** Returns `{ jobId, outputPath }`. Poll `job.get` or block on `job.wait`. |
+| `motion.generate` | `templateId` (string, required), `slots` (object), `variables` (object, typed values validated against `templates[].variables`; override slots), `preset` (saved preset name for this template), `aspectRatio` (`16:9` \| `9:16` \| `1:1`), `outputName` (string) | **Async.** Returns `{ jobId, outputPath }`. Poll `job.get` or block on `job.wait`. |
+| `motion.variables` | `source` (req: an overlay's `generatedFrom`) | Typed variables of a placed graphic `{ schema, values, templateKey }`, for templates and for HTML that declares HyperFrames `data-composition-variables`. |
+| `motion.list-presets` | `source` or `templateId` (optional filter) | Saved variable presets of the active workspace `{ presets: [{ name, templateKey, values }] }`. |
+| `motion.save-preset` | `source` (req), `name` (req), `variables` (req) | Save a named variable set for the same template in this workspace; same name replaces. Images are embedded. |
+| `motion.delete-preset` | `name` (req) + `source`, `templateId` or `templateKey` | Delete a saved preset. |
 | `motion.render-film` | `frames` (req: `[{id, html|htmlPath, durationMs, transitionIn?}]`), `aspectRatio` or `width`+`height`, `groundColor`, `assets` (paths referenced by file name), `frameRate`, `outputName` | **Async.** Render a graphics-led film from per-beat frame compositions with between-frame transitions (`crossfade`, `blur-crossfade`, `push-slide DIR`, `zoom-through`, `squeeze`, `chromatic-wipe DIR`, `whip-pan DIR`, `iris`, `cut`; optional `0.4s`). Transitions extend the outgoing frame, so frame starts never move. Up to 180s. Result `{ outputPath, durationMs, frames[{id, startMs, durationMs}], transitions[], warnings[] }`. See reference/launch-video.md. |
 | `motion.catalog` | `query`, `kind` (`component`\|`block`), `tag`, `limit` | Search the ~390-item HyperFrames catalog (camera moves, transitions, kinetic type, stats, device mockups, logo stings, CTAs). Returns `{ total, items[{name, title, description, tags, variables}] }`. |
-| `motion.catalog-item` | `name` (req) | One item: `variables`, `htmlPath` (the recipe), `demoPath` (a working mount), `mount` snippet. Mount in any composition with `data-composition-src="catalog:<name>"`; renders stage it offline and hold it for the mount's `data-duration`. |
+| `motion.catalog-item` | `name` (req) | One item: `variables` (raw HyperFrames declarations) and `typedVariables` (the shared typed model), `htmlPath` (the recipe), `demoPath` (a working mount), `mount` snippet. Mount in any composition with `data-composition-src="catalog:<name>"`; renders stage it offline and hold it for the mount's `data-duration`. |
 | `motion.craft` | `id`, `kind` (`guide`\|`blueprint`\|`rule`\|`preset`) | Launch-film craft docs. No id lists topics; with id returns the doc (`story-design`, `visual-design`, `motion-language`, `cut-catalog`, `blueprints`, `rules`, `transitions`, `design-presets`, any blueprint, rule or preset). Ids tolerate case, spaces and `.md`; an unknown id fails with `details.didYouMean` and every valid id in `details.ids`. Not the custom motion-graphic HTML contract: that is SKILL.md "Custom motion graphics" (`skill.read --section="custom motion graphics"`) and `reference/custom-html.md`. |
 | `motion.render-html` | `html` OR `htmlPath` (one required), `aspectRatio` (`16:9`/`9:16`/`1:1`) or explicit `width`+`height`, `durationMs` (optional: the root `data-duration` sets the length and wins, a mismatch warns; default 2500 only when the HTML declares none; max 600000 = 10 min), `frameRate` (default 30), `outputName` | **Async.** Render arbitrary HTML/CSS/JS to MP4 — for custom scenes, and for rendering a `registryBlocks` block by its `htmlPath` (from `motion.list`). Returns `{ jobId, outputPath }`. |
 
@@ -302,6 +309,18 @@ PandaStudio bundles Gemma 4 E2B (~2B params). Good for summarisation / classific
 | `job.list` | — | Every job in memory (last hour after completion). |
 | `job.wait` | `id` (string, required), `timeoutMs` (number, default 300_000 = 5 min, hard cap 30 min) | Block server-side until terminal state. Returns `{ job, timedOut? }`; `timedOut: true` is NOT a failure, call again with the same id. **Prefer this over client-side polling.** |
 | `job.cancel` | `id` (string, required) | Cancel a running or queued job. Idempotent. |
+
+## review.*
+
+Review items are the numbered pins and drawings the user places on the editor preview (Draw `D`, Comment `C`; `Esc` exits). Stored in `editor.reviewAnnotations` until resolved. Times are edited ms; `position` and `drawing` points are 0..1 of the frame; `targetIds` are the overlay / motion element / annotation region ids under the mark, or the clip under the point.
+
+| Command | Args | Purpose |
+|---|---|---|
+| `review.list` | `id` \| `path` (default: the open project), `includeResolved` (bool) | Open items: `{ id, timeMs, range?, position, kind, drawing, targetIds, note, sentAt?, resolved, imagePath? }`. `imagePath` is a PNG crop of the composed frame with the drawing burned in. |
+| `review.resolve` | `id` \| `path` (req), `annotationIds` (string[], req) | Mark items done after applying them; their pins leave the preview. Unknown ids fail the whole call. |
+| `review.add` | `id` \| `path` (req), `annotation` (req: `timeMs`, `position`, `note`, `kind`, optional `range`, `targetIds`, `drawing`, `id`) | Add an item (id generated when omitted). |
+| `review.update` | `id` \| `path` (req), `annotationId` (req), `annotation` (fields to change) | Edit note, range, position, targetIds or resolved; other fields kept. |
+| `review.delete` | `id` \| `path` (req), `annotationId` (req) | Remove an item. Prefer `review.resolve` for completed work. |
 
 ## preview.* (v1.9.2)
 
@@ -470,3 +489,31 @@ Migration changes only metadata, never file locations.
 | `project.add-brand-asset` | id, assetId, atMs?, placement? | Insert at edited time; outro appends. |
 
 `workspace.set-brand` accepts `brand.savedColors`: up to 24 normalized, unique hex colors.
+
+| Command | Arguments | Behavior |
+|---|---|---|
+| `motion.edit-element` | `id`, `regionId`, `selector`, `patch` (required), `expectedRevision` | Async. Edit one HTML graphic element and re-render in place. `#id` or stable `data-panda-element` selector; text runs, paired x/y, width/height, rotation, layer, allowlisted styles. Mapped text-only edits preserve template slots; structural edits become HTML. |
+
+### Agent run undo
+
+Every in-app agent turn that changes a project is snapshotted (the chat's
+"Undo this run" / "Redo run" buttons use the same snapshots). The newest 20
+per project are kept in the app's data folder and removed with the project.
+
+| Command | Args | Notes |
+|---|---|---|
+| `agent.run-list` | projectId, sessionId? | Runs that changed the project, oldest first: runId, sessionId, prompt, createdAt, undone, interrupted. |
+| `agent.run-restore` | projectId, runId, confirmRevision? | Undo (restore the whole project to before the run), or redo when undone. Over later edits it writes nothing and answers `{ confirmationRequired: true, revision, laterEdits }`; repeat with `confirmRevision` only after the user agrees to lose them. Generated media files stay on disk. |
+
+MCP: `agent_run_list`, `agent_run_restore`.
+
+### Close a timeline gap
+
+`pandastudio project.close-gap --id=PROJECT --startMs=2500 --endMs=4000 --lane=media:0 --json`
+
+The timeline's right-click "Close gap", one revision (one undo step in the editor). Times are edited milliseconds.
+
+- Omit `lane` (or `main`): ripple-delete the range from the video. It becomes trim cuts; inserted pauses and freeze holds inside it are shortened or removed rather than cutting footage. Anchored regions are rebased; free-anchored regions and focus regions ripple in edited time.
+- `media[:index]`, `audio[:index]`, `effects[:index]`: the range must be empty in that sub-lane (zero based, packed by start time like the timeline row). Every later item in the lane moves left by the range length and has its source anchor re-stamped; a moved voiceover's words move with it. Speed changes are never moved and count as occupied.
+
+Returns `{ path, startMs, endMs, lane, revision }`. A range that is not empty (or a lane that does not exist) fails and changes nothing. `expectedRevision` is supported. MCP: `project_close_gap`.

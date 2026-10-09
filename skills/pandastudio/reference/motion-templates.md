@@ -497,3 +497,100 @@ Presets: `podcast-solo` (participants[0] full-frame), `podcast-pair` (participan
 > renders a single frame of any template+slots combo if you want to preview
 > before committing to a full render.
 
+
+### Direct element edits
+
+`motion.edit-element` edits one element of a placed graphic's stored HTML and
+re-renders it in place, without changing the region's duration, position or
+sound. Mapped text-only edits update template slots, keeping the Variables form.
+Moving, resizing, styling or editing unmapped text converts a template to
+custom HTML.
+
+```bash
+pandastudio motion.edit-element --id="$PROJECT" --regionId=overlay-3 \
+  --selector='#headline' --patch='{"text":"New title","x":-40,"y":0,"styles":{"color":"#ffcc00","font-size":"72px"}}'
+# Async: job.wait --id=<returned jobId>, then inspect project.render-frame.
+```
+
+Read `project.read` for the region and its source. Select exactly one `#id` or
+`[data-panda-element="panda-3"]` handle. Templates retain their slots; use the
+bundled HTML's ids. `data-panda-element` handles are written into `generatedFrom.html`
+by the first structural edit; `#id` works before that. `patch` supports
+`text` (leaf elements or inline text runs), paired `x`/`y` (additive CSS translate in pixels),
+`width`/`height` (positive pixels), `rotation` (degrees), `layer` (z-index within
+the existing stacking context), and `styles`: color, background-color,
+font-family, font-size, font-weight, border-radius, opacity. Existing GSAP
+transform animation is retained. Elements animated through the same edited CSS
+property may still be controlled by their timeline. No marquee, snapping,
+cropping or keyframe editing is supported.
+## Typed variables and workspace presets
+
+Select a placed graphic to open **Variables**. Template slots and HyperFrames
+`data-composition-variables` declarations map to one typed model with the same
+controls: text, multiline text, number (min/max/step slider), color (with the
+workspace's brand and saved swatches), image (pick a file or a Brand asset such
+as the logo), font, boolean and enum. List slots stay editable. **Update
+graphic** re-renders in place and keeps timing, placement and sound.
+
+Discover the model:
+
+- `motion.list` returns `templates[].variables` (and `registryBlocks[].variables`):
+  `{ id, type, label, description, default, min, max, step, maxLength, options }`.
+- `motion.variables --source=@generatedFrom.json` (the overlay's `generatedFrom`
+  from `project.read`) returns `{ schema, values, templateKey }` for any placed
+  graphic, including authored HTML.
+- `motion.catalog-item` returns `typedVariables` beside the raw declarations.
+
+Set values with `variables` on `motion.generate` (templates) or
+`project.update-motion-graphic` (any editable graphic). Values are validated:
+unknown ids, wrong types, enum choices outside `options`, numbers outside
+min/max or off the step, and text over `maxLength` fail with a clear error
+before anything renders. Omitted values keep their current value or default.
+`variables` override `slots`. Images accept a file path, a URL or a HyperFrames
+`{url}` object and are embedded (data URI) in the stored source, so preview,
+export and later re-renders match even if the file moves. Fonts accept a family
+name (or `{name}`), embedded the same way as font slots.
+
+HyperFrames declarations use their native format on the root element:
+
+```html
+<html data-composition-variables='[
+ {"id":"headline","type":"string","label":"Headline","default":"Hello","multiline":true},
+ {"id":"logo","type":"image","label":"Logo","default":""},
+ {"id":"count","type":"number","label":"Count","default":2,"min":0,"max":10,"step":2},
+ {"id":"featured","type":"boolean","label":"Featured","default":true},
+ {"id":"layout","type":"enum","label":"Layout","default":"wide","options":[{"value":"wide","label":"Wide"},{"value":"compact","label":"Compact"}]}
+]'>
+```
+
+Bind them with `data-var-text="headline"`, `data-var-src="logo"`, or read
+`window.__hyperframes.getVariables()` in your script. `multiline: true` is a
+PandaStudio hint on a string declaration. A graphic that mounts one catalog item
+exposes its variables under their own ids; several mounts use
+`mountId.variableId` so editing one instance leaves the others alone.
+`motion.render-html --htmlPath=...` renders of declared-variable files and of
+bundled catalog/registry files keep an editable source when placed with
+`--fromJob`.
+
+### Presets (per workspace)
+
+A preset is a named variable set for one template identity (`templateKey`:
+`template:<id>`, `catalog:<name>`, a registry block name, or the original HTML),
+saved in the active workspace, e.g. "Client A lower third". The editor's
+**Save as preset**, **Apply** and **Delete** use these verbs:
+
+```bash
+pandastudio motion.save-preset --source=@generatedFrom.json \
+  --name="Client A lower third" --variables=@values.json --json
+pandastudio motion.list-presets --templateId=yt-lower-third --json
+pandastudio motion.generate --templateId=yt-lower-third --preset="Client A lower third" \
+  --variables='{"name":"Dana Ruiz"}' --json
+pandastudio project.update-motion-graphic --id=PROJECT --overlayId=GRAPHIC \
+  --preset="Client A lower third" --json
+pandastudio motion.delete-preset --templateId=yt-lower-third --name="Client A lower third"
+```
+
+`preset` applies the saved values, then `slots` and `variables` on top. A
+preset only applies to graphics of its own template; another template fails
+with the list of presets that do fit. Saving with an existing name on the same
+template replaces it.

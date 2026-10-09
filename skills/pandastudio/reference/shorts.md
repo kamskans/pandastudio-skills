@@ -243,9 +243,14 @@ one-click layout picker:
 ```bash
 # Camera shrinks to a draggable bottom-right tile over a blurred copy of itself
 pandastudio project.set-shorts-layout --id=$PID --layout=camera-corner
-# Camera fills the frame (clears the transform + backdrop)
+# Camera cover-crops to fill the frame (clears the transform + backdrop)
 pandastudio project.set-shorts-layout --id=$PID --layout=full
 ```
+
+`full` probes each camera clip and writes a cover crop for the canvas aspect,
+centred on its focal point when known and inside its active picture (excluding
+baked-in bars) when available. It removes padding; preview and export use the
+same per-clip crop.
 
 `camera-corner` sets the main-clip transform AND a `blur-self` backdrop
 together; reposition the tile afterward with `project.set-screen-transform`

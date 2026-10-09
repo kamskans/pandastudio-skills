@@ -211,3 +211,7 @@ different word is now heard where one was inserted, `crosses-cut` = a merged
 fix would straddle a deletion). Surface dropped fixes and redo them with
 find-replace if they still apply. Voiceover words merged into the clip are
 kept. Deletions are trims (time-based) and never touched by re-transcription.
+
+Bulk cleanup (`remove-fillers`, `remove-silences`, `find-issues`) only counts
+and acts on the visible source range of a shot fork; hidden source words
+and pauses outside the fork are excluded.

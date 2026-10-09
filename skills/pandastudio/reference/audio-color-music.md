@@ -789,3 +789,74 @@ Example: `asset.plan-sound-pattern --pattern=counted-entrances --atMs=1950
 --endMs=2600 --eventOffsetsMs='[50,150,250,350,450]' --json` produces five
 cues at 2000, 2100, 2200, 2300 and 2400 ms. Pass the returned `data.cues`
 array to `project.add-sound-cues`; planning itself never changes a project.
+
+### Voiceover carve, FX racks and mix groups
+
+**Voiceover carve** (`project.set-audio-carve`): instead of (or as well as)
+ducking the whole music bed, dip only the band the voice lives in while
+someone talks. The music keeps its low end and sparkle, so it can sit higher
+in the mix. The detector listens to the audible main track (after its volume,
+mutes and FX) plus every voiceover overlay. `amount` 0..1 sets the deepest cut,
+2 + 16 x amount dB (0.25 = 6 dB default, 0.5 = 10 dB, 1 = 18 dB); `lowHz` /
+`highHz` (160..6000, default 1000..4000) is where the cut is at full depth,
+with the slopes just outside. Attack 50 ms, release 250 ms. In pauses the music
+is untouched. Export accurate; the editor preview does not carve.
+
+Measured (export mux, real TTS speech over a bundled music bed, music
+1-4 kHz energy during speech vs the plain mix): amount 0.25 = -4.5 dB,
+0.5 = -6.7 dB, 1 = -9.1 dB; whole-band music level changes by under 0.1 dB.
+
+```bash
+# Carve the bed at the default 6 dB, plus a lighter duck
+pandastudio project.set-audio-carve --id=$ID --trackId=audio-1 --json
+pandastudio project.set-audio-ducking --id=$ID --regionId=audio-1 --amountDb=6 --json
+# Deeper carve over a wider band
+pandastudio project.set-audio-carve --id=$ID --trackId=audio-1 --amount=0.5 --lowHz=800 --highHz=5000 --json
+# Off (keeps the settings) / remove
+pandastudio project.set-audio-carve --id=$ID --trackId=audio-1 --enabled=false --json
+pandastudio project.set-audio-carve --id=$ID --trackId=audio-1 --remove=true --json
+```
+
+**FX racks** (`project.set-audio-fx`): an ordered list of effects on one
+track, run top to bottom. `--trackId` is an audio overlay id, or `main` (also
+`--main=true`) for the main voice: one rack for the whole main track. `[]`
+clears. Omitted params take their defaults; out-of-range values are rejected.
+
+| type | params (range, default) |
+| --- | --- |
+| highpass / lowpass | frequency (20-20000 / 100-20000 Hz; 300 / 8000), q (0.1-20, 0.707), poles ("1" 6 dB/oct, "2" 12 dB/oct; "2") |
+| lowshelf / highshelf | frequency (20-2000 / 500-20000 Hz; 200 / 4000), gain (-40..40 dB, 0) |
+| peaking | frequency (20-20000 Hz, 1000), gain (-40..40 dB, 0), q (0.1-20, 1) |
+| compressor | threshold (-60..0 dB, -24), ratio (1-20, 4), attack (0.01-2000 ms, 20), release (0.01-9000 ms, 250), knee (1-8, 2.83), makeup (0-36 dB, 0), mix (0-1, 1) |
+| deesser | intensity (0-1, 0.3), frequency (0-1, 0.5) |
+| reverb | size (0.05-1, 0.7), damping (0-1, 0.5), wet (0-1, 0.35), dry (0-1, 0.7): a light room (early reflections) |
+| gain | gain (-60..12 dB, 0) |
+
+A 3-band EQ is three peaking bands, e.g. 200 / 1000 / 4000 Hz (the editor's
+"Add 3-band EQ"). Export applies every effect. Preview: audio tracks hear EQ,
+gain and reverb as exported and the compressor approximately; the de-esser is
+export only; the main voice previews its rack gain only.
+
+```bash
+# Clean a voice: rumble cut, gentle compression, de-ess
+pandastudio project.set-audio-fx --id=$ID --trackId=main --fx='[{"type":"highpass","params":{"frequency":80}},{"type":"compressor","params":{"threshold":-20,"ratio":3}},{"type":"deesser"}]' --json
+# Pull a music bed's mids down a little and lower it 3 dB
+pandastudio project.set-audio-fx --id=$ID --trackId=audio-1 --fx='[{"type":"peaking","params":{"frequency":1500,"gain":-3,"q":0.8}},{"type":"gain","params":{"gain":-3}}]' --json
+pandastudio project.set-audio-fx --id=$ID --trackId=audio-1 --fx='[]' --json
+```
+
+**Mix groups** (`project.set-audio-buses`): dB gains (-60..12) for whole
+groups. voice = the main track, voiceovers, overlay videos' own sound and
+bleeps; music = music beds (tracks 10 s or longer, or tagged music); sfx =
+sound effects (graphic, zoom and FX region sounds, short tracks). Applied
+after each track's own volume, ducking and FX, in preview and export alike
+(the preview caps each track at 100%). Omitted groups keep their value;
+`--reset=true` puts all back to 0 dB first.
+
+```bash
+pandastudio project.set-audio-buses --id=$ID --music=-3 --sfx=2 --json
+pandastudio project.set-audio-buses --id=$ID --reset=true --json
+```
+
+Stored as `audioOverlays[].audioCarve`, `audioOverlays[].audioFx`,
+`mainTrack.clips[].audioFx` and `editor.audioBuses`.

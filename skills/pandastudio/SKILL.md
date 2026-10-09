@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.247.0 -->
+<!-- version: 3.248.0 -->
 
 # PandaStudio
 
@@ -571,7 +571,9 @@ and the doc named in the row.
 | Blur / spotlight on something else that moves (a window, a card, a scrolling email) | `project.add-spotlight` around it at the frame it shows, then `project.track-region --regionId --atMs=<that frame>` | hand-made keyframes |
 | Presenter filmed on green (main video or camera tile) | `project.set-clip-chroma-key --target=screen\|camera` (on an overlay: `set-overlay-chroma-key`) | `add-background-effect` (AI matte for real rooms) |
 | Messy real room behind the presenter | `project.add-background-effect --mode=blur\|image` | chroma key |
-| Music under a voice | `project.set-audio-ducking --regionId` or `project.add-audio --ducking=true` | hand-drawn volume dips (volume keyframes are for deliberate swells) |
+| Music under a voice | `project.set-audio-ducking --regionId` or `project.add-audio --ducking=true`; to keep the music full, `project.set-audio-carve --trackId` (with a lighter duck) | hand-drawn volume dips (volume keyframes are for deliberate swells) |
+| Shape a track's sound (rumble, harshness, sibilance, uneven level, a touch of room) | `project.set-audio-fx --trackId=<audio id>\|main --fx='[...]'` (EQ, compressor, de-esser, reverb, gain) | re-encoding the audio elsewhere |
+| Music / SFX / voice too loud or quiet as a group | `project.set-audio-buses --music=-3 --sfx=2` | changing every track's volume one by one |
 | Product demo / launch audio | sound effects timed to clicks, typing and scene changes (audio-color-music.md "Sound design") | a song under everything |
 | A still image (photo, screenshot, generated beat) | Ken Burns image clip: `media.image-to-video --id` (no move: `project.add-clip --media=<img>`) | a flat held still |
 | A picture of what's being said, cut in over the speaker for a beat (talking-head edits) | B-roll, as the LAST step and only after asking (see "B-roll beats"): you pick the lines → `project.check-broll --moments` → ask → `project.add-broll --imagePath --wordId` | generating or inventing images the user didn't agree to |
@@ -1048,6 +1050,18 @@ Re-render in place, don't delete and regenerate:
 `project.update-motion-graphic --overlayId --slots='{…}'` (template) or
 `--html` (inline-HTML graphic), async. Timing, position and SFX stay.
 
+Typed variables: every editable graphic has one typed model (text, multiline,
+number with min/max/step, color, image, font, boolean, enum, list) from its
+template slots or its HyperFrames `data-composition-variables`. Read it with
+`motion.list` (`templates[].variables`) or `motion.variables
+--source=<generatedFrom>`, then pass `--variables='{…}'` to `motion.generate` or
+`project.update-motion-graphic`: values are validated before rendering and
+images (path, URL or `{url}`) are embedded so preview and export match.
+Workspace presets ("Client A lower third"): `motion.save-preset`,
+`motion.list-presets`, `motion.delete-preset`, and `--preset=<name>` on
+generate/update to apply one to another graphic of the same template. Details:
+[typed variables and presets](reference/motion-templates.md#typed-variables-and-workspace-presets).
+
 ### GIFs, animated emoji and looping overlays
 
 `project.add-motion-graphic --file=<gif/webp/apng>` converts to a looping WebM;
@@ -1324,6 +1338,9 @@ exactly the word's length, captions show `d***`; `update-bleep` for sound /
 volume / nudges, `remove-bleep`; see
 [`reference/audio-color-music.md`](reference/audio-color-music.md) "Bleeps"), ducking
 (`project.set-audio-ducking --regionId [--amountDb --source=transcript|energy]`),
+voiceover carve (`project.set-audio-carve --trackId [--amount --lowHz --highHz]`),
+per-track FX racks (`project.set-audio-fx --trackId|--main --fx`), mix group
+gains (`project.set-audio-buses --voice --music --sfx`),
 volume automation (`project.set-volume-keyframes --target=clip|audio|overlay`,
 `add-volume-keyframe`, `remove-volume-keyframe`), composed soundtracks with
 every hit on the edit's cues (`media.compose-soundtrack`, the default for
@@ -1429,6 +1446,32 @@ overrides (`set-clip-layout`, `set-clip-style`), per-section layouts
 crop / glass (`set-overlay-crop`, `set-overlay-backdrop-blur`), focus regions,
 speaker background, green screen, frame checks and reset:
 [`reference/visual-edits.md`](reference/visual-edits.md).
+
+**Gaps and ranges (`project.close-gap`).** The timeline's right-click on an
+empty gap (an inserted pause on the main track, or an empty span of an overlay
+sub-lane) or inside a shift-dragged range offers Close gap, Suggest something
+here…, Add graphic here and Add B-roll here. Close gap is
+`project.close-gap --id=$ID --startMs=5200 --endMs=6100 [--lane=media:0]`, EDITED
+ms, one undo step:
+- `lane` main (default): ripple-delete the range from the video (it becomes trim
+  cuts; inserted pauses inside it are shortened or removed instead of cutting
+  footage). Later content, captions and anchored graphics move back with their
+  words. Free-anchored regions and focus regions ripple in edited time.
+- `lane` `media[:i]`, `audio[:i]`, `effects[:i]`: zero-based sub-lane, packed by
+  start time exactly like the timeline row (overlapping items stack into
+  sub-lanes). The range must be EMPTY in that lane; every later item in the lane
+  moves left by its length and keeps following its new content. Speed changes
+  belong to their footage: they block a gap and never move.
+Read the project (or `timeline.source-to-edited`) before choosing a range; a
+range that isn't a gap fails with a reason, nothing is changed.
+
+"Suggest something here…" opens the in-app chat with a prepared message: the
+edited range, what is said before / during / after it (3 s either side) and what
+already sits nearby. Answer it with one or two ideas (B-roll picture, motion
+graphic or native element, and why), then ASK before changing anything. Pictures
+follow the B-roll rule below: ask whether the user supplies them, wants them
+generated on a connected image connector (only offer that when one is
+connected), or wants to skip. Never generate images before they answer.
 
 ## Native motion — keyframes on footage
 
@@ -1652,7 +1695,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   add-clip-transform-region, add-podcast-clip, auto-sync-podcast, follow-speaker,
   set-participant-offset, set-podcast-source-crop, list-podcast-screen-shares
   (visual-edits.md, shorts.md, motion-templates.md)
-- **project**, regions — add-trim, add-zoom, add-speed, add-speed-ramp,
+- **project**, regions — add-trim, close-gap, add-zoom, add-speed, add-speed-ramp,
   add-freeze-frame, add-reverse, add-annotation, add-emoji, add-fx,
   add-transition, add-motion-graphic, add-designed-segment, add-lower-third,
   add-spotlight, update-spotlight, remove-spotlight, add-background-effect,
@@ -1676,6 +1719,8 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   find-issues, delete-words, restore-words, find-replace, insert-words
   (transcript-editing.md)
 - **timeline** — source-to-edited, edited-to-source
+- **review** — list, resolve, add, update, delete (pins the user put on the
+  preview; "Review items" below, commands.md)
 - **caption** — toggle, set-template, set-style, move (captions-metadata.md)
 - **audio** — enhance (aliases: clean, reset-clean), probe, normalize (audio-color-music.md)
 - **motion** — list, generate, render-html, screenshot, concat, verify-frames,
@@ -1831,3 +1876,68 @@ whoosh or click from these numbers. Reference studies now include `audioDescript
 for each excerpt and its source `audioStartMs`; use that evidence without claiming
 that the agent listened or recognized a sound. Preview uses export preparation,
 and normalizes the whole project before slicing; long projects can take longer.
+
+Audio FX racks, voiceover carve and mix groups (details and examples in
+[Audio, colour and music](reference/audio-color-music.md) "Voiceover carve,
+FX racks and mix groups"):
+- `project.set-audio-fx --trackId=<audio id>|main --fx='[...]'` replaces a
+  track's ordered rack (highpass, lowpass, lowshelf, highshelf, peaking,
+  compressor, deesser, reverb, gain); `[]` clears. `main` is one rack for the
+  whole main voice. Export applies every effect. Preview: audio tracks hear
+  EQ, gain and reverb as exported and the compressor approximately; the
+  de-esser is export only; the main voice previews its gain only.
+- `project.set-audio-carve --trackId=<music id> [--amount=0..1 --lowHz --highHz]`
+  dips the music's speech band (default 1000-4000 Hz, up to 2 + 16 x amount
+  dB) while the main voice or a voiceover speaks, so the music keeps its body
+  instead of dropping as a whole. Pair it with a lighter duck (6-8 dB).
+  Export accurate; the editor preview does not carve, so say so when you
+  describe the result.
+- `project.set-audio-buses --voice --music --sfx` (dB, -60..12) turns whole
+  groups up or down, after each track's own level, ducking and FX.
+
+Undo an agent run: every in-app agent turn that changed a project is
+snapshotted. `agent.run-list --projectId=ID` lists them (runId, prompt,
+undone); `agent.run-restore --projectId=ID --runId=RUN` restores the whole
+project to before that run, or redoes it when it is undone. If anything was
+edited after the run, it changes nothing and answers `confirmationRequired`
+with `laterEdits` and a `revision`: tell the user what would be lost and only
+after they agree call again with `--confirmRevision=REVISION`.
+
+### Graphic element edits
+
+`motion.edit-element --id --regionId --selector='#headline' --patch='{"text":"New title","x":20,"y":0,"rotation":5}'`
+re-renders a placed graphic in place, preserving timing. It returns `jobId`;
+wait and inspect a frame. Read the source and selector rules in
+`reference/motion-templates.md`, section Direct element edits. A text-only edit
+on a mapped template slot keeps the template; any other edit converts it to HTML.
+
+## Review items (pins the user puts on the preview)
+
+Over the editor preview the user can Draw (`D`, freehand) or Comment (`C`, a
+pin); `Esc` exits. Each mark becomes a numbered review item anchored to the
+edited playhead (or the timeline range they had selected), a frame position
+(0..1) and the id of whatever is under the mark (overlay / motion element / annotation region, else the clip).
+Items wait in "Pending edits" beside the chat; one "Send to agent" sends them
+as ONE turn: a numbered list in the message (`[id]`, time or range, position,
+target, note), the same items in the editor context, and one frame crop per
+item with the drawing burned in, attached in item order (image N = item N).
+
+How to handle them:
+
+1. Treat each item as a separate instruction. Use the target id directly when
+   there is one (`project.update-region`, `project.update-motion-element`, ...);
+   otherwise use the time, position and the crop to find what they mean.
+2. After an item is applied, resolve it: its pin leaves the preview.
+   Leave items you could not do open and say why.
+3. The editor context lists open items on every turn, so items sent earlier
+   and not yet resolved are still pending work.
+
+```bash
+pandastudio review.list --json                       # open project; imagePath = crop PNG
+pandastudio review.resolve --id=PROJECT --annotationIds='["ITEM_ID"]' --json
+```
+
+`review.list` defaults to the open project (`--includeResolved=true` for all).
+Edits (`review.resolve`, `review.add`, `review.update`, `review.delete`) need
+`--id` or `--path`. MCP: `review_list`, `review_resolve`, `review_add`,
+`review_update`, `review_delete`. Shapes: reference/commands.md "review.*".

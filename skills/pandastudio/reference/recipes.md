@@ -142,3 +142,19 @@ next application, not only the plan. This evidence-first review approach is
 informed by [Motion Video Kit](https://github.com/echris6/motion-video-kit),
 particularly its motion vocabulary and render/critic/verification workflow.
 Its launch-film pacing targets are not universal defaults for other genres.
+
+### Chat references ("@" in the in-app chat)
+
+In the in-app chat the user can type `@` to point at a recipe, a graphic
+(template or catalog item), a brand asset, a file in the current project
+(clip, overlay, audio track), another project, or a moment (the playhead frame
+or a selected range). Their message keeps the `@Label` text; the turn's editor
+context carries a "References the user picked with @" block, one JSON entry
+per chip: `label`, `type`, `id`, `read` (`tool` = the MCP tool, `command` = the
+CLI verb, `args` = valid arguments), optional `use`, `detail` (paths, edited
+ms) and `image` (the attached poster or frame). Read each reference with its
+tool before acting on it: `recipe_get`, `motion_list` (templates),
+`motion_catalog_item`, `brand_list_assets`, `project_read`,
+`project_render_frame` / `project_render_sheet` (moments). Moment and overlay
+times are edited ms. Another project is a reference to learn from; edit it only
+when the user asks.
