@@ -163,7 +163,7 @@ ps_ project.apply-edit-plan --plan=<string>
 Optional: `--id=<string>` `--path=<string>` `--expectedRevision=<number>`
 
 ### `project.add-trim`
-Mark a span the exporter SKIPS. Use directly to delete sections by time range; transcript.delete-words and transcript.remove-fillers also create trims under the hood.
+Mark a span the exporter SKIPS, in SOURCE time (the recording's own clock, like a transcript word's startMs). Not edited time: to cut a range of the edited timeline use `project.close-gap` (EDITED ms). transcript.delete-words and transcript.remove-fillers also create trims under the hood. A span already cut returns a warning.
 
 ```
 ps_ project.add-trim --startMs=<number> --endMs=<number>

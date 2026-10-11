@@ -17,7 +17,10 @@ over the range.
   at most one per 2-3 minutes of long-form. It is a showpiece, not captions.
 - The speaker is on camera, full frame, in a locked-off medium shot (head
   about a quarter to a third of the frame height, room beside the head).
-- The project is 16:9 (vertical is not supported yet).
+- The project is 16:9 or vertical 9:16 (1:1 and 4:5 work too). In a vertical
+  project the shot is built from the crop the Short actually shows (the clip's
+  crop region or reframe track + focal point, letterbox bars cut off), so a
+  16:9 camera recording reframed to 9:16 works; so does a native vertical take.
 - The words are Latin-script (English, Spanish, French, ...).
 
 ## When not to
@@ -111,10 +114,28 @@ frame inside the edit).
   speaker; a line that cannot clear them gets a dark halo.
 - No trailing periods on screen.
 
+### Vertical (9:16) layout
+
+- Short lines (at most 3 words), stacked below the chin over the chest (with a
+  dark halo), or above the head when the framing leaves room; groups alternate
+  beat to beat.
+- The hero behind the head is sized to the frame width and straddles the
+  crown (the head hides the lower middle of the letters), still >= 60 % clear.
+- The ring is narrower, the staircase steps DOWN the frame, trucks are shorter
+  and the final push gentler.
+- Every word stays inside the Shorts-safe area while it is read: below the
+  top 12 %, above the bottom 20 % (title / channel block) and left of the
+  right action rail. The QC reports a word that leaves it.
+- If the framing pans inside the range (follow-speaker / tracked reframe), the
+  3D shot holds the framing from the middle of the range (a warning says so).
+
 ## Limits
 
-- 16:9 only; Latin-script text only; one clip per segment (no range across
-  two clips); no speed changes inside the range.
+- 16:9, 9:16, 1:1 and 4:5 projects (other aspects are refused); a portrait
+  source needs a vertical / square project. Latin-script text only; one clip
+  per segment (no range across two clips); no speed changes inside the range.
+- Vertical: screen moves, zooms or keyframed motion on the main video inside
+  the range are not reproduced (the segment shows the clip's cover crop).
 - Matte edges can flicker on fine hair; the mirrored padding can show for a
   frame during the fastest whip.
 - The grain re-rolls every frame, so judge grain on the render, not a still.

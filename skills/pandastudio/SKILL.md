@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.248.0 -->
+<!-- version: 3.249.0 -->
 
 # PandaStudio
 
@@ -47,6 +47,22 @@ Re-read before trying again; do not overwrite with an old project snapshot.
 > ≥ 1.15.0 (`pandastudio --version`, or `system_status` on MCP). Older: tell
 > the user to update (`npx @writepanda/mcp@latest`) and restart their agent.
 > Native-motion verbs (keyframes, ramps, masks, adjustment layers) need app 2.0.
+
+> ## End every turn with what changed
+>
+> The user can't see your tool calls, only your reply. After any turn that
+> touched a project, finish with a short summary they can trust:
+>
+> - **Changed:** each edit with the count the tool returned ("removed 53
+>   fillers", "added 6 zooms", "cut 2 false starts").
+> - **Not changed:** what you tried and put back, or skipped, and why ("kept
+>   the stumble at 4:12: the cut clipped a word").
+> - **Left to do**, or "done" when nothing is.
+>
+> A partial pass says so in the first line ("Partly done: ..."). Never end on a
+> tool result or a vague "updated your project". If they want it undone:
+> `agent.run-restore` (works from inside your current turn; `agent.run-list`
+> finds the run) or the chat's **Undo this run** button.
 
 > ## Motion graphics: design the moment first, then pick the tool
 >
@@ -559,7 +575,7 @@ and the doc named in the row.
 | The moment | Reach for | Not |
 |---|---|---|
 | Chapter title or the video's key claim, speaker full frame on camera | `project.add-title-behind --text="FOCUS" --atMs [--style=3d\|bold\|serif --durationMs=2000–4000]` then `job.wait --id=<jobId>`: ONE call renders 1–3 huge words, sets them at head height from face detection and places them behind the presenter (the head passes in front); the result has `regionId` and the `face` box used. Then `project.render-frame --atMs=<midpoint>`. No face in that span fails with a clear message: pick a moment with the presenter full frame, don't force it. Annotations cannot go behind the presenter; if the verb fails, skip the move rather than substituting an annotation. | a card that hides the face; an annotation as the title |
-| The HOOK (or one punchline) of a talking-head video, speaker full frame in a locked medium shot, 16:9 | `project.add-3d-captions --id --startMs --endMs [--style=bold\|editorial --heroWords --accent]` then `job.wait`: ONE call renders 5-20 s of 3D camera captions (camera whips in and trucks between caption groups at different depths, a hero word behind the head, an optional ring of words turning in front of the speaker, a staircase finale) from the clip's own footage, matte and word timings, and places it over the range (the editor's captions hide there). Do it AFTER the cuts. Look at every `beats[].still` in the result. At most one per Short, one per 2-3 min of long-form. Refuses a moving camera or an extreme close-up: pick another moment, don't force it. Detail: [`reference/3d-captions.md`](reference/3d-captions.md). | plain subtitles; a handheld or moving shot; stacking zooms or graphics inside its range |
+| The HOOK (or one punchline) of a talking-head video, speaker full frame in a locked medium shot, 16:9 or 9:16 (vertical Shorts too; built from the crop the Short shows) | `project.add-3d-captions --id --startMs --endMs [--style=bold\|editorial --heroWords --accent]` then `job.wait`: ONE call renders 5-20 s of 3D camera captions (camera whips in and trucks between caption groups at different depths, a hero word behind the head, an optional ring of words turning in front of the speaker, a staircase finale) from the clip's own footage, matte and word timings, and places it over the range (the editor's captions hide there). Do it AFTER the cuts. Look at every `beats[].still` in the result. At most one per Short, one per 2-3 min of long-form. Refuses a moving camera or an extreme close-up: pick another moment, don't force it. Detail: [`reference/3d-captions.md`](reference/3d-captions.md). | plain subtitles; a handheld or moving shot; stacking zooms or graphics inside its range |
 | Dull stretch: setup, install, B-roll, a demo with no speech you need | `project.add-speed --speed=2–4 --rampIn --rampOut` (eases 1x → fast → 1x) or `project.add-speed-ramp` for a timelapse build | a hard cut that loses context; speeding up talk |
 | Lower third, camera card or top graphic sitting where captions are | `caption.move --whileRegionId=<overlayId> --positionY=<clear zone>` for exactly its span | moving the global caption position |
 | Mood shift, flashback, aside, "imagine…", emphasis beat | `project.add-adjustment` over that span with `--fadeInMs/--fadeOutMs` (desaturate, cool, vignette, grain, blur); ONE look per meaning | a different LUT per clip |
