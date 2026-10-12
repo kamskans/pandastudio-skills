@@ -212,7 +212,7 @@ The export library (MyExports view). Read + patch only — there's no `export.st
 
 | Command | Args | Purpose |
 |---|---|---|
-| `export.list` | — | Every export entry, newest-first. |
+| `export.list` | `limit?` `offset?` | Export entries newest-first, 50 per page (`total`, `hasMore`). No transcript; use `export.get` for it. |
 | `export.get` | `id` (string, required) | Single entry by id. |
 | `export.update` | `id` (string, required), `patch` (object, required) | Patch entry fields (e.g. `generatedTitle`, `generatedDescription`). |
 | `export.delete` | `id` (string, required) | Delete the library row (does NOT delete the underlying MP4 on disk). |
@@ -283,7 +283,7 @@ The editorial primitive that makes PandaStudio PandaStudio. Every operation that
 |---|---|---|
 | `export.verify` | `exportId` \| (`exportPath` + project `id`/`path`) \| project only (newest export), `samples?` (default 8, max 24), `ssimFactor?` (2), `blockMargin?` (0.08), `colorFloor?` (0.025) | **Async.** Check an export matches the editor preview: picture length vs the edit (2-frame tolerance), sound present / not silent / same length as the picture, and editor-vs-export frame pairs at even moments plus inside every layout section's edges and near the end. Frames are compared perceptually (luma SSIM + region colour) against a re-encode baseline of the same preview frame at the export's own quantizer, so fine detail that H.264 roughens is not a mismatch; a wrong moment, a missing overlay or a colour shift is. Result `{ ok, summary[], durationOk, mismatches, frames[{atMs, reason, ssim, worstBlockSsim, worstBlockColor, baseline{qp,ssim,worstBlockSsim}, match, reasons[]}], audio{ok, lengthDiffMs, silent}, sheetPath }`. Run it after every export you hand over. |
 | `export.start` | `id` \| `path`, `outputPath` (optional), `quality` (`draft \| standard \| high \| ultra`; standard/high/ultra need a license, a free trial gets `quality_requires_license`; omitted = high, or draft on a trial), `normalizeLoudness` (optional: `streaming` \| `podcast` \| `spoken` \| `off`, or `true`/`false`, `-14`/`-16`/`-19`; default = the project setting, streaming), `format` (`mp4` \| `mp3` \| `wav` \| `m4a`), `bitrate`, `channels` (`stereo`\|`mono`), `audiogram` (`true`\|`waveform`\|`cover`), `aspectRatio`, `rangeStartMs` / `rangeEndMs`, `captions`, `title` / `show` / `episode` (audio tags) | **Async.** Audio formats export the same mix as audio only (MP3 CBR, WAV 24-bit, M4A AAC), tagged, cover art embedded. Audio-only projects as video: an audiogram or cover-art video, optionally a range. Render the project to MP4 on the native render engine the editor's Export Video button uses (no editor window needed). Returns `{ jobId, outputPath }`. Honours every region/style/caption/FX/motion-graphic in the project. The final mix is loudness-normalised (two-pass, -14 LUFS / -1 dBTP by default); the job result's `loudness` reports input/output LUFS or why it was skipped. |
-| `export.list` | — | Every entry in the export library, newest-first. |
+| `export.list` | `limit?` `offset?` | Export library newest-first, 50 per page (`total`, `hasMore`). Entries carry `transcriptWords`, not the transcript; `export.get` returns the full entry. |
 | `export.get` | `id` | Read a single library entry. |
 | `export.update` | `id`, `patch` | Patch fields like generatedTitle. |
 | `export.delete` | `id` | Delete library row (NOT the underlying MP4). |
