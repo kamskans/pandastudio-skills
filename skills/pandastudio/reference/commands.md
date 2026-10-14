@@ -53,7 +53,8 @@ mid-flight: wait 2 s and retry once.
 
 | Command | Args | Purpose |
 |---|---|---|
-| `system.status` | — | App version + license block. Always run this first. |
+| `system.status` | — | App version + license block + `mediaEngine` (`ready`, `installing`, `lastError`, `fix`). Always run this first. |
+| `system.install-media-engine` | — | Install / repair FFmpeg (~80 MB, verified by running it); joins an install in flight. Async `{ jobId }` → `job.wait` → `{ ready, version, path }`; already working → `{ ready: true }` at once. Run it on `mediaEngine.ready: false` or a `MEDIA_ENGINE_UNAVAILABLE` failure, then retry. |
 | `system.list` | — | List every available `verb.noun` with summaries. Same as `pandastudio commands`. |
 | `skill.read` | `section` (id or title words), `file` (`shorts`, `reference/shorts.md`, `SKILL.md`) | This skill, in pieces, for agents that can't install skills (MCP-only clients: `skill_read`). No args: version, opening, section outline with sizes, reference docs. Works without a license. |
 | `system.ping` | — | `{ pong: true }`. Heartbeat. |

@@ -53,6 +53,16 @@ Rules:
   keyframe track (so a fade can finish before a move ends).
 - Before the first keyframe of a property its first value holds; after the
   last, the last value holds. A property no keyframe sets stays neutral.
+- Editor only (F / "Add keyframe at playhead"): when the new keyframe lands
+  1 s or more after the previous one and nothing moves between them, the
+  editor also keys the held values 0.5 s earlier, so a change made on the new
+  keyframe happens over that half-second instead of gliding across the whole
+  gap. Reading a user's project you may see these pairs (a keyframe 500 ms
+  before another with identical values). Agent verbs never add them: your
+  keyframes keep exactly the times and easing you pass. To get the same
+  "change at 0:15" with a verb, key the hold yourself (e.g. `timeMs` 14500
+  with the old values, then 15000 with the new) or set `easing: "hold"` on the
+  earlier keyframe for a cut.
 - Unknown fields, out-of-range values, unknown easings and two keyframes at
   the same `timeMs` are REJECTED with the allowed list; nothing is clamped
   silently.

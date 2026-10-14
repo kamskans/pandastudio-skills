@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.251.0 -->
+<!-- version: 3.253.0 -->
 
 # PandaStudio
 
@@ -133,6 +133,16 @@ Run `pandastudio system.status --json` first and read `license`:
 | `exportQuality.allowed` | The `export.start --quality` values that work (trial: `draft`; licensed: all). `exportQuality.projectSettings` = the same for `project.set-export-settings` (trial: `medium`). Pick from these up front. |
 | `automationGated: true` | Trial expired, no license: only `system.*` and `window.focus` work. **Stop and tell the user to activate a license in Settings → License.** |
 | `agentEditing.allowed: false` | Solo plan ($49 entry tier from AppSumo or DealFuel): the editor works but agent editing (in-app agent, MCP, CLI) is not included, so every other command fails with `agent_not_in_plan`. **Stop and tell the user how to upgrade, using `agentEditing.message` (it names the right store).** |
+
+**Media engine.** `system.status` → `mediaEngine.ready: false` means FFmpeg
+(downloaded at runtime, never bundled) is missing or broken: transcription,
+audio cleanup, camera exports and most media verbs can't run. Commands that
+need it repair it themselves when they can; when they can't they fail with
+`details.code: "MEDIA_ENGINE_UNAVAILABLE"`. Then run
+`pandastudio system.install-media-engine` (async: `{ jobId }`, `job.wait` →
+`{ ready, version }`, ~80 MB) and retry the command. If that fails too
+(offline, firewall), tell the user to check their connection and click
+Install in Settings → Media engine.
 
 A connection error auto-launches PandaStudio (waits up to 60 s). `invalid or
 missing bearer token` = credentials rotated: wait 2 s, retry once.
