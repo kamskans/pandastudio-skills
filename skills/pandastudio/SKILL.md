@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.253.0 -->
+<!-- version: 3.258.0 -->
 
 # PandaStudio
 
@@ -251,17 +251,59 @@ Pass explicit per-run `--language` and `--provider`; never use cloud with auto:
 pandastudio transcript.transcribe --id=$ID --clipId=… --force=true --language=tamil --provider=deepgram
 ```
 
-Language names include English and Parakeet's European set. These explicit
-names use Parakeet locally and an explicit ISO language with cloud.
+**Which local engine runs (report #122).** Language `auto` or `english` →
+Parakeet (detects the language, keeps filler words). ANY OTHER named language
+(french, german, spanish, chinese ...) → local Whisper large-v3-turbo LOCKED to
+that language (task transcribe, never translate): Parakeet can't be locked and
+drifts into English on accented or mixed speech, so a French webinar must be
+transcribed with `--language=french`, not auto. Override with
+`--engine=parakeet|whisper` (per run) or `system.set-transcription-preferences
+--engine=…` (workspace). Whisper needs its ~550 MB model once (then offline):
+error code `whisper_model_not_downloaded` → ask the user, then
+`system.download-whisper-model` (async job). `system.get-transcription-language`
+returns `route { engine, reason }`; job results carry `engine` + `engineReason`:
+tell the user which engine ran when it matters.
 Overrides do not change workspace preferences. Confirm consent to send audio
 before selecting cloud. `--force=true` targets all clips; `--clipId` targets one.
 Plain `transcript.transcribe`
 skips clips that already have words. Report `droppedWordEdits[]` from the job
 result: those fixes need redoing. A clip is transcribed only over the part it
-plays: from the end of its head trim (its in-point) to its out-point, so after
-`project.split-clip` re-transcribing one half returns that half's words only,
-in the media's own time (`transcribedRanges[]` in the job result). Remove a
-head trim first to transcribe what it hides.
+plays: from the end of its head trim (its in-point) to the start of its tail
+trim, so after `project.split-clip` re-transcribing one half returns that
+half's words only, in the media's own time (`transcribedRanges[]` in the job
+result). When cuts inside a clip hide 5+ minutes and more than it keeps (a
+53 s edit of a 2 h recording) only the kept parts (+2 s pad) are transcribed.
+**Before a long job, tell the user how much audio it processes**: the reply's
+`plan.totalAudio` / `totalAudioMs` (or `--dryRun=true`, which transcribes
+nothing). Remove a head/tail trim first to transcribe what it hides.
+
+### Importing a transcript file (transcript.import)
+
+When the user has a better transcript (a corrected SRT, faster-whisper JSON,
+subtitles from another tool), or local transcription keeps mixing languages:
+
+```bash
+pandastudio transcript.import --id=$ID --clipId=… --file=/abs/talk.srt --timeBase=source --dryRun=true   # preview
+pandastudio transcript.import --id=$ID --clipId=… --file=/abs/talk.srt --timeBase=source
+```
+
+- `timeBase` is required: `source` = times from the start of the clip's media
+  file (most transcription tools); `edited` = times on the edited video (subtitles
+  made from the exported cut), mapped through cuts and speed changes. Ask if unsure.
+- Accepted: SRT; VTT (inline `<00:00:01.500>` word times = word-level); JSON
+  `{segments:[{start,end,text,words:[{word,start,end}]}]}` (whisper, faster-whisper,
+  whisperX), `{words:[...]}`, `{word_segments:[...]}`, or `[{word|text,start,end}]`
+  (seconds; `startMs`/`endMs` = ms). `[Music]` / `♪` annotations are dropped.
+- Errors (times going backwards, a line ending before it starts, starting outside
+  the clip) refuse the import and name the lines; overlaps are trimmed (warning).
+- Line-level files are ALIGNED to the audio (`align` auto: the clip's current
+  words, else a local transcription of just those lines, which returns `{ jobId }`).
+  `alignment.method: "proportional"` means word times were estimated per line:
+  tell the user captions may drift inside a line.
+- Cuts stay; word fixes are re-applied (`droppedWordEdits[]` otherwise); a word
+  keeps its id when the old transcript had the same word at the same moment.
+- The editor has the same action: Transcript panel, More options, Import transcript…
+  (one undo step).
 
 ## Recording the screen yourself (agent-driven, v1.86+)
 
@@ -856,6 +898,20 @@ give you.
   `inCut: true` = parked inside a cut (`ms` is the cut point).
 - `project.new --withMedia='["/a.mp4"]'` creates pre-loaded; `project.duplicate`
   makes an exact copy for a variant edit; `project.open` opens the full editor.
+- **Excerpt / preview / highlight projects (parts of a recording).** A clip
+  always holds its WHOLE file; a range is its in / out point, never a field on
+  the clip. Make each excerpt a ranged clip, in the file's own ms (that
+  recording's transcript word times):
+  `project.new --name="Hook preview" --parentProjectId=$SRC --withMedia='[{"path":"/rec.mp4","sourceStartMs":12000,"sourceEndMs":41000},{"path":"/rec.mp4","sourceStartMs":95000,"sourceEndMs":118000}]'`,
+  or `project.add-clip --media=/rec.mp4 --sourceStartMs --sourceEndMs` one at a
+  time; `project.set-clip-range --clipId --sourceStartMs --sourceEndMs` fixes
+  an existing clip. Then speed etc. with their own verbs (`project.add-speed`).
+  Never write `sourceStartMs` / `inMs` / `speed` onto clips in a `project.save`
+  body (rejected; the editor would play every clip in full). One continuous
+  stretch of an edited project with its edits kept: `project.fork-from-shot
+  --projectId --sourceStartMs --sourceEndMs`. **Check `editedDurationMs` and
+  `warnings`** in the result: a preview longer than its source, or the same
+  footage on several clips, means a range was lost; fix it before reporting.
 - `project.read` shapes that trip agents: clips at `mainTrack.clips[]`
   (`sourceDurationMs`, no per-clip `durationMs`; use `clipStates[]`), visual
   overlays at `editor.mediaOverlayRegions[]`, **audio overlays at top-level
@@ -1193,10 +1249,20 @@ under its keyword is good; check-broll flags what a picture would hide.
 
 `media.generate-narration` (local Kokoro by default; `--model` for cloud voices
 or `elevenlabs-direct` for the user's own cloned voices; `--pronunciations` for
-names) → `project.add-audio --audioPath --transcribe=true`. The user wants their
+names) → `project.add-audio --audioPath --transcribe=true`. The overlay keeps
+what it was made from (`audioOverlays[].generatedFrom`: script, model, voice,
+tone; also for `media.generate-sound-effect` / `-music` files placed with
+`project.add-audio`). **To change a narration, regenerate it in place:**
+`media.regenerate-narration --id --regionId=audio-N [--text="edited script"]
+[--voice / --model / --style]`: only what you pass changes, it keeps its spot,
+volume and mix, re-transcribes if it was transcribed (`transcribeJobId`), one
+undo step. Don't remove + re-add. The user does the same by selecting the
+narration (Edit & regenerate). The user wants their
 OWN voice → point them to Audio tab → Record voiceover (you can't record it).
 B-roll stills over a talking head: "B-roll beats" above (ask first, place with
-`project.add-broll`); in a faceless video, `media.image-to-video` clips. See "Images" below for connectors, stickers and the
+`project.add-broll`; a picture from `media.generate-image` keeps its prompt on
+the beat, and `media.regenerate-image --id --regionId [--prompt]` swaps in a
+new picture in place, paid, only when the user asks); in a faceless video, `media.image-to-video` clips. See "Images" below for connectors, stickers and the
 bring-your-own fallback. `media.generate-presenter` (Seedance, Replicate) makes a
 realistic AI presenter with its own voice (one take ≤30s; describe the person,
 the line in double quotes; never add narration on top), used as a camera-only
@@ -1566,6 +1632,15 @@ pandastudio system.report-issue --kind=capability-gap --key=custom-font-not-in-e
 
 ## Captions, AI metadata, thumbnails
 
+**Captions without full stops** ("remove the periods from the captions"):
+`caption.set-punctuation` (default preset `clean` removes . , ! : ; … quotes
+dashes brackets and KEEPS `?`; `--keepQuestionMarks=false`, `--preset=all|none`,
+or `--remove='["period","comma"]'`). It changes how captions are DRAWN, not the
+transcript (timings, cuts, sentence breaks, titles/chapters keep working; `none`
+restores). Words are never merged ("Bonjour.Merci" shows "Bonjour Merci");
+j'ai / aujourd'hui / peut-être / 3.5 / writepanda.ai are kept intact. Do NOT
+find-replace punctuation out of the transcript for this.
+
 `caption.toggle`, `caption.set-template`, `caption.set-style` (`positionY` is %
 from the top, `wordsPerLine`, `uppercase`, font, `highlightMode`, emphasis look,
 `boxRotation`), `caption.mark-emphasis` (which words are the KEY words),
@@ -1698,7 +1773,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 `pandastudio commands --json` or [`reference/commands.md`](reference/commands.md).
 
 - **system** — status, list, ping, echo, get-transcription-language,
-  set-transcription-language, is-whisper-model-downloaded,
+  set-transcription-language, is-whisper-model-downloaded, download-whisper-model,
   get-transcription-provider, set-transcription-provider, set-transcription-preferences, get-narration-engine,
   set-narration-engine, download-kokoro-model, is-kokoro-model-downloaded,
   preview-proxy-status, get-preview-proxy-mode, set-preview-proxy-mode
@@ -1741,13 +1816,13 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   remove-volume-keyframe (audio-color-music.md)
 - **project**, check and export settings — render-frame, render-sheet,
   set-export-settings (visual-edits.md)
-- **transcript** — transcribe, detect-language, get, search, remove-fillers, remove-silences,
+- **transcript** — import, transcribe, detect-language, get, search, remove-fillers, remove-silences,
   find-issues, delete-words, restore-words, find-replace, insert-words
   (transcript-editing.md)
 - **timeline** — source-to-edited, edited-to-source
 - **review** — list, resolve, add, update, delete (pins the user put on the
   preview; "Review items" below, commands.md)
-- **caption** — toggle, set-template, set-style, move (captions-metadata.md)
+- **caption** — toggle, set-template, set-style, set-punctuation, move (captions-metadata.md)
 - **audio** — enhance (aliases: clean, reset-clean), probe, normalize (audio-color-music.md)
 - **motion** — list, generate, render-html, screenshot, concat, verify-frames,
   themes, list-storyboards, generate-storyboard, catalog [catalog-search],

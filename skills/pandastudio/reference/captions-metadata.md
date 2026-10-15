@@ -174,3 +174,23 @@ lock what shouldn't change and iterate one thing at a time.
 
 (Full arg schemas: `reference/commands.md`.)
 
+
+
+## Caption punctuation (caption.set-punctuation)
+
+```bash
+pandastudio caption.set-punctuation --id=$ID                         # clean: no . , ! : ; … quotes dashes brackets; ? kept
+pandastudio caption.set-punctuation --id=$ID --keepQuestionMarks=false
+pandastudio caption.set-punctuation --id=$ID --remove='["period","comma"]'
+pandastudio caption.set-punctuation --id=$ID --preset=none           # back to the transcript's punctuation
+```
+
+A caption setting (`captionSettings.punctuation.remove`), applied when captions are drawn in
+the preview and the export. The transcript keeps its punctuation on purpose: segments,
+"Space out sentences", find-issues, titles / descriptions / chapters and agents reading the
+transcript all use it, and a re-transcription or import would bring it back anyway. Rules:
+only the chosen marks go; a removed mark between two words becomes a word break (never a
+merge: "Bonjour.Merci" → "Bonjour" "Merci", each with its share of the word's time);
+apostrophes and hyphens inside words stay (j'ai, aujourd'hui, peut-être); decimals,
+thousands, times, domains keep their marks (3.5, 1,000, 10:30, writepanda.ai); acronyms
+lose their dots (U.S. → US); punctuation-only words disappear. Timings and cuts are untouched.

@@ -195,49 +195,45 @@ Use when the user says "rename this project", "call it X", or after `llm.generat
 
 ## Transcription languages (v1.27.0+)
 
-PandaStudio ships two transcription engines under the hood:
+PandaStudio ships two on-device transcription engines:
 
-- **Parakeet TDT v3** (default, "auto") — detects the spoken language itself across 25 languages, English included: Bulgarian, Croatian, Czech, Danish, Dutch, English, Estonian, Finnish, French, German, Greek, Hungarian, Italian, Latvian, Lithuanian, Maltese, Polish, Portuguese, Romanian, Russian, Slovak, Slovenian, Spanish, Swedish, Ukrainian. Any of these = `auto` (there is no per-language setting; `romanian`, `ro`, `english`, `en`, ... are accepted and saved as `auto`). Word-level timestamps native, ~473 MB model, ~30× realtime on CPU. Preserves filler words ("um", "uh", repeats) which is critical for the transcript-based editor. Bundled download on first use.
-- **Whisper Large-v3-turbo** — for Chinese, Japanese, Korean, Hindi, Arabic, Thai, Tamil, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi. ~1.1 GB Q5_0 GGUF, lazy-downloaded on first non-European language selection. Same word-level-timestamps contract via `set_token_timestamps + set_max_len(1) + set_split_on_word`.
+- **Parakeet TDT v3** — detects the spoken language itself across 25 languages, English included: Bulgarian, Croatian, Czech, Danish, Dutch, English, Estonian, Finnish, French, German, Greek, Hungarian, Italian, Latvian, Lithuanian, Maltese, Polish, Portuguese, Romanian, Russian, Slovak, Slovenian, Spanish, Swedish, Ukrainian. ~473 MB model, ~30x realtime on CPU. Preserves filler words ("um", "uh", repeats), which the transcript editor's filler removal needs. It CANNOT be locked to a language: on accented or code-switched speech it drifts into English mid-sentence (report #122: a French webinar came back as mixed French/English).
+- **Whisper large-v3-turbo** (whisper.cpp, Q5_0, ~550 MB, MIT weights) — can be LOCKED to a language; always run with task=transcribe (never translate). DTW word timings. Smooths away more filler words than Parakeet. Downloaded once, then works offline. Measured on a 77 s French clip (two speakers, also degraded to noisy 12 kbps webinar audio): 0 word errors (Parakeet: 2-3, e.g. "vousêtes", "qu'il faut" → "qu'ils font"), ~11x realtime on an Apple-silicon CPU.
 
-The setting is **workspace-scoped**: a user can run an English channel in one workspace and a Mandarin channel in another without crosstalk.
+**Routing** (`engine` auto, the default): language `auto` or `english` → Parakeet; any other named language → Whisper locked to it. `engine: parakeet` keeps a European language on Parakeet (fillers, no download, may drift); `engine: whisper` forces Whisper (auto language = Whisper's own language ID). Language, provider and engine are **workspace-scoped**.
 
 ### Check + switch from agent
 
 ```bash
-# Read the active engine.
 pandastudio system.get-transcription-language --json
-# → { language: "auto" }
+# → { language: "french", engine: "auto",
+#     route: { ok: true, engine: "whisper", lockedLanguage: "fr", reason: "Whisper locked to French: ..." },
+#     whisperModel: { downloaded: false, size: "550 MB" } }
 
-# Before switching to a non-European language, make sure the model is on disk.
-pandastudio system.is-whisper-model-downloaded --json
-# → { downloaded: false }
+# Whisper model missing? ASK the user (550 MB, once), then:
+JOB=$(pandastudio system.download-whisper-model --json | jq -r '.data.jobId')
+pandastudio job.wait --id=$JOB --json
 
-# If false, ask the user to open Settings and click "Download Whisper model"
-# (~1.1 GB). The agent cannot trigger the download itself — the IPC requires
-# main-window context. Once they confirm it's downloaded, proceed.
+pandastudio system.set-transcription-language --language=french --json     # saved as french
+pandastudio system.set-transcription-preferences --engine=parakeet --json  # keep Parakeet instead
 
-# Switch.
-pandastudio system.set-transcription-language --language=chinese --json
-# → { language: "chinese" }
-
-# Now `transcript.transcribe` (or the editor's Transcribe button) will use
-# Whisper instead of Parakeet for every call until the language is changed
-# back.
+# One run only:
+pandastudio transcript.transcribe --id=$ID --clipId=… --force=true --language=french --json
+# → { jobId, plan: { engine: "whisper", reason, totalAudioMs, clips: [{ ranges }] } }
+pandastudio transcript.transcribe --id=$ID --dryRun=true --json   # the plan, no transcription
 ```
 
 ### When to call this
 
-- **User asks for a non-European transcription**: "transcribe this Chinese video", "give me the Japanese transcript", etc. → check + switch.
-- **Project content suggests a language mismatch**: clip filenames or metadata indicate a non-European language but the current setting is "auto". Surface to the user before flipping the setting yourself.
-- **Restoring "auto" after a one-off job**: if you switched for a specific clip, switch back when you're done so subsequent English/European transcriptions get Parakeet's faster + filler-preserving path.
+- **User names the spoken language, or it isn't English**: pass it (`--language=french`). Never leave a French / German / Spanish recording on auto when the user has told you the language: auto runs Parakeet, which can mix in English.
+- **A transcript came out in mixed languages**: re-transcribe with the language named (Whisper locks to it).
+- **English projects**: keep auto/english (Parakeet). Filler removal depends on Parakeet keeping "um"/"uh".
 
 ### Caveats
 
-- Whisper's seq2seq decoder smooths over fillers. That's fine for Chinese/Japanese/Korean where fillers behave differently anyway, but DO NOT switch to Whisper for English projects — the editor's "Remove Filler Words" / "Remove Silences" features depend on Parakeet's CTC honesty.
-- Language hint is locked, not auto-detected, when Whisper is active. If the user picks "chinese" and then transcribes a Japanese file, the output is garbage. Match the setting to the actual source language.
-- `system.set-transcription-language` only writes the setting — it does not download the Whisper model. The download is a Settings-UI-only action because it streams ~1.1 GB and surfaces a progress modal.
-- There is no "english" value: English is `auto`. `--language=english` / `en` are accepted and saved as `auto` (the result carries a `message` saying so).
+- Whisper locks to the language you name. If the user picks "chinese" and transcribes a Japanese file, the output is garbage. Match the setting to the actual source language (`transcript.detect-language` gives a local guess).
+- `system.set-transcription-language` only writes the setting; it does not download the model. `transcript.transcribe` fails with `whisper_model_not_downloaded` until it is (the editor's own Transcribe downloads it on first use and says so first).
+- There is no "english" value: English is `auto` (`--language=english` / `en` are saved as `auto`, with a message). ISO codes (`fr`, `de`) are accepted.
 
 ### Redoing a transcript (wrong language, bad run)
 
@@ -449,9 +445,9 @@ user explicitly wants karaoke-style timing.
 
 **Caveats for this flow:**
 
-- **Non-European languages** (Chinese, Japanese, Korean, Hindi, Arabic, Thai, Tamil, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi) need the Whisper
-  model switch first — see the "Transcription languages" section above. For Parakeet's 25
-  languages (English and 24 other European ones, Romanian included), the default engine just works.
+- **Any language other than English**: pass `--language=<name>` so Whisper is locked to it
+  (needs the ~550 MB Whisper model, `system.download-whisper-model`) — see "Transcription
+  languages" above. Auto (Parakeet) detects the language but can drift into English.
 - **The project is a real artifact.** `project.new` writes a `.pandastudio` file. If the user
   only wanted a transcript and doesn't care about the project, that's fine to leave behind, or
   call `project.delete --id=$ID` once you've handed over the subtitle file. Ask if unsure —

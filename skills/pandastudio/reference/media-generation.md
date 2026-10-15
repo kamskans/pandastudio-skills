@@ -51,6 +51,16 @@ pandastudio media.generate-narration \
 - **Canonical promo loop:** write the script → `media.generate-narration` →
   `project.add-audio` at `startMs` with the returned `durationMs` → time your
   motion graphics / B-roll to the voice.
+- **Provenance + regenerate in place.** Every generated file carries what it
+  was made from (`generatedFrom` in the result, and beside the file as
+  `<audio>.source.json`); `project.add-audio` stores it on the overlay
+  (`audioOverlays[].generatedFrom`). Rewrite a line, change the voice or the
+  engine with `media.regenerate-narration --id=$PID --regionId=audio-2
+  --text="New line"` (or `--voice`, `--model`, `--style`, `--speed`,
+  `--pronunciations`): it reuses everything you don't pass, keeps the overlay's
+  id / start / volume / fades / ducking, takes the new audio's length, and
+  re-transcribes a transcribed narration (job.wait the returned
+  `transcribeJobId`). A narration with no stored source needs `--text`.
 - **Licensing note:** the local path is fully permissive — Kokoro weights are
   Apache-2.0 and the sidecar links misaki-rs built without its espeak fallback,
   so no GPL `espeak-ng` is compiled in.
