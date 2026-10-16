@@ -59,7 +59,7 @@ pandastudio media.generate-narration \
   --text="New line"` (or `--voice`, `--model`, `--style`, `--speed`,
   `--pronunciations`): it reuses everything you don't pass, keeps the overlay's
   id / start / volume / fades / ducking, takes the new audio's length, and
-  re-transcribes a transcribed narration (job.wait the returned
+  re-times its transcript words from the new script (job.wait the returned
   `transcribeJobId`). A narration with no stored source needs `--text`.
 - **Licensing note:** the local path is fully permissive — Kokoro weights are
   Apache-2.0 and the sidecar links misaki-rs built without its espeak fallback,
@@ -73,30 +73,48 @@ pandastudio media.generate-narration \
   the playhead while their mic records; pausing cuts the gap; the take lands as
   a normal audio overlay (`voiceover-*.wav`, in `project.read` under
   `audioOverlays[]`). With "Transcribe for captions" on (default), its words
-  merge into the transcript like `project.add-audio --transcribe`. You can't
+  go into the transcript like `project.add-audio --transcribe`. You can't
   record their voice yourself.
 - **Their cloned voice:** `--model=elevenlabs-direct` uses the user's OWN
   ElevenLabs account (pass the voice name or voice_id; needs ElevenLabs
   connected in Settings → Integrations).
 
-### Always `--transcribe=true` when placing a VOICEOVER
+### Narrations and voiceovers in the transcript
 
-Audio overlays are never transcribed otherwise (`transcript.transcribe` only
-walks main-track clips), so a narration-driven video ends up with NO
-transcript: no captions and no way to read back what was said. The flag
-transcribes the narration and merges its words into the project transcript at
-the overlay's position. It returns a `transcribeJobId`; `job.wait` on it before
-`caption.toggle` or any transcript verb, and CHECK the job status: it fails
-loudly (instead of merging nothing) when the audio has no recognisable speech.
-Other edits while it runs are safe (the merge re-reads and retries). The words
-belong to that overlay: `project.update-region` moving it moves them,
-`project.remove-audio` removes them. `audioPath` must be an existing absolute
-file (a missing/empty path → `audio_file_invalid`; check the variable isn't
-empty). Do NOT pass it for music or ambience.
+`transcript.transcribe` only walks main-track clips, so an audio track's words
+come in with the track:
+
+- **A generated narration is in BY DEFAULT.** `project.add-audio` with a file
+  from `media.generate-narration` times the narration's SCRIPT against its
+  audio (local speech recognition; no cloud, no cost) and returns a
+  `transcribeJobId`: `job.wait` it before `caption.toggle` or any transcript
+  verb. The words are exactly the script (names spelled as written, not as
+  heard). Without the local transcription model they are spread by length
+  (`alignment.method: "proportional"` in the job result: tell the user captions
+  may drift, and that Settings > Transcription has the model).
+  `--transcribe=false` keeps a narration out (sung / non-speech).
+- **Any other VOICEOVER** (an uploaded VO, a TTS file from elsewhere): pass
+  `--transcribe=true` to transcribe its speech with the user's engine. Do NOT
+  pass it for music or ambience. The job fails loudly when the audio has no
+  recognisable speech; check its status.
+- **The words live on the overlay** (`audioOverlays[].transcript`, file time)
+  and join the transcript where it plays: `project.update-region` moving it
+  moves them, `media.regenerate-narration` re-times them, `project.remove-audio`
+  removes them, undo / redo in the editor keeps them in step. `transcript.get`
+  marks them `sourceOverlayId`; captions and AI edits include them, but cuts
+  (`delete-words`, `remove-fillers`, `find-issues`) never touch them (they would
+  cut the video under them): change a narration's words with
+  `media.regenerate-narration --text`.
+- **Older projects:** `transcript.align-narration --id` aligns every narration
+  that has a script but no words (the editor does the same when it opens the
+  project); `--regionId=audio-N --force` re-times one; `--include=false` takes
+  one out, `--include=true` puts it back.
+- `audioPath` must be an existing absolute file (a missing/empty path →
+  `audio_file_invalid`; check the variable isn't empty).
 
 ```bash
 NARR=$(pandastudio media.generate-narration --text="..." --json | jq -r '.data.audioPath')
-OUT=$(pandastudio project.add-audio --id=$ID --audioPath="$NARR" --startMs=0 --transcribe=true --json)
+OUT=$(pandastudio project.add-audio --id=$ID --audioPath="$NARR" --startMs=0 --json)
 pandastudio job.wait --id=$(echo "$OUT" | jq -r '.data.transcribeJobId') --json
 pandastudio caption.toggle --id=$ID --enabled=true   # now has words to render
 ```

@@ -3,20 +3,35 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.258.0 -->
+<!-- version: 3.264.0 -->
 
 # PandaStudio
 
-Concurrent editor saves: `project.batch` retries only the conflicting command
-(up to three attempts with a short backoff), preserving earlier steps. Async
-transcription, voiceover, audio cleanup and rendered graphics, plus face tracking
-and auto-reframe, plus downloaded-media placement, merge computed results onto the latest project and retry saves.
-They preserve unrelated editor edits; transcription also reapplies current word
-fixes and skips clips removed during the job. Explicit `expectedRevision`
-preconditions still apply. Exhausted conflicts use `code: "revision_conflict"`,
-`status: 409`, `expected`, and `actual`: HTTP 409 for thrown save conflicts,
-`results[].details` for batch failures, and `job.errorDetails` for failed jobs.
-Re-read before trying again; do not overwrite with an old project snapshot.
+Concurrent editor saves: verbs that analyse for a while (remove-silences,
+remove-fillers, delete-words, insert-pause, space-out, set-audio-ducking,
+caption emphasis, place-on-beats, track-focus-face / track-region,
+convert-to-keyframes, auto-sync-podcast, set-clip-webcam, layouts, and the async
+jobs: transcription, voiceover, audio cleanup, rendered graphics, auto-reframe,
+downloads) measure on the project as read and apply their result to the project
+as it is on disk when they write, keeping edits that landed meanwhile. They do
+NOT fail because the editor saved. If what they measured changed (the clip was
+swapped, the words retimed) they measure again; if it keeps changing they fail
+with `code: "project_changed_during_analysis"` (409) and change nothing: wait
+for the other edit, then run the verb once more. Saves that change nothing no
+longer bump `revision`. `project.batch` retries a conflicting command up to
+three times. An explicit `expectedRevision` is checked when the verb starts
+(`code: "revision_conflict"`, `status: 409`, `expected`, `actual`); re-read
+before retrying, never write back an old snapshot.
+
+Sources on Dropbox / iCloud / OneDrive / Google Drive (`~/Library/CloudStorage`,
+`~/Library/Mobile Documents`): a clip's audio is read once and cached, so only
+the first measuring verb pays for a slow read. When the file is online-only the
+verb fails at once with `code: "media_offline"` (PandaStudio starts the
+download); when the read stalls or crawls, `media_read_stalled` /
+`media_read_too_slow`; a missing file is `media_missing`. The error text says
+what to do: tell the user to make the file available offline in Finder (or copy
+it to a local folder), then run the verb again. Don't retry in a loop and don't
+fall back to cutting by transcript gaps.
 
 > ## Pick your interface FIRST
 >
@@ -728,12 +743,15 @@ and the user's own ElevenLabs voices via `--model`). Music + SFX for a promo,
 launch film or motion piece: **`media.compose-soundtrack`** is the default. Write
 the edit's timeline as cues, pick the BPM so cuts land on beats, and put every
 hit on its moment in one score ([`reference/soundtrack.md`](reference/soundtrack.md)).
-Alternatives: `asset.list-music`, `media.generate-music` (`--model=musicgen
---reference=<audio>` matches a track they have); SFX: `asset.list-sounds`,
+Alternatives: `asset.list-music`, `media.generate-music` (Lyria only, ~30 s
+instrumental clips; under a longer video: `project.add-audio --loop=true
+--endMs=<video>`; MusicGen was removed for its non-commercial licence, so there is no
+reference-track matching or custom length; change a placed track with
+`media.regenerate-music --regionId` in place, paid); SFX: `asset.list-sounds`,
 `media.generate-sound-effect`. With narration, generate the VO FIRST and time
-each scene to its line. **Always pass `--transcribe=true` when placing a
-voiceover with `project.add-audio`** (overlays are never transcribed
-otherwise: no captions, no transcript), then `job.wait` its `transcribeJobId`
+each scene to its line. A generated narration placed with `project.add-audio`
+goes into the transcript automatically (its script timed to the audio); pass
+`--transcribe=true` for any OTHER voiceover. `job.wait` the `transcribeJobId`
 before captions. Never for music. Detail: media-generation.md.
 
 Services behind a connector (Higgsfield video, HeyGen avatars, ElevenLabs,
@@ -1003,6 +1021,19 @@ give you.
   --cursorHideIdle --cursorHideDuringZoom --cursorStyle=classic|modern|bold|soft`
   (modern: clean dark arrow, white outline; bold: high contrast for busy or
   bright screens; soft: rounded, light).
+- **Cursor in the wrong place (old recordings):** when the drawn cursor or the
+  cursor auto-zooms sit off to one side / in a corner of what the video shows
+  (recordings made before 2.1.24 could store the pointer with the wrong
+  mapping), fix the whole track with `project.align-cursor --clipId
+  --points='[{"atMs":12400,"x":0.31,"y":0.58}]'`: x,y = where the REAL pointer
+  (or the button that was clicked at that moment) is, as fractions of the
+  recorded frame. Find moments with `project.render-frame` (pause where the real
+  pointer shows, or on a recorded click). One pin fixes an offset; add a second
+  pin far from the first (`--add`) when it is also scaled; the result's
+  `residual` says how well the pins agree. Stored on the clip, applied in
+  preview and export; cursor-placed auto-zooms follow (`--moveZooms=false`
+  keeps them); `--reset` removes it; `project.read` clipStates shows
+  `cursorCorrection`. Same as Style > Cursor > Align cursor in the editor.
 - **Reset / repeat:** `project.clear-edits` for "start over" (don't loop
   `remove-region`); `project.duplicate-region` copies a styled region
   (Cmd/Ctrl+D).
@@ -1010,10 +1041,14 @@ give you.
 
 ### Conflict-safe save
 
-The editor autosaves, so two writers overwrite each other unless you pass
-`--expectedRevision` (from `project.read`). A conflict returns `{ code:
+Editing verbs apply to the project as it is when they write, so the editor's
+autosave never loses an agent edit or the other way round. Pass
+`--expectedRevision` (from `project.read`) only when your edit must not land on
+a project that changed since you read it: a mismatch returns `{ code:
 "revision_conflict", expected, actual, onDiskProject }`: re-read, re-apply,
-retry. Every `project.add-*` accepts it.
+retry. Every `project.add-*` accepts it. Long verbs re-measure (or return
+`project_changed_during_analysis`) instead of conflicting; see the top of this
+file.
 
 ### Preview without exporting
 
@@ -1249,14 +1284,24 @@ under its keyword is good; check-broll flags what a picture would hide.
 
 `media.generate-narration` (local Kokoro by default; `--model` for cloud voices
 or `elevenlabs-direct` for the user's own cloned voices; `--pronunciations` for
-names) → `project.add-audio --audioPath --transcribe=true`. The overlay keeps
+names) → `project.add-audio --audioPath` (job.wait its `transcribeJobId`).
+**A generated narration goes into the transcript and captions automatically:**
+its script is timed against the audio (local speech recognition, no cloud), so
+the words are exactly the script; they live on the overlay
+(`audioOverlays[].transcript`, file time) and follow it on move / regenerate /
+remove / undo. `transcript.get` shows them with `sourceOverlayId`; transcript
+cuts (delete-words, remove-fillers, find-issues) never cut them (they play from
+their own track: change the script and regenerate instead). `--transcribe=false`
+keeps one out (sung / non-speech); `transcript.align-narration [--regionId]`
+aligns older projects' narrations (default: all with a script but no words),
+`--include=false` opts one out, `--force` re-times. The overlay keeps
 what it was made from (`audioOverlays[].generatedFrom`: script, model, voice,
 tone; also for `media.generate-sound-effect` / `-music` files placed with
 `project.add-audio`). **To change a narration, regenerate it in place:**
 `media.regenerate-narration --id --regionId=audio-N [--text="edited script"]
 [--voice / --model / --style]`: only what you pass changes, it keeps its spot,
-volume and mix, re-transcribes if it was transcribed (`transcribeJobId`), one
-undo step. Don't remove + re-add. The user does the same by selecting the
+volume and mix, re-times its transcript words from the new script
+(`transcribeJobId`), one undo step. Don't remove + re-add. The user does the same by selecting the
 narration (Edit & regenerate). The user wants their
 OWN voice → point them to Audio tab → Record voiceover (you can't record it).
 B-roll stills over a talking head: "B-roll beats" above (ask first, place with
@@ -1448,6 +1493,27 @@ when nothing fits) and colour (`project.set-clip-color
 --preset=flat-footage` first, then `project.set-clip-lut`; `--target=camera`
 grades the camera separately). Detail + sound design + loudness:
 [`reference/audio-color-music.md`](reference/audio-color-music.md).
+
+**Cutting to the beat** (music-driven Shorts, B-roll / photo montages, a
+launch film cut to a track): `audio.detect-beats --id=$ID [--regionId=audio-N]
+[--fromMs --toMs]` returns the music track's beats on the EDITED timeline
+(`beatsMs`, `downbeatsMs` = bar starts, 4/4 estimated, `tempoBpm`,
+`confidence`); it follows the track's trim, in-point and loop, runs locally and
+is cached per file (first call on a song: a few seconds). For a montage use one
+call: `project.place-on-beats --id=$ID --regionIds='["overlay-3","overlay-4"]'`
+(existing pictures / B-roll / clips, in play order; B-roll transitions follow)
+or `--paths='["/abs/a.jpg","/abs/b.mp4"]'` (adds them full-frame, stills with a
+gentle push), `--every=1|2|4` (every beat, every other beat = default, every
+bar from a downbeat), `[--fromMs --toMs]` (default: the music's span),
+`[--musicRegionId]` (default: the longest music track). Item i plays from cut i
+to cut i+1; what doesn't fit before the end comes back in `unplaced`. Pick
+`every` by tempo: above ~110 BPM every beat is frantic, so use 2 (or 4 for a
+calm piece); every beat suits a fast hype cut. No beats / confidence under 0.2
+= no steady beat (speech, ambience): don't force a grid. Add the music first
+(`project.add-audio` / `media.generate-music`). In the editor the same beats
+show as markers on the music track (timeline "Beats" toggle) and items, the
+playhead and clip splits snap to them (hold Alt/Option to drag freely); the
+music track's inspector has "Place on beats".
 
 **Shared motion recipes:** use `asset.list-sound-patterns` and
 `asset.plan-sound-pattern`, then apply returned cues with `project.add-sound-cues`.

@@ -326,15 +326,19 @@ format and recipes: [soundtrack.md](soundtrack.md). The library and the
 generators below remain the right tools for long beds under speech and for
 specific real-world sounds.
 
-### Custom music — generate an original track (Lyria-2 or MusicGen)
+### Custom music — generate an original track (Lyria 2)
 
 When the bundled library doesn't cover what the user wants (a specific genre,
 mood, or instrument combination), generate an original instrumental track with
 `media.generate-music` (Replicate / Google Lyria-2). The bundled library is the
 faster default for common moods — reach for generation only when the user asks
 for something specific/custom. Requires Replicate to be connected (Settings →
-Integrations → Connectors). Output is instrumental only, ~30s, 48kHz stereo — loop it for
-longer videos.
+Integrations → Connectors). Output is instrumental only, ~30s, 48kHz stereo: under a
+longer video place it with `--loop=true` (it repeats to the track's end, in preview and
+export alike). Runs bill the user's Replicate account: generate when asked, not
+speculatively. The user does the same in the editor: Audio tab → Generate music
+(describe, avoid, seed; listen; add under the whole video, looping, or
+at the playhead).
 
 ```bash
 # Describe genre, mood, instruments, tempo, use-case. Returns { audioPath, durationMs }.
@@ -344,39 +348,62 @@ RES=$(pandastudio media.generate-music \
 MUSIC=$(echo "$RES" | jq -r '.data.audioPath')
 DUR=$(echo "$RES" | jq -r '.data.durationMs')
 
-# Place it as background music, sized to the clip (loops/repeats for longer videos).
-pandastudio project.add-audio --id=$ID \
-  --audioPath="$MUSIC" --volume=0.3 --fadeIn=500 --fadeOut=500 --json
+# A bed under the whole video: loop the ~30 s clip to the end, duck under speech.
+pandastudio project.add-audio --id=$ID --audioPath="$MUSIC" --startMs=0 \
+  --endMs=$VIDEO_MS --loop=true --volume=0.35 --ducking=true \
+  --fadeIn=500 --fadeOut=2000 --json
 ```
 
 Canonical custom-music loop: `media.generate-music` → `project.add-audio`. Pass a
-`seed` for reproducible results.
+`seed` for reproducible results. The overlay keeps what it was made from
+(`audioOverlays[].generatedFrom`: prompt, avoid, seed):
+**to change it, regenerate in place** with `media.regenerate-music --id
+--regionId=audio-N [--prompt / --negativePrompt / --seed / --newSeed=true]` (paid run; keeps start,
+level, fades, ducking; a looping bed keeps its window). Toggle looping on a placed
+track with `project.update-region --regionType=audio-overlay --regionId=audio-N
+--patch='{"loop":true}'` (needs the file's length, stored by add-audio).
 
-**Matching a track you already have (MusicGen).** `model=musicgen` takes an exact
-length and, with `reference`, follows the melody, tempo and feel of a track you
-point it at — the way to match a brand track, the bed from an earlier cut, or temp
-music the user supplied, instead of describing it in words:
+Lyria is the only music model. Meta's MusicGen was removed because its weights are
+CC-BY-NC-4.0 (non-commercial): `--model=musicgen`, `--reference`, `--continuation` and
+`--durationSec` return an error (`MUSICGEN_REMOVED`). To match a track the user has, describe
+its character in `prompt` (tempo, instruments, how busy it is); for a bed longer than ~30 s,
+loop the Lyria clip. Tracks made with MusicGen earlier still play; regenerating one makes a
+Lyria take from its description.
+
+### Cutting to the beat (beat markers, snapping, place-on-beats)
+
+Beats are detected locally (spectral-flux onsets, tempo by autocorrelation with
+a tempo prior, dynamic-programming beat tracking, each beat refined to its
+attack; downbeats from low-frequency accents, 4/4 assumed) and cached per audio
+file, so the same song in many projects is analysed once.
 
 ```bash
-pandastudio media.generate-music --model=musicgen \
-  --prompt="restrained modern tech underscore, soft pulsing synth, minimal percussion, no vocals" \
-  --reference="/path/to/their-brand-track.mp3" --referenceStartMs=12000 \
-  --referenceDurationMs=15000 --durationSec=45 --json
+# The music bed's beats on the edited timeline (follows trim, in-point, loop).
+pandastudio audio.detect-beats --id=$ID --regionId=audio-1 --json
+# -> { tempoBpm: 118.4, beatsMs: [512, 1019, ...], downbeatsMs: [...], confidence: 0.83 }
+
+# A photo montage that changes every other beat across the whole song.
+pandastudio project.place-on-beats --id=$ID \
+  --paths='["/abs/p1.jpg","/abs/p2.jpg","/abs/p3.jpg","/abs/p4.jpg"]' --every=2 --json
+
+# Retime B-roll already on the timeline to the bar lines between 10 s and 30 s.
+pandastudio project.place-on-beats --id=$ID --regionIds='["overlay-7","overlay-9"]' \
+  --every=4 --fromMs=10000 --toMs=30000 --json
 ```
 
-- `reference` can be audio OR a video; the audio is trimmed
-  (`referenceStartMs` / `referenceDurationMs`, default 15s, max 30s) and sent with the
-  request. Point it only at audio the user has the rights to — their own track, a
-  bundled one, or something they licensed. To chase the feel of a video you admire,
-  describe its character in `prompt` instead (tempo, instruments, how busy it is)
-  rather than feeding in its soundtrack.
-- `continuation=true` continues the reference from where it was read instead of
-  re-interpreting it — useful to extend a bed you already like.
-- `durationSec` means no looping: ask for the film's length.
-- MusicGen's weights are published under CC-BY-NC-4.0, so treat its output as
-  non-commercial: fine for a draft, an internal cut or a temp bed, not for a track the
-  user sells, ships inside a product or runs as an ad. For anything commercial use
-  Lyria (the default) or the bundled library, and say why when it comes up.
+- Choosing `every`: 1 for a fast hype cut (or tempos under ~90 BPM), 2 as the
+  default, 4 (every bar, from a downbeat) for calm, cinematic pacing.
+- Graphics and cuts by hand: take times from `audio.detect-beats` and pass them
+  as `atMs` (motion graphics, zooms, transitions, `project.split-clip`).
+- Looping beds repeat their beats on every loop; a trimmed bed's beats move with
+  its in-point. User music always plays at 1x.
+- `confidence` under ~0.2 or no beats: the track has no steady pulse (speech,
+  ambience, rubato piano). Don't force cuts to it.
+- Editor parity: the timeline's "Beats" toggle shows the markers (downbeats
+  brighter); dragging, resizing or adding items, moving the playhead and
+  splitting snap to them (Alt/Option drags freely); the music track's inspector
+  has "Place on beats" (every beat / 2 / bar) for the pictures and clips over
+  the track.
 
 ### Color correction (fix the footage first)
 

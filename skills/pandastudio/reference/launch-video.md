@@ -243,8 +243,8 @@ with little percussion. Two bundled beds are built for exactly this film and
 need no generation: `launch-pulse` (confident, carries the cut) and `quiet-launch` (quieter and
 more considered), both ~33s, so repeat them for a longer film. `media.generate-music` writes a
 custom one when neither fits ("restrained modern tech underscore, 96 bpm, soft pulsing synth,
-minimal percussion, no vocals"), and `--model=musicgen --reference=` matches a track the user
-already has. Never lift the audio from a reference video; match its character instead. Sound design: follow the sound map in
+minimal percussion, no vocals"; a ~30 s Lyria clip: place it with `--loop=true` under a longer
+film). Never lift the audio from a reference video; match its character instead. Sound design: follow the sound map in
 [`audio-color-music.md`](audio-color-music.md#sound-design-the-sound-map) (a riser into a logo
 sting on the logo landing, a whoosh only on zoom-through / whip / wipe transitions, about one per
 8 to 10 s, taps for list items and checks, clicks for cursor clicks, a key per typed character)
