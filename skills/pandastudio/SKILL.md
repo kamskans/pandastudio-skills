@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.264.0 -->
+<!-- version: 3.265.0 -->
 
 # PandaStudio
 
@@ -288,9 +288,20 @@ trim, so after `project.split-clip` re-transcribing one half returns that
 half's words only, in the media's own time (`transcribedRanges[]` in the job
 result). When cuts inside a clip hide 5+ minutes and more than it keeps (a
 53 s edit of a 2 h recording) only the kept parts (+2 s pad) are transcribed.
-**Before a long job, tell the user how much audio it processes**: the reply's
-`plan.totalAudio` / `totalAudioMs` (or `--dryRun=true`, which transcribes
-nothing). Remove a head/tail trim first to transcribe what it hides.
+**Before a long job, tell the user how much audio it processes and how long
+it will take**: the reply's `plan.totalAudio` / `totalAudioMs` and
+`plan.estimate` / `estimatedMs` (time on THIS computer, from its measured
+speed) (or `--dryRun=true`, which transcribes nothing). For a long Whisper run
+`plan.advice` names faster options (engine parakeet when it can do the
+language, or cutting first: only kept parts are transcribed): pass it on and
+let the user choose. Long Whisper runs are saved chunk by chunk: a stall
+restarts the engine from the last saved chunk by itself, and `job.cancel`,
+a crash or an app restart keeps the progress, so running the same
+transcription again resumes where it stopped (the job message says
+"resumed at"); `job.get` progress is the audio actually decoded, with the time
+left in `progress.message` and `progress.data.etaMs`. A run that keeps stalling
+on one part fails with an error naming the time; retry resumes there.
+Remove a head/tail trim first to transcribe what it hides.
 
 ### Importing a transcript file (transcript.import)
 
@@ -346,8 +357,13 @@ WHOLE video (sentence-aligned, scored 0-100), and fork each into its own
 project in that format with captions and face-following framing (whole
 picture over a blur when there's no face), plus a preview still and video.
 Defaults: 15-30 s clips, 9:16, Glow Stack.
-Async: returns `{ clipSetId, jobId }`; poll `clips.get --id` until status
-`ready` (clips fill in best-first; a 6-min video takes about a minute). Then:
+Async: returns `{ clipSetId, jobId, transcription }`: `transcription.estimate`
+is how long transcribing takes on this computer (tell the user; for a long
+Whisper run `transcription.advice` names faster options, e.g. switching the
+transcription engine to Parakeet with system.set-transcription-preferences).
+Poll `clips.get --id` until status
+`ready` (clips fill in best-first; a 6-min video takes about a minute; while
+transcribing, `transcription.etaMs` is the time left). Then:
 - show the user the titles + hook scores; `clips.export --id [--clipIds=[...]]`
   writes MP4s to Movies/PandaStudio Clips/<video>/ (async, job.wait); every
   export is recorded on the clip (`exports[]`), each with a `libraryEntryId`.
