@@ -124,8 +124,14 @@ speech-to-text invents phantom words over quiet stretches. Default threshold
 margin kept around every word, so it never cuts into words. When the
 transcript times words back to back (each word "ends" as the next starts), a
 pause the audio measures as silent is still cut: a word is guarded only on its
-voiced part, and a quiet word the audio reads as silence stays guarded whole. Run it AFTER the
-content cleanup. If the user already removed silences in the UI, a fresh
+voiced part, and a quiet word the audio reads as silence stays guarded whole.
+That holds even when the word timings leave no gap at all: every silencedetect
+pause of at least `thresholdMs` is a cut candidate where the full-band level
+also hears it as quiet. The result's `audioPauses` = `{found, quiet,
+clearOfWords, cut}` says what the audio held; `removedCount: 0` always comes
+with a warning saying why (no pause that long, sound in each, words' voiced
+sound around each, or already cut). Trust it: don't run your own silencedetect
+and cut with `project.apply-edit-plan`. Run it AFTER the content cleanup. If the user already removed silences in the UI, a fresh
 `project.read` shows the new `trimCount` / `editedDurationMs` /
 `totalTrimmedMs`: treat that as done.
 

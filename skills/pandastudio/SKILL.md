@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.265.0 -->
+<!-- version: 3.266.0 -->
 
 # PandaStudio
 
@@ -800,7 +800,7 @@ enhancements); treat doubt as `camera` or ask, then lock it with
 |---|---|
 | `transcript.remove-fillers` | Safe tier (um/uh/uhm/umm/hmm/hm + immediate repeats). `--aggressive=true` (like / you know / I mean…) only for a requested thorough cleanup. |
 | `transcript.find-issues` → `delete-words` | Keep the most recent take; keep `severity: "low"`; ask when a repeat might be deliberate emphasis. |
-| `transcript.remove-silences` | After content cleanup; 600ms default (don't raise it "to be safe"); two passes (word gaps + audio-level detection) like the UI button. |
+| `transcript.remove-silences` | After content cleanup; 600ms default (don't raise it "to be safe"); two passes (word gaps + audio-level detection) like the UI button, so pauses the word timings run across are cut too. `removedCount: 0` comes with a warning saying why (`audioPauses` counts what the audio held): don't re-detect silences yourself. |
 | `audio.enhance` | Un-enhanced clips only, strength `natural`. `--keepBackground=true` for vlogs / ambience; no `--echo` (Enhance voice already removes room echo with the Studio AI model; only use `--echo` when the result reports the model did not run, i.e. fallback `denoiser: deepfilternet3`); `--strength=light` when the user wants a lighter touch, `strong` for punchy broadcast sound. Report the before/after loudness it returns. (`audio.clean` is a deprecated alias: Light.) |
 | `caption.set-template` ("add captions", no style named) | `glowStack` (app default since 1.94); a recipe's caption setting wins (some turn captions off). Animated styles for Shorts energy, `bold` / `editorial` for long-form: captions-metadata.md. "Highlight the key word" / Hormozi / Captions.ai-style looks → an emphasis template (`hormoziEmphasis`, `tiltedBox`, `serifItalic`, `condensedCaps`, `scriptKeyword`, `wordBoxes`, `goldSerif`, `keywordBox`, `limeItalic`): it marks the IMPORTANT word of each phrase (detected from the audio on apply), not the spoken one. |
 | `llm.generate-title` / `-description` / `-timestamps` | After the edit pass; show them, let the user regenerate or edit. |
