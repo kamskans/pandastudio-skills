@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.268.0 -->
+<!-- version: 3.269.0 -->
 
 # PandaStudio
 
@@ -511,6 +511,76 @@ cover-art video for YouTube. Audiogram Shorts from AI-picked moments:
 `export.generate-shots --projectId --render=true` (async job; one 9:16
 audiogram per shot). Every audio and audiogram export counts as an export and
 lands in My Exports.
+
+## Live streaming a podcast
+
+The podcast studio (`podcast.open-host`) streams live while every person
+still records locally at full quality; the stream never touches the
+recording. Order:
+1. `podcast.live-destinations`; add with `podcast.add-destination
+   --platform=youtube|twitch|facebook|linkedin|x|kick|relay|custom
+   --streamKey [--serverUrl]` (YouTube can use a connected account:
+   `--youtubeAccountId`, which creates the broadcast and reads chat; the
+   user grants "live" in the studio's Connect for live, you can't). Stream
+   keys are secrets: only take one the user gives you, never echo it.
+2. `podcast.check-upload --destinations=N` before several destinations; on
+   `insufficient` suggest fewer destinations or a relay (Restream/Castr).
+3. `podcast.go-live --title [--description --privacy --quality=720p|1080p
+   --destinations=id,id --record=true]`. Going live is public: confirm the
+   title, privacy and destinations with the user first. Check
+   `failedDestinations`, then `podcast.live-status` for each output's state.
+4. During the show: `podcast.set-scene --scene=auto|solo|pair|grid|screen|pip|starting|brb|ending
+   [--participants=host,guest]`, `podcast.set-stage --participant --onAir/--muted`
+   (backstage guests and call-ins wait off air), `podcast.show-overlay
+   --kind=lower-third|banner|ticker|comment|logo|countdown` /
+   `podcast.hide-overlay`, `podcast.live-comments` then `show-overlay
+   --kind=comment --commentId`, `podcast.play-media --which=intro|outro`.
+   Callers (call-in link) wait backstage; `podcast.eject-caller` removes one.
+   A screen share only goes on air when its owner is on stage.
+   `live-status` separates `state` (the destination accepts our stream) from
+   `audience` (YouTube says viewers see it); report both honestly.
+5. `podcast.stop-live` returns `programPath` (the composited stream as MP4):
+   `clips.make --file=<programPath>` makes Shorts from it. Then
+   `podcast.stop-recording` and `podcast.open-in-editor` for the per-person
+   edit as usual.
+
+### Producing the show (the AI producer)
+
+The studio has a producer: your chat there is bound to the podcast project
+and every turn carries a "Podcast studio" block (who's on, live/recording,
+segment and time left, what was just said, best audience questions, health,
+cards waiting for the host). Act through these verbs:
+- Before the show: `podcast.draft-rundown --brief="…" [--minutes=45
+  --guests=[{name,title,bio,socials}]]` drafts segments, questions, guest lower
+  thirds and a YouTube title/description/thumbnail idea; or write it with
+  `podcast.set-rundown --rundown={title, segments:[{id?,title,plannedMin,notes,questions}], guests:[…]}`.
+  `podcast.get-rundown` reads it with the running segment and time left.
+- Following the show: `podcast.events --since=<cursor> [--types=comment,transcript,health…]
+  --waitSec=30` long-polls one event stream (comments, studio chat, speaker,
+  transcript lines, segment changes, health: outputs down/up, low bitrate,
+  dropped frames, a guest's connection, low disk; joins/leaves, scenes,
+  markers, approvals). Keep the returned cursor. `podcast.transcript
+  [--lastMinutes=5 --speaker=guest]` is the live transcript (local, every
+  participant). `podcast.producer-status` has the summary, follow-ups,
+  grouped audience questions and flagged comments; `podcast.producer-refresh`
+  re-runs that analysis now.
+- Directing: `podcast.segment --next` (or `--id`), `podcast.add-marker
+  --kind=chapter|clip --title [--agoSec=30]`, plus the scene/overlay verbs above.
+- Autonomy is the host's (`podcast.set-autonomy --mode=off|suggest|auto`;
+  never change it unasked). It applies to YOU: in suggest (the default) any
+  on-air change returns `status: pending-approval` with an `approvalId` and
+  waits `--waitSec` (default 45) for the host's click; in auto, markers,
+  chapters, lower thirds and layouts run at once. A comment on screen, a
+  caller on stage and the intro/outro always take a click; go live, stop
+  live, `podcast.stop-recording` (ending the show) and `eject-caller` always
+  need the host's confirmation. Say "I've asked for it in the studio" for a
+  pending one, check `podcast.approvals`, and never retry a rejected action.
+- After the show the podcast project carries `podcast.show`: the live
+  transcript (a draft from call audio; the editor transcribes the
+  full-quality recordings), chapters, clip markers, the push-to-talk command
+  windows (silent in the recording), and, once drafted, show notes and clip
+  suggestions (ms on the recording's clock = the podcast clip's source time).
+  Use them for `llm.generate-timestamps`, titles and Shorts.
 
 ## Publishing (YouTube + social)
 
@@ -1933,6 +2003,13 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   set-project-defaults (projects-and-transcription.md)
 - **podcast**, live host — open-host, status, start-recording, stop-recording,
   start-screen-share, stop-screen-share, open-in-editor (commands.md)
+- **podcast**, live streaming — live-destinations, add-destination,
+  remove-destination, check-upload, go-live, stop-live, live-status, set-scene,
+  set-stage, show-overlay, hide-overlay, live-comments, play-media, stop-media,
+  send-studio-chat, studio-chat, set-live-look, eject-caller, retry-output,
+  reply-comment, youtube-live-accounts, youtube-connect-live, youtube-upcoming,
+  youtube-schedule, twitch-accounts, twitch-connect, twitch-disconnect
+  ("Live streaming a podcast" above; commands.md)
 - **project**, lifecycle — list, locate, current, read, show, new, open, save,
   duplicate, rename, set-folder, delete, fork-from-shot, batch, apply-edit-plan,
   media-status, relink, sync-status, package, import-package,
