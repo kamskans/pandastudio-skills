@@ -496,3 +496,58 @@ the playhead. `placement=overlay` puts a video over existing footage;
 `placement=clip` makes an image a clip; `placement=append` appends. Outro roles
 always append to the main-track end. Removal hides the library entry and retains
 the managed file so existing projects keep working. Libraries do not cross workspaces.
+
+
+## Projects on several computers
+
+PandaStudio is local and pay-once: projects are files on the user's computer.
+Working on two computers rides on the user's own synced folder (iCloud Drive,
+Dropbox, Google Drive, OneDrive), not a PandaStudio cloud.
+
+**Layout.** Each new project gets a folder in the Projects location:
+`<location>/<Name>/<Name>.pandastudio` and `<location>/<Name>/media/` (its
+recordings, imports when copied, narration, music, images, motion graphics,
+cleaned audio). The project file stores those as `@project/media/x.mp4`, so it
+resolves wherever the folder is synced to. Bundled assets are `@app/…`; files
+left elsewhere stay absolute and are found again by relink. Duplicates, Shorts
+and clips made from a project live in the same folder and share its media.
+Preview proxies, mattes and analysis caches stay per computer (rebuilt as
+needed). Projects made before folders existed stay flat in the recordings folder
+and keep working; `system.move-projects-to-location` gives them folders.
+
+**Set up a second computer** (what to tell a user like "how do I continue on my
+other Mac?"):
+1. On computer 1: `system.set-projects-location --provider=icloud --move=true`
+   (or dropbox / googledrive). Ask first; the move is a job (`job.wait`).
+2. On computer 2: install PandaStudio, sign in with the same licence (it allows
+   several devices), and set the same provider. The projects appear in My
+   Projects as the cloud delivers them; one still downloading shows
+   "Downloading from iCloud".
+3. Open the project there. Missing media? `project.media-status`, then
+   `project.relink`.
+
+**Editing on two computers.** Each computer that has a project open keeps a
+small lock file next to it, so the other one warns "open on <Mac>". A save from
+another computer that arrives while the project is open reloads it when there
+are no unsaved edits; with unsaved edits the user chooses: use the other
+computer's version, or keep theirs as a copy. Agents: check
+`project.sync-status` and tell the user before editing a project that is open
+elsewhere (`openElsewhere[].fresh`).
+
+**Media imported from elsewhere** (`system.set-copy-imported-media`): `auto`
+(default) copies it into the project folder only when the project is in a
+synced cloud folder; `always` / `never`. App-generated media always goes with
+the project.
+
+**Packages** carry one project to a computer without a shared folder:
+`project.package --format=zip` (default destination ~/Desktop) → email /
+AirDrop / USB → `project.import-package --source=<zip>` → `project.open`.
+`result.missing` lists files that weren't on the packaging computer.
+
+**Relink.** `project.relink` searches the project folder, the library, folders
+the user located media in before, the folders of the project's other media and
+~/Movies, ~/Desktop, ~/Downloads, ~/Documents, ~/Pictures, ~/Music (plus
+`--folders`), and matches by name, size and the fingerprint recorded at save
+time. `confidence: name` matches (old projects without a fingerprint) are worth
+a quick look with the user; `ambiguous` lists files with several equal
+candidates: ask which, then pass `--mapping`.

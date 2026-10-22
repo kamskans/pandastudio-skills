@@ -26,6 +26,22 @@ gives when, why (`reason`), the server `host` and the `fix`. It is left out of
 `data.connected` and listed in `data.connectedLastCheckFailed`. Run
 `connector.tools --connector=<id>` to check it again; a success clears it.
 
+**A sign-in the service refused** is different: the MCP server took the
+sign-in, but the service behind it answered HTTP 401 (Replicate does this when
+the API token pasted on its sign-in page is stale, revoked or was autofilled by
+the browser: the runtime still calls it connected). The row then says
+`state: "needs_auth"`, `status: "needs sign-in again"`, `needsReconnect: true`,
+`connected: false`, with `lastCheck.reason: "auth"` and `httpStatus: 401`, and
+the id is listed in `data.needsReconnect`. Nothing on it will run, and waiting
+or retrying won't fix it: `connector.tools` and `connector.call` answer with the
+same error straight away, without calling the service. Tell the user its
+`howToConnect` line: press **Reconnect** on it in Settings → Integrations →
+Connectors (for Replicate, paste a current API token from
+replicate.com/account/api-tokens on its sign-in page). Reconnect removes the
+refused sign-in, runs the browser sign-in again and replaces PandaStudio's
+live session, so the next call uses the new one; a sign-in finished any other
+way is picked up on the next call too. Only the user can do this.
+
 A row with `auth: "api-key"` is a server that signs in with the user's API key.
 `needsKey: true` means the key is missing, can't be read on this computer, or
 was refused: its `howToConnect` line asks the user to press Edit on it in
@@ -42,8 +58,10 @@ put one in a server address.
   down. `timeout`, `reset`: a slow or dropped connection. `http` (with
   `httpStatus`): the server answered an error, e.g. 404 = no MCP server at
   that address, 5xx = the service is having trouble. `auth` (401 / 403): the
-  sign-in expired or is missing (for an API-key server: the key was refused,
-  so the fix is pasting a new one). `protocol`: the address isn't an MCP endpoint.
+  sign-in expired, is missing or the service refused it (for an API-key
+  server: the key was refused, so the fix is pasting a new one); comes with
+  `needsReconnect: true` and a `howToConnect` line to relay. `protocol`: the
+  address isn't an MCP endpoint.
 - `host`: the server's host only (addresses can carry API keys; never ask the
   user to paste theirs into the chat).
 - `fix`: tell the user this, e.g. "Check the connector URL in Settings >
