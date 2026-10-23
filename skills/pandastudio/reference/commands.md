@@ -388,6 +388,10 @@ The MCP tool descriptions are kept short to save context. These are the details 
 
 **Podcasts**
 - `podcast.open-host [--sessionCode --projectPath]`: open or focus the live host window. Then run `podcast.status` for its guest link and readiness.
+- `podcast.schedule [--sessionCode|--path|--id] --title --date=YYYY-MM-DD --time=HH:MM --timeZone=<IANA> [--scheduledAt=<ISO> --noDate --durationMin --guests=[{name,email,role,bio}] --topic --notes --streamTitle --draftRundown]`: create a planned episode (own join link) or update one. Guests replace the list; `--draftRundown` drafts the run of show from topic, notes and guests.
+- `podcast.list-upcoming [--includeRecorded --timeZone]`: planned episodes not recorded yet, soonest first, undated last, with `day`, `displayStatus` (scheduled / prepared / live), `missed`, guests and `joinLink`.
+- `podcast.get-episode --sessionCode|--path|--id`: one episode with links, guests, topic, notes, run of show and stream title.
+- `podcast.invite --sessionCode|--path|--id [--out=/abs/invite.ics --hostName]`: join link, invite text and an .ics calendar invite (needs a date); `--out` writes the file.
 - `podcast.status`: report the session code, guest link, connected guests, recording, sharing, upload, and finalization state.
 - `podcast.start-recording` / `podcast.stop-recording`: control the host and signal connected guests. They return once the recorder has really started or stopped, and fail with the reason if the camera could not start. Wait for finalization and guest uploads (`podcast.status`) before editing.
 - `podcast.start-screen-share` / `podcast.stop-screen-share`: share the host's screen during recording. The start command opens the desktop source picker and waits (up to 2 minutes) for the host to choose; it returns `sharing: true` only when sharing really started, and fails with "cancelled" if nothing was chosen or with the capture error.
@@ -407,9 +411,9 @@ The MCP tool descriptions are kept short to save context. These are the details 
 - `podcast.studio-chat [--limit]`: read the private studio chat (newest last).
 - `podcast.retry-output --destinationId`: retry a destination that gave up (`failed` in live-status).
 - `podcast.reply-comment --destinationId --text`: reply in a live YouTube destination's chat as the channel (public: confirm the text with the user).
-- `podcast.youtube-live-accounts`: connected accounts with `canLive`; `podcast.youtube-connect-live [--email]` opens Google's sign-in for the live permission (the user approves).
+- `podcast.youtube-live-accounts`: connected accounts with `canLive`, plus `signIn` (false while YouTube live sign-in is coming soon: stream with a key); `podcast.youtube-connect-live [--email]` opens Google's sign-in for the live permission (the user approves; fails with "coming soon" while sign-in is off).
 - `podcast.youtube-upcoming --accountId` / `podcast.youtube-schedule --accountId --title --scheduledStartTime [--description --privacy --thumbnail]`: scheduled broadcasts (default unlisted). Going live on one with `go-live --youtubeBroadcastId` keeps its own title, description and visibility unless you pass them.
-- `podcast.twitch-accounts` / `podcast.twitch-connect` / `podcast.twitch-disconnect --accountId`: Twitch sign-in (only when the build has a Twitch app id); `add-destination --platform=twitch --twitchAccountId` then fetches the key and sets the title.
+- `podcast.twitch-accounts` / `podcast.twitch-connect` / `podcast.twitch-disconnect --accountId`: Twitch sign-in (only when the build has a Twitch app id, `signIn`; otherwise coming soon: use `--streamKey --twitchChannel`); `add-destination --platform=twitch --twitchAccountId` then fetches the key and sets the title.
 - `podcast.set-live-look [--primary --accent --background --font --logo --logoPosition --backgroundImage --tileStyle --padding --nameTags --hostName --intro --outro --thumbnail --tickerText --startingText --brbText --endingText --title --description --privacy --lowerThirds=[{title,subtitle}] --useBrandKit]`: the Brand tab, intro/outro, thumbnail, the episode's title / description / visibility (Setup) and the saved lower thirds. Paths are absolute; an empty string clears.
 - `podcast.stop-media`: stop the intro/outro that's playing.
 - `podcast.eject-caller --participant=caller-N [--ban]`: remove a caller from the show (ban keeps them out). Callers come from the call-in link (`podcast.status` → `callInLink`); they always start backstage, are never recorded, and don't take the invited-guest slots.
