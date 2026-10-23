@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.270.0 -->
+<!-- version: 3.271.0 -->
 
 # PandaStudio
 
@@ -549,6 +549,21 @@ recording. Order:
    `clips.make --file=<programPath>` makes Shorts from it. Then
    `podcast.stop-recording` and `podcast.open-in-editor` for the per-person
    edit as usual.
+
+### In the call: mute, camera, devices, screen share
+
+Everyone (host and guests) has Mute, Camera, Share screen, Devices
+(microphone, camera, speaker) and Leave; Cmd/Ctrl+D toggles the mic and
+Cmd/Ctrl+E the camera. Switching a device never cuts the call or anyone's
+recording. Mute = silence in the call and that person's recording; camera off
+= no video in the call (their tile shows their name) while their recording
+keeps black frames, so every track stays continuous for the edit.
+`podcast.status` shows the host's `micMuted` / `cameraOff` / `devices` and each
+guest's `micMuted`, `cameraOff` and `sharing`; tell the host when a guest is
+muted rather than assuming audio trouble. Anyone can share their screen any
+time they're connected (one at a time); everyone sees it as the main view
+labelled with the sharer's name. `podcast.start-screen-share` shares the
+host's.
 
 ### Planning episodes (schedule, guests, invite)
 
@@ -2202,7 +2217,7 @@ Use Cutout for a screen recording + camera when the presenter should stand over 
 
 Annotation restyling: `project.update-region --regionType=annotation --regionId=ann-1 --fontSize=48 --fontFamily=Poppins --textColor="#ff8800" --backgroundColor="#111111"`. Style fields also include color (alias textColor), fontWeight, fontStyle, textDecoration and textAlign. A `patch` object may supply flat fields or nested `style` / legacy `styles`; these merge into canonical `style`, preserving unspecified fields. Flat values win over `styles`, then `style`. Existing projects with legacy annotation `styles` heal on normalization (legacy values win).
 
-Saved conversations: `agent.session-search --query="text"` searches Home and project history; `agent.session-read --sessionId=<chat-or-backend-id>` reads messages and tool results, including interrupted calls. Reopen History in the app to continue; continuation requires an explicit user message.
+Saved conversations: `agent.session-search --query="text"` searches Home and project history and returns each match's metadata (id, title, status, project); `agent.session-read --sessionId=<chat-or-backend-id>` reads messages and tool results, including interrupted calls. Reopen History in the app to continue; continuation requires an explicit user message.
 
 ### Checking audio before export
 
