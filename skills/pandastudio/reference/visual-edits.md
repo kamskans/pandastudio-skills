@@ -195,6 +195,12 @@ JOB=$(pandastudio project.center-camera-on-face --id=$ID --json | jq -r .data.jo
 pandastudio job.wait --id=$JOB --json
 pandastudio project.center-camera-on-face --id=$ID --clear=true
 # In the editor: Video tab -> Layout -> Keep face centred.
+# PODCASTS: the same verb tracks EVERY participant's own camera (host + guests)
+# and the participant tiles (pair, grid, screen-share strip) centre on each
+# face. The editor already scans a podcast in the background when it opens, so
+# you only need this to redo it (e.g. after replacing a recording). A track
+# set with project.set-podcast-source-crop wins over the face (the user's
+# framing). Result: tracked[] / skipped[] carry `participant`.
 
 # PER-SECTION podcast layout: a different layout for each clip (section). Use
 # this to cut to whoever is talking. Split first, then set each section.
@@ -236,6 +242,16 @@ pandastudio project.set-podcast-source-crop --id=$ID --clipId=clip-1 \
 pandastudio project.list-podcast-screen-shares --id=$ID --json
 # Participant-aware transforms: podcast-solo [one speaker], podcast-pair [two],
 # podcast-grid [subset or everyone], podcast-screen-share [share + people].
+# Screen-share composition: the shared screen is shown WHOLE at its own aspect
+# (never cropped), the cameras sit beside it (16:9 canvas, a column on the
+# right) or under it (9:16, a row), each tile between 3:4 and 16:9 and centred
+# on the person's face, with a margin so the background shows even at padding
+# 0. More padding (set-style / set-clip-style) shrinks it further. Camera size
+# is the user's to choose: set-clip-style --screenShareCameraSize=0..100
+# (50 default; larger = wider column on 16:9 / taller row on 9:16, the tiles
+# widen from 3:4 toward 16:9). Editor: Video tab > Layout > Camera size.
+# borderRadius 0 gives the screen square corners.
+pandastudio project.set-clip-style --id=$ID --clipId=clip-1 --screenShareCameraSize=75
 # Use project.add-clip-transform-region with
 # --participants='["host","guest-2"]' and --transitionMs=320.
 
