@@ -579,3 +579,15 @@ The timeline's right-click "Close gap", one revision (one undo step in the edito
 - `media[:index]`, `audio[:index]`, `effects[:index]`: the range must be empty in that sub-lane (zero based, packed by start time like the timeline row). Every later item in the lane moves left by the range length and has its source anchor re-stamped; a moved voiceover's words move with it. Speed changes are never moved and count as occupied.
 
 Returns `{ path, startMs, endMs, lane, revision }`. A range that is not empty (or a lane that does not exist) fails and changes nothing. `expectedRevision` is supported. MCP: `project_close_gap`.
+
+### Give overlays their own timeline rows
+
+`pandastudio project.set-overlay-lane --id=PROJECT --ids='["shot1","shot2","whoosh"]' --lane=separate --json`
+
+Pins media overlays (B-roll, graphics, transitions) or audio tracks to a row of their timeline lane, so each keeps its own row; unpinned items that don't overlap share a row. Rows are zero based, top first. One revision, layout only (times, `zIndex` and `layer` are unchanged).
+
+- `overlayId` + `lane`: one item. `ids` + `lane`: the same row for all, or `separate` for ids[i] on row i. `assignments`: `[{"id": "...", "lane": 2}, {"id": "...", "lane": null}]`.
+- `lane` 0-31, or `null` / `auto` to unpin. Ids must be media overlays or audio tracks; main-track clips are one sequential track.
+- A pin onto a row another pinned item holds at the same time fails with the clashing id and changes nothing; unpinned items move out of the way.
+
+Returns `{ path, pinned: [{id, row, lane}], timelineLanes: {media, audio}, revision }`; `timelineLanes` (ids per row, also on `project.read`) uses the same numbering as `project.close-gap --lane=media:1`. `expectedRevision` is supported. MCP: `project_set_overlay_lane`.

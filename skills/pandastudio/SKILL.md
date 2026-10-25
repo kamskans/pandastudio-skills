@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.273.0 -->
+<!-- version: 3.275.0 -->
 
 # PandaStudio
 
@@ -1809,13 +1809,31 @@ ms, one undo step:
   cuts; inserted pauses inside it are shortened or removed instead of cutting
   footage). Later content, captions and anchored graphics move back with their
   words. Free-anchored regions and focus regions ripple in edited time.
-- `lane` `media[:i]`, `audio[:i]`, `effects[:i]`: zero-based sub-lane, packed by
-  start time exactly like the timeline row (overlapping items stack into
-  sub-lanes). The range must be EMPTY in that lane; every later item in the lane
+- `lane` `media[:i]`, `audio[:i]`, `effects[:i]`: zero-based sub-lane, packed
+  exactly like the timeline row (pinned items in their rows, the rest stacked by
+  start time; `project.read` → `timelineLanes` lists the ids per row). The range must be EMPTY in that lane; every later item in the lane
   moves left by its length and keeps following its new content. Speed changes
   belong to their footage: they block a gap and never move.
 Read the project (or `timeline.source-to-edited`) before choosing a range; a
 range that isn't a gap fails with a reason, nothing is changed.
+
+**One row per asset (`project.set-overlay-lane`).** The media and audio rows
+pack items that don't overlap into as few rows as possible, so seven B-roll
+shots or separate sound sections all land on one row. When the user wants each
+asset on its own row (adjusting shots and sounds independently, "a track per
+clip"), pin them:
+`project.set-overlay-lane --id=$ID --ids='["shot1","shot2","shot3"]' --lane=separate`
+puts ids[i] on row i (zero based, top first). Also `--overlayId=X --lane=2`,
+`--ids=[...] --lane=1` (same row), or `--assignments='[{"id":"x","lane":0},{"id":"y","lane":null}]'`.
+`lane` null (or `auto`) unpins. Layout only, one undo step: nothing moves in
+time, what draws on top in the picture is still `zIndex` / `layer`, and
+main-track clips stay one sequential track (reorder with `project.move-clip`).
+A pin onto a row that another PINNED item holds at the same time fails with the
+clashing id; unpinned items just make room. The result (and `project.read`)
+returns `timelineLanes: { media: [[ids]...], audio: [[ids]...] }`, the same row
+numbers `project.close-gap --lane=media:2` uses. In the editor: drag an item up
+or down onto another row, or right-click → Move to its own row / Arrange row
+automatically.
 
 "Suggest something here…" opens the in-app chat with a prepared message: the
 edited range, what is said before / during / after it (3 s either side) and what
@@ -2066,7 +2084,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   add-clip-transform-region, add-podcast-clip, auto-sync-podcast, follow-speaker,
   set-participant-offset, set-podcast-source-crop, list-podcast-screen-shares
   (visual-edits.md, shorts.md, motion-templates.md)
-- **project**, regions — add-trim, close-gap, add-zoom, add-speed, add-speed-ramp,
+- **project**, regions — add-trim, close-gap, set-overlay-lane, add-zoom, add-speed, add-speed-ramp,
   add-freeze-frame, add-reverse, add-annotation, add-emoji, add-fx,
   add-transition, add-motion-graphic, add-designed-segment, add-lower-third,
   add-spotlight, update-spotlight, remove-spotlight, add-background-effect,
@@ -2245,6 +2263,8 @@ integrated LUFS, true peak dBTP, LRA, decoded clipping count, short-term loudnes
 low-confidence speech/music windows, estimated BPM/beats, attacks and centroid.
 Times in a description are relative to the analyzed file/excerpt; stem times are
 edited project times. Analysis is capped at the first 10 minutes and reports truncation.
+A video with no audio track (a motion-graphics render) returns `hasAudio:false`,
+the whole length as one silence span and null loudness, not an error.
 Short-term LUFS needs a 3s warm-up. Energy activity is not speech recognition, and
 attacks can be words or percussion as well as SFX. Never identify a specific song,
 whoosh or click from these numbers. Reference studies now include `audioDescription`
