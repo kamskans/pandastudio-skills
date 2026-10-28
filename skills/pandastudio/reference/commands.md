@@ -612,3 +612,30 @@ Pins media overlays (B-roll, graphics, transitions) or audio tracks to a row of 
 - A pin onto a row another pinned item holds at the same time fails with the clashing id and changes nothing; unpinned items move out of the way.
 
 Returns `{ path, pinned: [{id, row, lane}], timelineLanes: {media, audio}, revision }`; `timelineLanes` (ids per row, also on `project.read`) uses the same numbering as `project.close-gap --lane=media:1`. `expectedRevision` is supported. MCP: `project_set_overlay_lane`.
+
+## Agent: questions, plans, routines and memory
+
+| Command | Args | Purpose |
+|---|---|---|
+| `chat.ask` | `question` (req), `options` (req, 2-5 strings or `{label,detail}`), `recommended`, `allowOther` | In-app agent only: show a multiple-choice card in PandaStudio's chat. Doesn't wait: end your turn; the answer arrives as the user's next message. External callers get `not_supported`. |
+| `motion.propose` | `id`/`path`, `fromJob` or `file`, `atMs` (req), `durationMs`, `title` (req), `reason` | In-app only: play a rendered graphic in the chat with Add to timeline / Try another. |
+| `post.plan` | `rows` (req: `[{exportId, channelIds|networks, caption, when}]`), `summary` | In-app only: an editable posting schedule; nothing posts until the user approves, then each row runs export.publish-social. |
+| `plan.propose` | `id`/`path`, `summary` (req), `steps` (req, `[{title, stage, detail, needsApproval}]`), `questions` (`[{text, options, recommended}]`), `recipeId`, `source` | Write the plan the user approves before you edit; shows the plan card. End your turn after it. |
+| `plan.get` | `id`/`path`, `includeHistory` | The open plan with step statuses and the next step. |
+| `plan.answer` | `id`/`path`, `planId`, `questionId` (req), `optionId` (req) | Record the user's answer to a plan question. |
+| `plan.start` | `id`/`path`, `planId` | Start the plan (the card's Start editing). Only when the user said go. |
+| `plan.update-step` | `id`/`path`, `planId`, `stepId` (req), `status` (req: running, done, skipped, failed), `result` | Report a step with the real counts. |
+| `plan.finish` | `id`/`path`, `planId`, `status` (req: done, dismissed) | Close the plan. |
+| `routine.templates` | — | Ready-made routines with the settings for routine.propose. |
+| `routine.list` | — | Routines (proposed / on / paused), trigger in words, next run, last runs. |
+| `routine.propose` | `name` (req), `prompt` (req), `schedule` or `event`, `timezone`, `precheck`, `autonomy`, `notify`, `template` | Propose a routine; created OFF, the user turns it on from the routine card. |
+| `routine.update` | `routineId` (req), any of the propose fields | name/notify now; prompt, trigger, precheck, autonomy as a pending change the user approves. |
+| `routine.pause` / `routine.resume` | `routineId` (req) | Stop / restart a routine. |
+| `routine.run` | `routineId` (req) | Run now in the background. |
+| `routine.runs` | `routineId` (req), `limit` | Run history with reports. |
+| `routine.delete` | `routineId` (req) | Delete (confirm card). |
+| `memory.save` | `note` (req), `kind` (notes, profile) | Save a stated preference (notes) or who the creator is (profile) for every future chat. Refused over budget with the current entries. |
+| `memory.replace` | `entryId` (req), `note` (req), `kind` | Rewrite one entry by id (correct, or merge to stay under budget). |
+| `memory.suggest` | `note` (req), `reason`, `kind` | In-app only: a "Remember this?" card for a preference you noticed. |
+| `memory.list` | `kind` | Both lists with ids and budget use (already in your context). |
+| `memory.forget` | `query` (req, id or text), `kind` | Remove outdated entries. Asks the user on a confirm card. |

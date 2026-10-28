@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.277.0 -->
+<!-- version: 3.278.0 -->
 
 # PandaStudio
 
@@ -638,8 +638,12 @@ and every turn carries a "Podcast studio" block (who's on, live/recording,
 segment and time left, what was just said, best audience questions, health,
 cards waiting for the host). Act through these verbs:
 - Before the show: `podcast.draft-rundown --brief="…" [--minutes=45
-  --guests=[{name,title,bio,socials}]]` drafts segments, questions, guest lower
-  thirds and a YouTube title/description/thumbnail idea; or write it with
+  --guests=[{name,title,bio,socials}] --questions='["...","..."]']` drafts segments, questions, guest lower
+  thirds and a YouTube title/description/thumbnail idea. When the host pastes
+  their own interview questions ("prep the studio with these questions"), pass
+  them as `--questions`: every one lands in a segment word for word (so it's on
+  the prompter card) with a lower third summarising it, ready to show with
+  `podcast.show-overlay` during the show. Or write it with
   `podcast.set-rundown --rundown={title, segments:[{id?,title,plannedMin,notes,questions}], guests:[…]}`.
   `podcast.get-rundown` reads it with the running segment and time left.
 - Following the show: `podcast.events --since=<cursor> [--types=comment,transcript,health…]
@@ -744,14 +748,58 @@ generate them, or ask for images when no image connector is connected.
 user asks what styles exist. After an edit the user likes, offer `recipe.save`.
 Detail: [`reference/recipes.md`](reference/recipes.md).
 
+## Routines — work the agent does on its own
+
+A routine is a saved prompt plus a trigger, run as an agent turn with nobody
+watching: on a schedule (`--schedule="mon 09:00"`, `"weekdays 09:00"`,
+`"every 2h"`, `"monthly 1 09:00"`, an ISO time for once; never more often than
+every 15 minutes) or on an event (`--event=recording.finished`,
+`import.finished`, `podcast.ended`, `export.finished`). Use when the user asks
+for something recurring ("every Monday...", "whenever I finish a recording...").
+
+- `routine.templates` lists proven setups; `routine.propose --template=<id>`
+  starts from one. Built in and ON by default: "Plan every new recording"
+  (writes a plan card on each new recording, suggest-only).
+- `routine.propose --name --prompt [--schedule|--event] [--precheck] [--autonomy=suggest|act] [--notify=desktop|none]`
+  creates it **OFF**: the user turns it on from a routine card in the chat or
+  in Settings > Routines. Tell them in one sentence what it does, how often,
+  and that each run is one agent turn on their own AI account (the result's
+  `cost`). Don't call it twice for the same routine.
+- `--precheck` saves the AI turn when there's nothing to do:
+  `{"kind":"ideas-breakouts","minMultiplier":3}` (tracked competitors broke
+  out; their list goes into the prompt), `{"kind":"new-exports"}`,
+  `{"kind":"connector-connected","connector":"elevenlabs"}`.
+- Write `--prompt` as instructions to yourself for an unattended run: no
+  questions, read-only shell, reply `[SILENT]` when there's nothing to report.
+  `suggest` (default) runs only read, analyse and write plans or reports; `act`
+  may also make edits that need no approval. No routine spends money,
+  publishes or deletes: put those in a plan step with `needsApproval`.
+- `routine.list`, `routine.runs --routineId` (status: done, silent, skipped,
+  failed, missed, interrupted, with the report), `routine.run --routineId`
+  (run now), `routine.pause` / `routine.resume`, `routine.update` (name and
+  notify apply at once; a new prompt, trigger, precheck or autonomy waits on a
+  card for the user), `routine.delete` (confirm card).
+- Routines run while PandaStudio is open (or in the menu bar). Runs missed
+  while it was closed catch up once if under 24 hours late; older ones are
+  recorded as missed.
+
 ## Memory — remember preferences across chats
 
 Per-workspace durable memory, already injected into your context as
-"Durable memory (this workspace)": honor it without being re-told.
-`memory.save --note="…"` for a STANDING preference (brand, default caption
-style, channel tone, "always 9:16 for this client"), one fact per note;
-`memory.list`; `memory.forget --query=<id or text>` when superseded. Don't save
-one-off requests about the current edit.
+"Creator profile" and "Durable memory (this workspace)": honor it without
+being re-told. The user sees and edits it in Settings > Agent memory.
+
+- `memory.save --note="…"` for a preference the user STATED (default caption
+  style, "always 9:16 for this client"); `--kind=profile` for who they are
+  (channel and niche, audience, voice, platforms). One fact per note.
+- Something you only NOTICED ("you trimmed the intro in every edit"):
+  `memory.suggest --note="…" --reason="…"` shows a "Remember this?" card; don't
+  save it yourself.
+- Each list has a character budget (notes 4000, profile 2000). A save over it
+  is refused with the current entries: merge with `memory.replace --entryId
+  --note` and drop with `memory.forget --query=<id>`, then save again.
+- `memory.list [--kind]` for ids and budget use. `memory.forget` asks the user
+  on a confirm card. Don't save one-off requests about the current edit.
 
 ## Editorial decisions — what to ask, what to assume, what NEVER to ask
 
@@ -759,6 +807,66 @@ Asking about every small decision kills the magic; asking about none produces
 wrong-shape output. **Ask only when the answer is genuinely user-specific AND
 can't be inferred AND is hard to reverse.** Default everything else, narrate
 what you did, and iterate via preview.
+
+**How to ask (in-app agent): `chat.ask`.** When the decision has a few clear
+answers, show it as a card instead of writing the question in prose:
+`chat.ask --question="How much cleanup?" --options='[{"label":"Light cleanup","detail":"Fillers and long pauses only"},{"label":"Tight edit","detail":"Also cut tangents and retakes"}]' --recommended="Light cleanup"`.
+2-5 options, one question per call; `--allowOther=true` adds a text box. The
+call does not wait: **end your turn** right after it. The user's click comes
+back as their next message (`My answer to "How much cleanup?": Light cleanup`).
+External agents (Claude Code, Cursor...) get `not_supported`: ask in your own
+chat instead.
+
+### Plans: propose the edit before you make it (in-app agent)
+
+In PandaStudio's own chat, any multi-step edit (the default pipeline below, a
+recipe, a Short) starts as a **plan the user approves**:
+
+1. `plan.propose --id=<project> --summary="Relaxed 14-minute interview; strongest material starts at 1:12" --steps='[{"title":"Remove filler words and long pauses","stage":"edit"},{"title":"Captions in the glowStack style","stage":"edit"},{"title":"Generate 3 B-roll images","stage":"edit","needsApproval":true}]' --questions='[{"text":"How much cleanup?","options":["Light cleanup","Tight edit"],"recommended":"Light cleanup"}]' [--recipeId=<from recipe.pick>]`.
+   Read the transcript (and `recipe.pick`) first so the summary and steps are
+   specific to this footage. At most 3 questions and 20 steps; mark
+   `needsApproval` on anything that spends money (image, music or voice
+   generation, paid connectors), publishes, or reaches outside the app.
+2. **End your turn.** PandaStudio shows a plan card; nothing has changed yet.
+3. When the user presses **Start editing** you get `Start the editing plan
+   (planId ...)` with their answers. Do the steps in order and call
+   `plan.update-step --planId --stepId --status=running|done|skipped|failed
+   --result="Removed 53 fillers and 12 pauses"` after each, with the real
+   counts. Stop at a `needsApproval` step and ask (`chat.ask`) before it runs.
+4. `plan.get` shows the open plan and the next step; `plan.finish
+   --status=done|dismissed` closes one. `plan.start` only when the user said
+   in chat to go ahead; `plan.answer --questionId --optionId` records an
+   answer they gave you in chat instead of on the card. A new `plan.propose` replaces a plan still waiting, and
+   fails while one is running.
+
+External agents can use the same verbs, but the plan card only exists in
+PandaStudio's chat: confirm the scope once in your own chat instead.
+
+### Graphic ideas: preview before placing (in-app agent)
+
+When the user asks for graphic ideas ("any motion graphics you'd add?") or a
+graphic is a judgment call, render it, then show it instead of placing it:
+`motion.generate` / `motion.render-html` -> `job.wait` -> `motion.propose
+--id=<project> --fromJob=<jobId> --atMs=<edited ms> --title="Animated line graph: hits vs flops" --reason="Ryan talks about videos that flop"`.
+The chat plays it with **Add to timeline** and **Try another**; the user's
+click comes back as a message ("I added the graphic ..." / "Try a different
+version of ..."). Propose two or three ideas at most per turn. A graphic the
+user explicitly asked for goes straight in with `project.add-motion-graphic`.
+
+**Posting: suggest a schedule, the user approves (in-app agent).** "Where and
+when should I post these?" -> `export.list` + `social.channels`, then
+`post.plan --summary="3 Shorts over the week" --rows='[{"exportId":"...","networks":["instagram","tiktok"],"caption":"...","when":"2026-11-03T18:30:00+00:00"}]'`.
+The chat shows an editable schedule card; nothing posts until they press
+Approve schedule, which queues every row through `export.publish-social` and
+comes back as a message with the job ids (`job.wait` each and report). Pick
+times from what you know of the audience; one caption per network when they
+differ (LinkedIn longer, TikTok shorter).
+
+**Boost** (Make clips > a clip > Boost) is the user picking a Shorts recipe
+and the moves to add (captions, motion graphics, music, punch-ins and
+transitions, B-roll, hook). It arrives as a message in the clip's project
+saying it's approved: write it as a plan, `plan.start` it, and work through
+it; still `chat.ask` before anything that spends money.
 
 ### The default edit pipeline (vague "edit my video", no specifics)
 
