@@ -322,6 +322,27 @@ PandaStudio bundles Gemma 4 E2B (~2B params). Good for summarisation / classific
 | `llm.generate-timestamps` | `id` \| `path`, `maxChapters` (default 8) | **Project-aware.** Returns `[{ timeMs, label }, …]` chapter markers on the EDITED timeline (cut words skipped; first 0:00, each >= 10 s, all before the end). The LLM only writes labels. |
 | `llm.generate-caption` | `id` \| `path`, `maxChars` (default 2200) | **Project-aware.** Returns a short social caption (punchy hook + hashtags) for `export.publish-social`. |
 
+## ideas.* (what to film next, from YouTube outliers)
+
+No UI: these give an agent the evidence (videos that beat their own channel's median views; 10x = ten times that channel's normal) and the agent writes the ideas. Public data through the app's yt-dlp, no YouTube account.
+
+| Command | Args | Purpose |
+|---|---|---|
+| `ideas.research` | `query`, `seedChannel`, `format`, `minMultiplier`, `maxAgeDays`, `maxChannels`, `period` | Outliers across a niche: searches the topic (comma-separate several angles) and/or expands from a seed channel the audience watches, reads every channel found and ranks their recent uploads by multiplier. Trending: period month, maxAgeDays 30. Async (~20-40 s): returns { researchId, jobId }; job.wait, then ideas.get. |
+| `ideas.list` | — | Every research in this workspace, newest first, with options, status, stats and top multiplier. |
+| `ideas.get` | `researchId` (req), `limit`, `offset`, `onTopicOnly` | One research: outliers best first (25 per page), channels read (median views, hit rate, uploads a week), title patterns (phrases, hook shares, formulas). |
+| `ideas.cancel` | `researchId` (req) | Stop a running research. |
+| `ideas.delete` | `researchId` (req) | Forget a research. Confirm with the user first. |
+| `ideas.channel` | `channel` (req), `format`, `minMultiplier`, `limit`, `recent` | One channel's baseline (median views, hit rate, uploads a week, subscribers) and its breakouts, best first. Works on the user's own channel. ~10 s. |
+| `ideas.similar` | `channel` (req), `format`, `max` | Channels competing for a channel's audience (they keep showing up for the searches its best uploads rank for), each with its baseline. ~30-60 s. |
+| `ideas.video` | `video` (req), `baseline`, `comments` | A video's stats, description, tags and chapters; baseline adds its multiplier against its channel's median; comments > 0 adds top comments by likes. |
+| `ideas.transcript` | `video` (req), `language`, `timestamps` | A video's transcript from its captions, to study an outlier's hook, structure and pacing. |
+| `ideas.keywords` | `seed` (req), `expand` | What people type into YouTube search around a seed phrase (autocomplete, a-z and question prefixes). |
+| `ideas.demand` | `keywords` (req) | How much 1-15 search terms pull: median and top views of each term's top 20 results, share under a year old, the 3 most-viewed. ~30 s for 10. |
+| `ideas.competitors` | — | The channels this workspace tracks, each with its last-scan baseline and breakouts (last 90 days, 2x or more). |
+| `ideas.track` | `channel` (req), `tracked`, `format` | Start tracking a channel as a competitor (tracked: false stops). Up to 40. |
+| `ideas.scan` | `limit` | Re-read every tracked competitor; returns the breakouts across all of them, best first. |
+
 ## job.*
 
 | Command | Args | Purpose |

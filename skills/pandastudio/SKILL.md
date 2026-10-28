@@ -1,9 +1,9 @@
 ---
 name: pandastudio
-description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
+description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.275.0 -->
+<!-- version: 3.277.0 -->
 
 # PandaStudio
 
@@ -377,6 +377,50 @@ A take interrupted by a crash, force-quit or power loss is kept:
 `recording.unfinished` lists them, `recording.recover --recordingId=…` rebuilds
 one into a project (tell the user any `warnings`).
 Full detail: [`reference/recording.md`](reference/recording.md).
+
+## Video ideas: what to film next (`ideas.*`)
+
+"What should I film next?", "find video ideas", "what's working in my niche",
+"research my competitors", "will this title work" → these tools give you the
+evidence; you do the thinking and write the ideas. An outlier is a video that
+beat its OWN channel's median views (10x = ten times that channel's normal),
+so its topic, angle or packaging is proven demand beyond that channel's
+audience. Public YouTube data through the app's yt-dlp: no account, no quota.
+
+Which tool answers which question:
+
+| Question | Tool | Time |
+|---|---|---|
+| What's breaking out in this niche? | `ideas.research --query="a, b"` and/or `--seedChannel=JeffSu` → `job.wait` → `ideas.get --researchId` | 20-40 s |
+| What's trending right now? | `ideas.research` with `--period=month --maxAgeDays=30 --minMultiplier=2` | 20-40 s |
+| Did we already research this? | `ideas.list` (reuse a recent one) | instant |
+| What works for this channel (or the user's own)? | `ideas.channel --channel=JeffSu` | ~10 s |
+| Who competes for these viewers? | `ideas.similar --channel=JeffSu` | 30-60 s |
+| Did this one video break out? | `ideas.video --video=<url> --baseline` | ~10 s |
+| Why did it work? | `ideas.transcript --video` (hook, structure) + `ideas.video --video --comments=100` (what viewers ask for) | 10-20 s each |
+| What do people search for? | `ideas.keywords --seed` then `ideas.demand --keywords='["a","b"]'` | 1 s, then ~30 s per 10 |
+| What's new with the competitors? | `ideas.competitors` (tracked list, remembered) / `ideas.track --channel` / `ideas.scan` | scan ~5-10 s per 5 channels |
+
+Channels take a handle, a channel URL or a UC… id. On the CLI a value starting
+with @ means "read this file", so give handles without it (`JeffSu`) or as
+`@@JeffSu`; MCP tools take `@JeffSu` as is.
+
+How to use them well:
+- Start from the user's own channel when you know it (ask, or `youtube.list-accounts`):
+  `ideas.channel` shows what already works for them; `ideas.similar` on it finds
+  the competitors worth tracking (`ideas.track`, confirm the list first).
+- `ideas.get` returns 25 outliers at a time (`--offset` pages, `--onTopicOnly`
+  drops ones whose titles don't mention the topic). Huge multipliers on tiny
+  channels (100x+ on a 300-view median) are real but noisy: weigh views too.
+- Read 1-3 of the strongest outliers' transcripts before proposing ideas.
+- Each idea you write: a title (under 70 characters, never a copied title), the
+  angle, why it should work citing the outliers by multiplier and title
+  ("13x for 'My Full Espresso Setup'"), a 15-second hook, thumbnail text (4
+  words max). Prefer ideas that combine two proven angles or bring one from an
+  adjacent channel. Titles: borrow the `patterns.formulas` from `ideas.get`.
+- Once the user picks one: script it with them, then record (`recording.*`) or
+  build it in a project as usual.
+- `ideas.cancel` stops a research; `ideas.delete` forgets one (confirm first). Saved research is deleted after 30 days, and competitor scan results are cleared after 30 days (the channels stay tracked; `ideas.scan` refreshes them).
 
 ## Clips from a long video (`clips.make`)
 
@@ -1210,8 +1254,9 @@ give you.
   (or the button that was clicked at that moment) is, as fractions of the
   recorded frame. Find moments with `project.render-frame` (pause where the real
   pointer shows, or on a recorded click). One pin fixes an offset; add a second
-  pin far from the first (`--add`) when it is also scaled; the result's
-  `residual` says how well the pins agree. Stored on the clip, applied in
+  pin far from the first (`--add`) when it is also scaled. The LAST pin is
+  matched exactly (the others steer the scale), so give the most reliable
+  moment last; the result's `residual` says how well the pins agree. Stored on the clip, applied in
   preview and export; cursor-placed auto-zooms follow (`--moveZooms=false`
   keeps them); `--reset` removes it; `project.read` clipStates shows
   `cursorCorrection`. Same as Style > Cursor > Align cursor in the editor.
@@ -2129,6 +2174,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - **asset** — list-music, list-sounds, list-fx, list-luts, list-transitions,
   list-emoji, list-fonts, import-font, resolve
 - **clips** — make, list, get, export, retry, set-caption, delete (long video → clips)
+- **ideas** — research, list, get, cancel, delete, channel, similar, video, transcript, keywords, demand, competitors, track, scan (YouTube outliers → what to film next)
 - **llm** — generate-title, generate-description, generate-timestamps,
   generate-caption, infer, status (captions-metadata.md)
 - **export** — start, verify [check], list, get, update, delete, set-details,
