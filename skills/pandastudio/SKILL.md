@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.281.0 -->
+<!-- version: 3.282.0 -->
 
 # PandaStudio
 
@@ -826,7 +826,7 @@ chat instead.
 In PandaStudio's own chat, any multi-step edit (the default pipeline below, a
 recipe, a Short) starts as a **plan the user approves**:
 
-1. `plan.propose --id=<project> --summary="Relaxed 14-minute interview; strongest material starts at 1:12" --steps='[{"title":"Remove filler words and long pauses","stage":"edit"},{"title":"Captions in the glowStack style","stage":"edit"},{"title":"Generate 3 B-roll images","stage":"edit","needsApproval":true}]' --questions='[{"text":"How much cleanup?","options":["Light cleanup","Tight edit"],"recommended":"Light cleanup"}]' [--recipeId=<from recipe.pick>]`.
+1. `plan.propose --id=<project> --summary="Relaxed 14-minute interview; strongest material starts at 1:12" --steps='[{"title":"Remove filler words and long pauses","stage":"edit"},{"title":"Captions in the Hormozi Emphasis style","stage":"edit"},{"title":"Generate 3 B-roll images","stage":"edit","needsApproval":true}]' --questions='[{"text":"How much cleanup?","options":["Light cleanup","Tight edit"],"recommended":"Light cleanup"}]' [--recipeId=<from recipe.pick>]`.
    Read the transcript (and `recipe.pick`) first so the summary and steps are
    specific to this footage. At most 3 questions and 20 steps; mark
    `needsApproval` on anything that spends money (image, music or voice
@@ -911,7 +911,9 @@ Word and filler cuts now land on measured audio pauses. Fillers reported as `ski
 7. **Style: run the recipe** (`recipe.pick` → apply-style → render → follow
    its prompt). It covers captions, graphics, zooms and sound, so skip 8-10.
    Without a recipe: **captions** — `caption.toggle` + `caption.set-template`
-   (`glowStack` unless the destination profile says otherwise).
+   by format unless the destination profile says otherwise: vertical
+   (Shorts / Reels / TikTok) `hormoziEmphasis`, long-form / 16:9 `classic`.
+   Not `glowStack` (a loud yellow-orange gradient) unless the user asks.
 8. **Motion graphics** — follow the Motion-graphics Rules: decide what each
    beat should show, then choose a template or author it; vary by beat. Featured
    templates are good starting points for functional elements; camera-only /
@@ -1124,7 +1126,7 @@ enhancements); treat doubt as `camera` or ask, then lock it with
 | `transcript.find-issues` → `delete-words` | Keep the most recent take; keep `severity: "low"`; ask when a repeat might be deliberate emphasis. |
 | `transcript.remove-silences` | After content cleanup; 600ms default (don't raise it "to be safe"); two passes (word gaps + audio-level detection) like the UI button, so pauses the word timings run across are cut too. `removedCount: 0` comes with a warning saying why (`audioPauses` counts what the audio held): don't re-detect silences yourself. |
 | `audio.enhance` | Un-enhanced clips only, the defaults (Light + Studio mic sound on Apple silicon; don't pass `--strength` / `--restore`). `--keepBackground=true` for vlogs / ambience; no `--echo` (Enhance voice already removes room echo with the Studio AI model; only use `--echo` when the result reports the model did not run, i.e. fallback `denoiser: deepfilternet3`); `--strength=natural` / `strong` only when the user asks for fuller or punchier sound. Report the before/after loudness it returns. (`audio.clean` is a deprecated alias: Light.) |
-| `caption.set-template` ("add captions", no style named) | `glowStack` (app default since 1.94); a recipe's caption setting wins (some turn captions off). Animated styles for Shorts energy, `bold` / `editorial` for long-form: captions-metadata.md. "Highlight the key word" / Hormozi / Captions.ai-style looks → an emphasis template (`hormoziEmphasis`, `tiltedBox`, `serifItalic`, `condensedCaps`, `scriptKeyword`, `wordBoxes`, `goldSerif`, `keywordBox`, `limeItalic`): it marks the IMPORTANT word of each phrase (detected from the audio on apply), not the spoken one. |
+| `caption.set-template` ("add captions", no style named) | Pick by format, always pass `--templateId`: vertical Shorts / Reels / TikTok → `hormoziEmphasis` (heavy white caps with a black outline, readable on any footage, key word highlighted); long-form / 16:9 / tutorials / talking heads → `classic` (clean white sentence-case text with an outline). Set the highlight to the brand colour when the brand kit has one (`caption.set-style --highlightColor`, or `--emphasisColor` on an emphasis template). Don't pick `glowStack` unless asked: its yellow-orange gradient fights most footage and brands. (New projects already start on these defaults by shape; set the template anyway so a native-aspect vertical video gets the vertical style.) A recipe's caption setting wins (some turn captions off). Animated styles for Shorts energy, `bold` / `editorial` for long-form: captions-metadata.md. "Highlight the key word" / Hormozi / Captions.ai-style looks → an emphasis template (`hormoziEmphasis`, `tiltedBox`, `serifItalic`, `condensedCaps`, `scriptKeyword`, `wordBoxes`, `goldSerif`, `keywordBox`, `limeItalic`): it marks the IMPORTANT word of each phrase (detected from the audio on apply), not the spoken one. |
 | `llm.generate-title` / `-description` / `-timestamps` | After the edit pass; show them, let the user regenerate or edit. |
 | Zoom moments | Pick from the transcript ("you said 'click here' at 12.4s — adding a zoom"). Don't pre-ask. |
 | FX overlays | **Never by default**, only on explicit request, placed where they said. |
@@ -1134,7 +1136,7 @@ Good narration after a pass names the real count for every step:
 > "Edited. • Transcribed both clips (136 words). • Removed 14 fillers + 3
 > repeats (reversible). • Cut 2 bad takes (kept the cleaner second attempt).
 > • Removed 67 silences (>600ms), ~48s of dead air. • Cleaned audio on both
-> clips. • Zoom at 12.4s where you said 'click here'. • Captions on (glowStack).
+> clips. • Zoom at 12.4s where you said 'click here'. • Captions on (Hormozi Emphasis).
 > • Title: *'How I Built This in 24 Hours'*. Opening preview now."
 
 ### NEVER ASK about
