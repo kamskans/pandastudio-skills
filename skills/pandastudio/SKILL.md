@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.278.0 -->
+<!-- version: 3.279.0 -->
 
 # PandaStudio
 
@@ -1343,6 +1343,24 @@ give you.
   follows the content slowly; analysed once per source, so the first preview
   may show a neutral gradient for a moment) or `--source=desktop` (a kept still
   of the user's desktop wallpaper, macOS and Windows).
+- **Animated backgrounds:** `project.set-wallpaper --wallpaper=mesh:<id>`
+  (aurora, sunset, ocean, candy, forest, midnight, peach, graphite): a living
+  mesh gradient whose colour blobs drift in a seamless 24 s loop, same in
+  preview and export. `--motion` 0-2 sets the speed (0 = still, 1 default).
+  Good behind product demos and launch videos; keep it calm (motion 0.5-1)
+  under a talking screen.
+- **Device frame + 3D (screen recordings and images; camera / podcast clips
+  are left alone):** `project.set-style --deviceFrame=browser|window|laptop|phone|tablet|none
+  [--deviceFrameTheme=dark] [--deviceFrameUrl=yourproduct.com]` puts the
+  recording in a browser window (address bar text = deviceFrameUrl), a macOS
+  window (title), a laptop, a phone (portrait app recordings) or a tablet; the
+  video shrinks to fit inside the padded box. `--tilt=left|right|above|flat`
+  turns the screen in 3D, `--tiltFollowCursor=true` leans it toward the
+  cursor, `--tiltClickBounce=true` rocks it on each click (both need cursor
+  data), `--tiltStrength` 0-100. The frame, cursor and shadow tilt with the
+  screen, and the tilt eases off inside zooms. For a polished product demo:
+  browser frame + mesh background + `--tilt=left --tiltFollowCursor=true
+  --tiltStrength=60`. Check with `project.render-frame`.
 - **Speaker background:** `project.add-background-effect
   --mode=blur|remove|image` (AI person matte, camera footage only; `remove`
   puts the outline on by default; `image` = virtual studio plates).
