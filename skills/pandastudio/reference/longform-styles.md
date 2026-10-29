@@ -62,11 +62,13 @@ below are measured, not vibes. `shorts-styles.md` is the sibling file for
 
 ## 2. Recipes (pick by content, mirror of the shorts recipes)
 
-**Default when the user names no style:** educator-pip, run through the app's
-**Ali style** recipe (`educator-talking-head-chapters`: `recipe.apply-style` +
-`recipe.render`, then follow its prompt). Pick product-review or dev-explainer
-only when the user asks for that look or the content clearly is a review or a
-code walkthrough AND they named no style.
+**Default when the user names no style:** whatever `recipe.pick` returns as
+`defaultId` for this footage (on camera: the Course explainer recipe, animated
+diagrams beside a portrait camera card). Run it with `recipe.apply-style` +
+`recipe.render`, then follow its prompt. The Ali style recipe
+(`educator-talking-head-chapters`) is for when the user asks for that look.
+Pick product-review or dev-explainer only when the user asks for that look or
+the content clearly is a review or a code walkthrough AND they named no style.
 
 ### educator-pip (Ali Abdaal) — frameworks, habits, how-to
 - **Templates (app 1.98.0+):** lists/steps `list` with style=numbers, short lists of things `list` with style=pills (both cameraSide=left), products/tools `kit-product-slide` (all three as a background under a `cam-left-portrait` card), section statements `serif-statement` over the full-frame shot, diagrams `glow-steps`, stressed terms `keyword-pills` (face box from `project.detect-face`), agent demos `agent-chat`. The recipe prompt names them move by move.
