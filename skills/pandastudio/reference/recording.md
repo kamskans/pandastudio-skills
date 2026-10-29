@@ -87,14 +87,36 @@ Notes:
   read or change the setting (the desktop button on the recording bar). The app
   can't switch on Do Not Disturb (no public API); `recording.start` returns a
   `tip` asking the user to, so pass it on before they present.
+- **Window size and Center on screen (window sources):**
+  `recording.resize-window --source=window:N:0 --size=16:9` resizes the window
+  before a take: a ratio (16:9, 16:10, 4:3, 1:1, 9:16, 21:9) keeps its area in
+  the new shape; a resolution (720p, 1080p, 1440p, 4K) makes the recording
+  exactly that many pixels (on a 2x display 1080p is a 960 x 540 point window)
+  and fails when the display is too small. `recording.start --windowSize=…`
+  does the same as part of the start. `--centerWindow=true` moves the window to
+  the middle of its display before the countdown and puts it back on stop, a
+  failed or cancelled start, a crash or quit; without it the user's setting
+  applies (`recording.get-window-options` / `recording.set-center-window`, off
+  by default; the switch in the source picker's Windows tab). macOS needs
+  Accessibility access to move other apps' windows: the error says how to grant
+  it; pass it on rather than retrying. The result has `windowCentered` and
+  `windowPixels`.
+- **Mic check (recorder HUD only):** a take started with the mic off, unplugged
+  or missing asks first (Record without microphone / Use default microphone /
+  Cancel, with Don't ask again; Settings > Recording turns it back on).
+  `recording.start` never records a mic, so it never asks.
 
 ## Record an area (source changes, available with the matching app build)
 
 The app source picker offers **Area**: choose a display, drag a box, move it or
 resize its corners, and press Enter or Record. Esc cancels. Aspect choices are
 Free, 16:9, 9:16, 1:1 and 4:3. Pixel-size presets lock the box size while allowing
-movement. The last box is remembered per display. A thin, capture-excluded border
-marks the area during recording, including pauses.
+movement. The last box is remembered per display. Edges snap to other windows,
+the display and the menu bar / Dock / taskbar (hold Cmd or Ctrl to stop
+snapping); a click without a drag fits the window under the cursor; arrow keys
+nudge (Shift: 10 points); Fill takes the largest box of the aspect inside the
+menu bar and Dock; Reset goes back to the middle half. A thin, capture-excluded
+border marks the area during recording, including pauses.
 
 `recording.list-sources` returns each display's `displayId`, `bounds` (global
 points), and `scaleFactor`. `area` uses **display-local points**, so x/y start at
