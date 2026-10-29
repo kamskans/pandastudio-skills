@@ -20,12 +20,12 @@ normalize and the leveller (there is no separate boost step any more).
 
 | Option | Use it when |
 |---|---|
-| `--strength=natural` (default) | Almost always. |
-| `--strength=light` | The user wants a lighter touch: noise removal that keeps a little room between phrases, gentle automatic echo reduction (only in echoey rooms), gentle level and tone. |
-| `--strength=strong` | Punchy broadcast sound: closer tone match, tighter level riding, deeper pauses. |
+| `--strength=light` (default) | Almost always: noise removal that keeps a little room between phrases, gentle automatic echo reduction (only in echoey rooms), gentle level and tone. With Studio mic sound (on by default on Apple silicon) this is the best-sounding setup. |
+| `--strength=natural` | The user asks for fuller processing: the full studio chain with quieter pauses. |
+| `--strength=strong` | Only when the user asks for punchy broadcast sound: closer tone match, tighter level riding, deeper pauses. Never pick it yourself. |
 | `--keepBackground=true` | Vlogs, travel, ambience, live music: the room is part of the video. Skips noise removal, the event remover and the pause expander; level, tone and loudness still run. |
 | `--echo=true` | Rarely. Enhance voice already removes room echo with the Studio AI model; only use `--echo` when the result reports the model did not run (fallback) (`denoiser: deepfilternet3`, or `--keepBackground`) and the user mentions echo / reverb. When the model runs, echo is skipped (`echoSkipped: "ai-model-removes-echo"`). Light reduces echo by itself (a gentle automatic stage, reported as `echo.auto: true`), so `--echo` changes nothing there unless `--keepBackground`. Off by default. |
-| `--restore=true` | Thin laptop / phone / call audio, and only when asked (Apple silicon, slow). |
+| `--restore` (leave unset) | Studio mic sound. Unset = ON on Apple silicon with macOS 14+ (TF-Restormer, about half the recording's length), off on Windows and Intel Macs. `--restore=false` only when the user asks; `--restore=true` forces it on Windows / Intel Macs for thin laptop / phone / call audio. |
 | `--reference=<clipId or file>` | Two takes or two speakers should sound alike. |
 | `--off=true` | Back to the original audio. |
 
