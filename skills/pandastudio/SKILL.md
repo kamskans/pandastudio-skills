@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.284.0 -->
+<!-- version: 3.285.0 -->
 
 # PandaStudio
 
@@ -1806,7 +1806,13 @@ Studio mic sound it is the best-sounding setup; `natural` is the full chain
 with quieter pauses; `strong` is assertive broadcast processing, only when the
 user asks for it (never pick `strong` yourself).
 `--keepBackground=true` keeps the room (no noise removal, event remover or
-pause expander) for vlogs and ambience; level, tone and loudness still run.
+pause expander) for vlogs, ambience and gameplay; level, tone and loudness
+still run. A stereo source keeps its stereo (game audio panned left/right,
+music, ambience): the result says `channels: 2`, or `channels: 1` with
+`monoReason` (`one-channel`, `dual-mono`, `silent`, or `studio-mic` when
+`--restore=true` rebuilt the voice). With `--keepBackground`, Studio mic sound
+is off unless you pass `--restore=true` (it rebuilds the voice without the
+room).
 `--echo=true` adds Reduce echo (late-reverb suppression). Enhance voice already removes room echo with the Studio AI model; only use `--echo` when the result reports the model did not run (fallback) (`denoiser: deepfilternet3`, or `--keepBackground`). When the model
 runs, `--echo` is skipped and the result says `echoSkipped:
 "ai-model-removes-echo"` with `echoSkippedReason`: stacking both makes the
