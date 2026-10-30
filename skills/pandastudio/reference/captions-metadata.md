@@ -104,6 +104,9 @@ the frame (a long merged word, a big emphasis scale, a tilted box) shrinks to
 fit instead of running off the edges. Stacked (`glowStack`) captions ignore
 `highlightMode`.
 
+A caption page never spans a pause of a second or more: the words after it
+start a new page, so they never show before they are said.
+
 - `glowStack` is the short-form headline look: the first word of each caption sits small and white on top, and the rest renders big in heavy Poppins with a glowing yellow-to-orange gradient; each word pops in as it's spoken. Use `--wordsPerLine` 3-4 so each caption reads as lead-in + key phrase. `caption.set-style --highlightColor` swaps the gradient for a solid accent.
 - `editorial` is a magazine-emphasis style: the word being spoken RIGHT NOW renders large (and takes an accent color) while the rest of the line shrinks, so one big word sweeps across the line in time with the speech. Best with short `--wordsPerLine` (4-6) so each line reads as a headline. Great for talking-head explainers and punchy hooks.
 
