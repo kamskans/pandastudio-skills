@@ -56,7 +56,7 @@ pandastudio project.add-motion-graphic --id="$PROJECT" --fromJob="$JOB" --durati
   |---|---|---|
   | `project.add-motion-graphic` | `bundled:sound/mouse-click` | Since v1.36.0; every motion graphic, custom MP4/WebM, designed-segment panels. |
   | `project.add-designed-segment` | `bundled:sound/mouse-click` | Inherits from add-motion-graphic. |
-  | `project.add-zoom` | `bundled:sound/swoosh-fast` | |
+  | `project.add-zoom` | `bundled:sound/motion-swoosh-up` | |
   | `project.add-lower-third` | `bundled:sound/mouse-click` | Inherits the motion-graphic default. |
   | `project.add-fx` | none | FX often carry their own audio. |
 

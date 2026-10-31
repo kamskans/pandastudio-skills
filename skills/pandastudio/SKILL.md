@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.287.0 -->
+<!-- version: 3.288.0 -->
 
 # PandaStudio
 
@@ -1955,7 +1955,14 @@ as **native motion elements** anchored to the cue words
 (`project.add-motion-elements`; HTML compositions only for bespoke extras),
 and call `project.compose-soundtrack` LAST to score the edit from its own
 timeline (it reads the elements' sound roles; pass an HTML composition's cue
-times as `cues`). Full loop, density per format and a worked example:
+times as `cues`). Its sound effects are recorded library sounds placed as cues
+(group `score-sfx`, peaks on the moments), sparse under a voice; it takes over
+the graphics' and zooms' own sounds. **Changed the graphics, zooms or cuts
+after scoring? Re-run it.** `project.read` returns `composedScore: { stale,
+doubledSounds, reasons }` when the score no longer fits (its effects land where
+nothing happens now, or a graphic plays its own sound on top), and
+`export.start` warns. With a score in place, don't give new graphics their own
+sound (`soundUrl`); re-score instead. Full loop, density per format and a worked example:
 [`reference/speech-timing.md`](reference/speech-timing.md).
 
 ### Native motion elements: keyword graphics drawn by the engine
@@ -2216,7 +2223,7 @@ performance levers, entry-trigger phrases and one-shot plan announcements:
 | Emphasis zoom duration | **7 s** | 3 s | 4 s | 2 s |
 | Sustained held zoom (section reframe) | **15 s** | — | 8 s | — |
 | Agent zooms on screen-share clips | **NEVER** (telemetry handles it) | **NEVER** | **NEVER** | **NEVER** |
-| Zoom SFX volume | 1.0 (swoosh-fast) | 1.0 | 0.5 (or `none`) | `none` |
+| Zoom SFX volume | 1.0 (motion-swoosh-up) | 1.0 | 0.5 (or `none`) | `none` |
 | Filler / silence removal | yes | yes | yes | **aggressive (silences ≥ 300ms)** |
 | Speed on B-roll / setup | 1.5–2× (ramped) | **2–3×** (ramped) or cut | 1.25–1.5× | none |
 | LUT preset | by content type @ 0.5–0.8 | **`modernVibrant` @ 1.0** | `naturalEnhanced` @ 0.3 | none |

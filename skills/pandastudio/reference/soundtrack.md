@@ -14,7 +14,11 @@ repetitive over that length.
 
 > Scoring an existing edit (talking head, Short, tutorial)? Use
 > `project.compose-soundtrack`: it builds the score below from the project's
-> own timeline and stressed words. This page is the manual, full-control path.
+> own timeline and stressed words. The music comes from this engine; its sound
+> effects (whooshes, pops, hits, ticks, a chime) are recorded library sounds
+> placed as cues in the `score-sfx` group, not synthesized into the music, and
+> under a voice there's no opening hit and no riser. This page is the manual,
+> full-control path.
 
 ## The method: one timeline, not "sync music to video"
 
