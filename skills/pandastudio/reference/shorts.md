@@ -64,7 +64,9 @@ pandastudio project.fork-from-shot --exportId="$EXPORT" --shotId="$SHOT" --json
 The result is a **clean 9:16 canvas with the timing already done**. Now give
 it a style: **`recipe.pick --id=<short>`**, choose the candidate that matches
 what's said, then `recipe.apply-style` + `recipe.render` and follow the prompt
-(SKILL.md "Recipes"). Only when no recipe fits (a multi-person podcast clip, a
+(SKILL.md "Recipes"). A fork is `fromLongForm`: when nothing in what's said
+clearly fits another candidate, its `defaultId` (the long-form-to-Short
+default) is the style, not the generic polish below. Only when no recipe fits (a multi-person podcast clip, a
 custom style) load [`shorts-styles.md`](shorts-styles.md). The snippet below is
 minimal generic polish only:
 

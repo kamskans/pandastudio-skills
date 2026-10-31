@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.286.0 -->
+<!-- version: 3.287.0 -->
 
 # PandaStudio
 
@@ -213,7 +213,7 @@ you pass both they must name the same project. A not-found error says why
 at face value and run `project.list` rather than retrying other spellings.
 
 **Omitting `id` and `path`:** read-only verbs that look at one project
-(`project.read`, `project.show`, `transcript.get`, `transcript.search`,
+(`project.read`, `project.show`, `project.edit-summary`, `transcript.get`, `transcript.search`,
 `transcript.find-issues`, `audio.probe`, `project.render-frame`,
 `project.render-sheet`, `project.detect-face`, `project.inspect-footage`,
 `project.speech-map`, `project.list-broll`, `project.check-broll`,
@@ -461,6 +461,10 @@ transcribing, `transcription.etaMs` is the time left). Then:
 - `usedModel:false` = the local AI model isn't downloaded, so moments came
   from the transcript alone; tell the user Settings → AI Model gives better
   picks and titles.
+In chat apps that show MCP views (Claude, ChatGPT), `clips_get` / `clips_make`
+also show the set as cards with Open, Export and Remove, following a running
+set until it's ready. The user's clicks there arrive as context ("the user
+exported ..."): don't redo them, and don't list every clip again in text.
 `clips.list` / `clips.delete` manage sets (delete keeps the projects and
 exports). To drop ONE clip the user doesn't want, `clips.remove-clip --id
 --clipId` (its project goes to the Trash unless `--keepProject=true`; exports
@@ -473,8 +477,12 @@ Discover shots (`export.generate-shots`), fork one project per shot
 (`project.fork-from-shot`), then edit it as a Short. No export yet? Pass the
 project instead: `export.generate-shots --projectId=$ID`, then
 `project.fork-from-shot --projectId=$ID --shotId=…`. Details:
-[`reference/shorts.md`](reference/shorts.md). Its style comes from a recipe
-(`recipe.pick`, see "Pick the style" below). The retention grammar behind the
+[`reference/shorts.md`](reference/shorts.md). "Convert this long video to a
+Short" is this path, never `project.set-aspect-ratio` on the whole long
+video (only a clip already under about 90 s goes vertical in place). Its
+style comes from a recipe (`recipe.pick --id=<fork>`, see "Pick the style"
+below): with no style named, a Short cut from a long-form video gets the
+catalog's long-form-to-Short default, never a plain clean-up. The retention grammar behind the
 recipes, for a custom style no recipe covers:
 [`reference/shorts-styles.md`](reference/shorts-styles.md) (9:16) and
 [`reference/longform-styles.md`](reference/longform-styles.md) (16:9).
@@ -714,15 +722,22 @@ so it can't fall out of date.
 memory, wins. Otherwise, for any "edit my video" / "make this a Short" /
 "polish this":
 
-1. `recipe.pick [--id=$P]` → `{ format, footage, candidates: [{ id, title,
-   pickWhen }], defaultId, before? }`. It narrows by what the tool knows: the
-   format (9:16 = short) and the footage (camera, screen, none; pass
-   `--footage` when you can see it's something else).
+1. `recipe.pick [--id=$P]` → `{ format, footage, fromLongForm, candidates:
+   [{ id, title, pickWhen }], defaultId, before? }`. It narrows by what the
+   tool knows: the format (9:16 = short; pass `--format=short` on a 16:9
+   project the user wants as a Short) and the footage (camera, screen, none;
+   pass `--footage` when you can see it's something else). A Short cut from
+   landscape long-form camera footage (a `project.fork-from-shot` fork, a
+   landscape source set to 9:16, or `--format=short` on a 16:9 project) is
+   `fromLongForm: true` and gets that situation's own `defaultId`.
 2. Read the transcript and choose the ONE candidate whose `pickWhen` matches
    what is actually said: a numbered list, a story, one blunt claim, things you
-   can show, a result with numbers. `defaultId` when none clearly fits. The
-   user's own saved recipes come first in `candidates`; prefer them when they fit.
-3. Run `before` if present (a screen-recorded Short gets its vertical layout).
+   can show, a result with numbers. `defaultId` when none clearly fits: never
+   swap it for a plain captions-and-zooms edit. The user's own saved recipes
+   come first in `candidates`; prefer them when they fit.
+3. Run `before` if present (a screen-recorded Short gets its vertical layout;
+   a 16:9 project becoming a Short is cut out with `export.generate-shots` +
+   `project.fork-from-shot` first, and the recipe runs on the fork).
 4. `recipe.apply-style --id --projectId` (sets the fixed look), `recipe.render
    --id --values=…`, then follow the prompt and verify its checklist with
    rendered frames.
@@ -1152,8 +1167,10 @@ title / description / timestamps, whether to enable captions when they said
 ### Preview, then export. Never export, then preview.
 
 After a meaningful pass: `preview.show --id=<uuid>` → tell the user what you did
-→ ask *"Does this look right? Anything to tweak before I export?"* → only after
-explicit confirmation, `export.start`. The preview shows every effect exactly as
+(`project.edit-summary --id` gives the lengths, counts and plain `highlights[]`
+to report, far cheaper than `project.read`) → ask *"Does this look right?
+Anything to tweak before I export?"* → only after explicit confirmation,
+`export.start`. The preview shows every effect exactly as
 the export renders it. An export takes 30–90s and writes a multi-MB MP4; one
 wasted by skipping the preview is the worst failure in this surface.
 
@@ -1417,6 +1434,14 @@ retry. Every `project.add-*` accepts it. Long verbs re-measure (or return
 file.
 
 ### Preview without exporting
+
+**Views in the chat (MCP Apps).** In chat apps that render MCP views (Claude
+desktop and web, ChatGPT), `preview_show`, `project_render_frame`,
+`project_render_sheet` and `project_edit_summary` also show an edit preview
+in the chat: the frame (or frames across the edit), the length, what was cut
+and what the edit contains, with Open in PandaStudio. So after `preview_show`
+there, summarise in a line or two instead of describing every frame. Other
+clients (CLI, Cursor, the in-app chat) get the same JSON as always.
 
 `preview.show --id [--atMs=17000 --autoplay=true]` shows and focuses the editor, waits for project/media readiness, seeks within one frame, and optionally starts playback (default false). Returns `playheadMs` and `playing`; a failure reports actual state.
 `project.add-clip --id=<uuid> --media=<path> --atMs=3000 --replaceToMs=5000` replaces that edited range. Partial cuts remain trims; fully trimmed clips are removed and overlapping or adjacent trims are merged. Existing affected projects are normalized in memory when loaded and persisted through the normal editor save path.

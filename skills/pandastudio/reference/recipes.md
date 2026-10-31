@@ -16,7 +16,11 @@ list it. Ask the app:
 - **`recipe.pick [--id=<project>]`**: no style named? The recipes that fit this
   project's format and footage, each with `pickWhen` (when it's the right
   pick), plus `defaultId` for this situation. Choose by what's said in the
-  video. This is the normal entry point.
+  video. This is the normal entry point. Situations: `<format>:<footage>`
+  (e.g. `short:camera`), plus `short:camera:from-long` for a Short cut from a
+  landscape long-form video (`fromLongForm: true`: a fork, a landscape
+  source, or `--format=short` on a 16:9 project), which wins over
+  `short:camera` there.
 - **`recipe.list [--format=short|long]`**: every recipe (the user's saved ones
   first), with `description` and `pickWhen`, when the user asks what styles
   exist.
