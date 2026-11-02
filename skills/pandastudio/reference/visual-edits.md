@@ -287,7 +287,8 @@ pandastudio project.duplicate-region --id=$ID --regionType=zoom --regionId=zoom-
 # PandaStudio is a video-only exporter; format is always mp4.
 pandastudio project.set-export-settings --id=$ID --quality=source --format=mp4  # good/source need a license; on a trial use --quality=medium
 # Frame rate of every export: auto (default: 30, or 60 when every clip is a
-# 60 fps render and none a recording) | 30 | 60 | source (fastest source's rate)
+# 60 fps render and none a recording) | a standard rate (23.976 24 25 29.97 30
+# 50 59.94 60; 25 / 50 for PAL) | source (fastest source's rate)
 pandastudio project.set-export-settings --id=$ID --frameRate=60
 ```
 

@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.288.0 -->
+<!-- version: 3.289.0 -->
 
 # PandaStudio
 
@@ -2178,7 +2178,7 @@ then use the returned `family`; don't send the user to the font picker.
 ## Export — produce the final MP4
 
 `export.start --id --quality=draft|standard|high|ultra [--outputPath]
-[--normalizeLoudness] [--frameRate=30|60|source|auto]` (async; `job.wait` with
+[--normalizeLoudness] [--frameRate=<rate>|source|auto]` (async; `job.wait` with
 a long timeout) renders everything in the project on the native engine (720p /
 1080p / source resolution up to 4K / same; aspect from the project) and returns
 `{ outputPath, durationMs, width, height, frameRate: { fps, setting, reason },
@@ -2193,15 +2193,26 @@ Frame rate: the project setting defaults to `auto` = 30 fps, or the sources'
 rate (60) when every main-track clip is a 50+ fps render (motion graphics
 rendered with `--frameRate=60`) and none is a screen / camera recording. Set
 60 for smooth scrolling or cursor motion in a screen recording, `source` to
-keep 24 / 25 / 50 fps camera footage at its own rate. 60 fps costs about 1.5x
-the file size. The final mix is loudness-normalised to -14 LUFS by
+keep 24 / 25 / 50 fps camera footage at its own rate. Any standard rate can
+be set exactly: 23.976, 24, 25, 29.97, 30, 50, 59.94, 60. When the user asks
+for a rate ("25 fps", "PAL", "24 for a film look"), set that number; don't
+fall back to `source` or 30. 60 fps costs about 1.5x the file size. The final mix is loudness-normalised to -14 LUFS by
 default (`podcast` = -16, `off`); tell the user the before/after, and don't
 pre-boost clip volumes. Surface every `warning`. Then `export.verify
 --exportId` before calling it good. The export library: `export.list`,
 `export.get`, `export.update`, `export.delete` (confirmed), `export.set-details`;
 per-project defaults with `project.set-export-settings` (`--quality`,
-`--normalizeLoudness`, `--frameRate=auto|30|60|source`). Loudness detail:
+`--normalizeLoudness`, `--frameRate=auto|source|<rate>`). Loudness detail:
 audio-color-music.md.
+
+Handing the edit to another editor ("open this in Premiere", "send me the
+project for Resolve", "editable timeline", "XML / EDL"): `export.timeline
+--id [--outputPath]` writes an FCP 7 XML on the original files plus an .srt,
+which Premiere (File > Import), Resolve (File > Import > Timeline) and Final
+Cut open. It carries the cuts, speed changes, camera, overlays, voice and
+music; tell the user the result's `notes` (zooms, caption styling, motion
+graphics, layouts and grade stay in PandaStudio) and any `missingFiles`.
+Never hand over a cut-list CSV for this.
 
 ## Video editing playbook — end-to-end recipe (per destination)
 
