@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.289.0 -->
+<!-- version: 3.290.0 -->
 
 # PandaStudio
 
@@ -1021,6 +1021,7 @@ and the doc named in the row.
 | Emphasis on one frame ("look at this", the turn of a story) | `project.add-freeze-frame --holdMs=1000–2000` (+ adjustment layer and a slow push over the hold for a record-scratch beat) | a long zoom |
 | Playful rewind ("wait, go back") | `project.add-reverse` over 1–3 s, audio muted | reversing speech you need |
 | Keyword on the stressed word, a number, a key term, the hero line, an end card | native motion element (`project.add-motion-element --wordId`, or the whole pass with `project.style-edit`) | an HTML render for plain words; words in a script the engine fonts can't draw |
+| A fast "everything my editor can do" Short: a different on-camera effect every beat (reel wall, card reveal, orbit, polaroids, twin stickers, word wall, neon, colour bloom, scrapbook, keys falling, add to cart, scroll list, three scenes) | creator-effects motion elements, one `project.add-motion-element` each on the word (`reelWall`, `cardFan`, `orbit`, `polaroids`, `sticker {image:"@speaker",twin:true}`, `wordWall`, `neon`, `bloom`, `scrapbook`, `keycaps`, `productCard`, `scrollList`, `splitScreen`), or the `creator-effects-short` recipe | HTML templates of the same look (they can't show the speaker's live shot or stand behind her) |
 | Punch-in on the payoff line | `project.add-zoom` (default), or `project.add-motion` keyframes for a snap without the swoosh | both on the same beat |
 | Glow, light leak, texture over footage | `--blendMode` on the overlay / FX / adjustment (`screen` drops black, `multiply` drops white, `softLight` / `overlay` lay texture in) | an opaque overlay |
 | A zoom you need to shape frame by frame | `project.convert-to-keyframes --regionId=<zoomId>` | re-placing zooms by hand |
@@ -1971,7 +1972,24 @@ Word-timed graphics the render engine draws itself (preview = export, nothing
 rendered to a file, editable any time): `keyword` headline, `chip`, `stamp`,
 `count` (number / range rolls up), `steps`, `slam` (+ camera kick), `behind`
 (word behind the speaker), `lowerThird`, `highlight`, `endCard`, `progress`,
-`iconPop`. **The default for keyword graphics** on talking heads and Shorts.
+`iconPop`, `frame`, `sticker`, long text (`ticker`, `credits`, `crawl`) and
+the **creator effects** built around the speaker (2.1.47+): `reelWall` (her
+own shot tiled into the wall behind her), `cardFan` (card reveal), `orbit`,
+`polaroids`, `wordWall` (a word repeated behind her), `neon`, `bloom` (colour
+bloom), `scrapbook` (ransom-note letters), `keycaps` (keys falling),
+`productCard` (add to cart), `scrollList` (a scrolling phone list),
+`splitScreen` (three scenes) and twin speaker stickers (`sticker { image:
+"@speaker", twin: true }`). **The default for keyword graphics** on talking
+heads and Shorts.
+
+- **"@speaker"** in any picture slot (`images`, `image`) is the speaker's own
+  live shot; the picture types default to it, a sticker cuts her out of it.
+  `layer: around` (orbit, polaroids) passes cards behind and in front of her.
+  Run `project.detect-face` first so they centre on the face; neon / bloom /
+  scrapbook go `layer: behind` only when there is headroom above the head.
+  The one-call map of a whole "everything my editor can do" reel, and the
+  `creator-effects-short` recipe: reference/motion-elements.md (Creator
+  effects).
 
 - **Vox / paper-cut / "cut-out on paper" / magazine collage look:**
   `project.style-edit --style=paper-cut` sets it all up (newsprint backdrop,
@@ -2398,7 +2416,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - [`reference/transcript-editing.md`](reference/transcript-editing.md) — the transcript edit loop, fillers, bad takes, silences, find-replace caveats, fixes that survive re-transcription.
 - [`reference/native-motion.md`](reference/native-motion.md) — keyframes, motion tracks, speed ramps, freeze, reverse, adjustment layers, blend modes, masks, enter/exit, caption moves, Ken Burns stills.
 - [`reference/visual-edits.md`](reference/visual-edits.md) — zooms, trims, speed, crop, style, webcam and podcast layouts, clips, focus regions, speaker background, green screen, frame checks, reset.
-- [`reference/motion-elements.md`](reference/motion-elements.md) — native motion elements (keyword, chip, stamp, count, steps, slam, behind, lowerThird, highlight, endCard, progress, iconPop): content shapes, style families, zones, behind-the-speaker, sound roles, word anchoring, `project.style-edit` rules tables, Shorts vs long-form recipes, when HTML instead.
+- [`reference/motion-elements.md`](reference/motion-elements.md) — native motion elements (keyword, chip, stamp, count, steps, slam, behind, lowerThird, highlight, endCard, progress, iconPop, and the creator effects: reelWall, cardFan, orbit, polaroids, wordWall, neon, bloom, scrapbook, keycaps, productCard, scrollList, splitScreen, "@speaker" pictures): content shapes, style families, zones, behind-the-speaker, sound roles, word anchoring, `project.style-edit` rules tables, Shorts vs long-form recipes, when HTML instead.
 - [`reference/3d-captions.md`](reference/3d-captions.md): `project.add-3d-captions`, 3D camera captions on a talking-head hook (when to use, args, the result, limits).
 - [`reference/speech-timing.md`](reference/speech-timing.md) — timing zooms, keyword graphics, sound effects and music to the words the speaker stresses, for any format: speech map → cue sheet → picture → score; density by format; import checks (flat colour, green backdrop, vertical footage); a worked example.
 - [`reference/soundtrack.md`](reference/soundtrack.md) — `media.compose-soundtrack`: the one-timeline method, score format, every sound, tempo maths, recipes, the PandaCrawl worked example.

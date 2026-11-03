@@ -118,7 +118,7 @@ back to the brand default); `zone` / `layer` / `sound` / `zIndex` `null` reset.
 Errors name the field and what it accepts, e.g. `element 1: endCard content is
 { lines: [string, string] }: lines must be exactly two strings`.
 
-## The 17 types
+## The 29 types
 
 | type | content | default length | sound (auto) | use it for |
 |---|---|---|---|---|
@@ -135,10 +135,73 @@ Errors name the field and what it accepts, e.g. `element 1: endCard content is
 | `progress` | `{ label?, fromMs?, toMs? }` (edited ms; default its own span) | 10 s | none | a chapter / countdown bar |
 | `iconPop` | `{ emoji }` or `{ icon }` | 1.5 s | pop | an icon burst: check, cross, plus, arrow-up, arrow-down, clock, star, heart, fire, bolt, bulb, warning, dollar, percent, question, exclamation (emoji map onto these) |
 | `frame` | `{ look: viewfinder \| selection \| corners, label? }` | 4 s | none | a frame around the speaker: `viewfinder` = camera-viewfinder overlay on the whole frame (corner brackets, blinking REC or `label`, running timecode, exposure readouts, battery); `selection` = a design-tool selection box around the speaker (handles, `label` name tag, W × H size pill; accent defaults to design-tool blue); `corners` = accent corner brackets around the speaker |
-| `sticker` | `{ image: transparent PNG path, label? }` | 2.5 s | pop | a cut-out image as a die-cut sticker: a white border that follows the image's own outline, a soft shadow, a tilted pop and a gentle float; `label` adds a strip of black label tape under it. Make the image with `media.generate-image --transparent=true` (Replicate or Higgsfield connector), or use the user's own PNG; without a connector ask the user for images |
+| `sticker` | `{ image: transparent PNG path or "@speaker", label?, twin? }` | 2.5 s | pop | `image: "@speaker"` = the speaker cut out of her own live shot (head and shoulders, needs the person matte); `twin: true` = a mirrored pair in the two lower corners (twin stickers). A cut-out image as a die-cut sticker: a white border that follows the image's own outline, a soft shadow, a tilted pop and a gentle float; `label` adds a strip of black label tape under it. Make the image with `media.generate-image --transparent=true` (Replicate or Higgsfield connector), or use the user's own PNG; without a connector ask the user for images |
 | `ticker` | `{ text, label?, speed? }`: one story per line (up to 2000 characters), `label` = the box on the left ("BREAKING", "LIVE"), `speed` px/s at 1080p (40-600, default 160) | 12 s | none | a news ticker: a band at the bottom (or `zone: "top"`) with the stories scrolling across in a loop. Band height follows `style.size`; `zone: { x, y, w }` sets its length and position |
 | `credits` | `{ title?, entries }`: `entries` = `[{ role?, name }]` or strings `"Role: Name"` (up to 200) | 15 s | none | rolling credits: the title, then each role (small, the secondary line) above its name, rolling up through the frame over the element's length (lengthen it for a slower roll) |
 | `crawl` | `{ title?, text, tilt?, turn? }`: paragraphs up to 6000 characters, `tilt` 0-80 degrees (lean back, default 60; 0 = a flat roll), `turn` -60..60 degrees (twist left / right) | 20 s | none | an opening crawl: the text scrolls up and away on a plane in true perspective, shrinking toward the horizon and fading in the distance. Colour = `style.text`, else the highlight colour. Over footage with captions, `project.hide-captions` over its span (same for credits) |
+
+### Creator effects (PandaStudio 2.1.47 and later, CLI / MCP 1.264.0+)
+
+Short-form effects built around the speaker. Every picture slot (`images`,
+`image`, a list row's `image`) takes an image path or `"@speaker"`: the
+speaker's own shot, live, as the viewer sees it framed (inside any baked-in
+letterbox bars). Picture types with no `images` show `"@speaker"` in every
+slot; fewer images than slots repeat in turn.
+
+| type | content | default length | layer | use it for |
+|---|---|---|---|---|
+| `reelWall` | `{ images?, count? (4-24, default 12) }` | 3 s | behind | reel wall: the wall behind her turns into a grid of tiles of her own shot, popping in from the centre out; she stands in front |
+| `cardFan` | `{ images?, count? (3-9, default 5) }` | 3 s | behind | card reveal: photo cards rise from behind her shoulders and fan out in an arc over her head |
+| `orbit` | `{ images?, count? (2-6, default 3) }` | 4 s | around | cards circling her on a tilted ring, behind her on the far side, in front on the near side |
+| `polaroids` | `{ images?, count? (2-8, default 5), captions? }` | 3.5 s | around | polaroid pile: snapshots drop in one by one, scattered around her, every other one tucked behind; `captions` = handwritten words on the bottom border |
+| `wordWall` | `{ text, rows? (3-14), background? }` | 3.5 s | behind | word wall: one word or phrase repeated in rows ("• word wall •") scrolling in alternate directions on a dark wall behind her. A persistent background, not a transition |
+| `neon` | `{ text, flicker? (default true) }` | 3 s | front | neon sign: thin glowing tube letters (colour `style.accent`, default hot pink) that stutter on and hum |
+| `bloom` | `{ text }` | 2.5 s | front | colour bloom: italic serif letters blooming in one after another, each in a soft rainbow colour, out of a glow (`style.accent` + `highlight` replace the rainbow) |
+| `scrapbook` | `{ text }` | 2.5 s | front | scrapbook text: ransom-note letters, each on its own scrap of paper (colour, typeface, tilt, ragged edges), popping on in turn |
+| `keycaps` | `{ text (up to 24 letters) }` | 3.5 s | front | keys falling: a keycap per letter rains down, tumbles, bounces and settles into a row along the bottom that spells the word |
+| `productCard` | `{ title, subtitle?, price?, image? (default "@speaker"), button? ("Add to cart"), done? ("Added") }` | 4 s | front | add to cart: a shop card slides up below the face; its button is tapped at 45% (press, ripple) and flips to "Added ✓". Only for a product or offer the speaker names |
+| `scrollList` | `{ title?, items: (string \| { title, subtitle?, image? })[] (up to 30), look?: playlist \| feed }` | 4 s | front | scroll overlay: a phone app list on a frosted dark panel down the side away from her face, scrolling steadily up (square artwork for a playlist, round avatars for a feed) |
+| `splitScreen` | `{ panels?: 2 \| 3, images?, zooms? (1-4 each, default 1, 1.35, 1.75) }` | 3 s | front | three scenes: the frame splits into stacked panels (side by side on 16:9), each her shot at its own zoom (wide, medium, close) or a given picture; panels slide in from alternating sides |
+
+Layers: `around` is for `orbit` and `polaroids` (their default); pin either
+to `front` or `behind` to draw every card on one side. `neon`, `bloom`,
+`scrapbook` (and `slam`, `keyword`) read best `behind` only when the shot has
+headroom (the top of the head below about 25% of the frame); on a tight crop
+leave them in front, where `zone: auto` puts them above the face. Behind and
+around elements and speaker stickers use the person matte: the preview shows
+"Preparing background" while it computes, the export runs it itself. Run
+`project.detect-face` (or `project.set-focal-point`) first so the cards,
+walls and panels centre on the face.
+
+### The creator-effects reel, one call per effect
+
+| effect (as in the "everything my editor can do" reels) | one call |
+|---|---|
+| wipe text | captions with `caption.set-template --templateId=clipWipe` |
+| reel wall | `reelWall {}` |
+| text slam above the head | `slam { text }` (`layer: behind` with headroom) |
+| color bloom | `bloom { text }` |
+| card reveal | `cardFan {}` |
+| twin stickers | `sticker { image: "@speaker", twin: true }` |
+| orbit | `orbit {}` |
+| carousel (3 cards at the bottom) | `steps { items: [a, b, c], images: ["@speaker", "@speaker", "@speaker"] }` |
+| kinetic title | `keyword { text }` |
+| word wall | `wordWall { text }` |
+| call to action | `endCard { lines: [ask, line] }` |
+| green screen | `project.set-clip-chroma-key` on green-screen footage; otherwise `project.add-background-effect --mode=image --backgroundImage=<studio>` |
+| neon sign | `neon { text }` |
+| polaroid pile | `polaroids {}` |
+| add to cart | `productCard { title, price? }` |
+| text behind you | `behind { text }` |
+| scrapbook text | `scrapbook { text }` |
+| background blur | `project.add-background-effect --mode=blur` |
+| three scenes | `splitScreen {}` |
+| keys falling | `keycaps { text }` |
+| scroll overlays | `scrollList { title, items }` |
+
+The `creator-effects-short` recipe puts them together with variety rules
+(never the same effect twice in a row, picture / word / scene effects in
+rotation, one full-frame takeover per 6 s at most).
 
 Text limits: 160 characters per field (a lower-third subtitle 320; a ticker
 2000, a crawl 6000, credits 200 entries); keep headlines to 1-4 words, a slam
@@ -207,12 +270,15 @@ in time or remove one.
 ## Layers: in front of or behind the speaker
 
 `layer: "front"` (default) draws over the video. `layer: "behind"` (the
-`behind` type's default) draws behind the person: with a chroma key or a
+default of `behind`, `reelWall`, `cardFan`, `wordWall`) draws behind the person: with a chroma key or a
 "remove" speaker background it sits under the transparent video; otherwise
 PandaStudio cuts the person out with the person matte and draws
 [video] → [element] → [person], so the head passes in front. Check with
 `project.render-frame` that the word still reads around the head. Any type can
 go behind (a count behind the speaker, a keyword), not just `behind`.
+`layer: "around"` (`orbit`, `polaroids` only, their default) splits the
+element: the cards on the far side of the speaker draw behind her, the rest in
+front.
 
 Front elements are part of the foreground stack with media overlays and
 annotations: position = group base + `zIndex` (B-roll 0, media overlays 1000,
