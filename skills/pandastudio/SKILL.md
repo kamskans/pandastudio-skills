@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.290.0 -->
+<!-- version: 3.291.0 -->
 
 # PandaStudio
 
@@ -769,6 +769,50 @@ generate them, or ask for images when no image connector is connected.
 `recipe.list [--format=short|long]` / `recipe.get` browse the catalog when the
 user asks what styles exist. After an edit the user likes, offer `recipe.save`.
 Detail: [`reference/recipes.md`](reference/recipes.md).
+
+## Make a video like a reference (`reference.*`, PandaStudio 2.1.47+)
+
+"Make my video like this TikTok", "copy the edit of this Reel", a pasted
+YouTube / TikTok / Instagram / X link with "do this with my footage": the
+user wants THEIR video edited like the reference. (Home → **Reference a
+video** is the same flow in the app.) CLI / MCP 1.265.0+.
+
+1. `reference.prepare --url=<link>` (or `--file=/abs.mp4|.mov|.webm`, or
+   `--galleryId` from `reference.gallery`) → `{ jobId }`; `job.wait` →
+   `{ id, title, durationMs, manifestPath, source }`. Fetched on this computer
+   (never a vendor server), up to 30 minutes. Private / sign-in-only videos,
+   other sites and profile links fail with a clear message: tell the user to
+   upload the file instead.
+2. `reference.analyze --id` → the setup: `analysis` = { title, format, aspect,
+   summary, elements (the rebuild list, each with the reference time it's
+   clearest at), slots (≤5: footage first, then logo / screen / product /
+   text) }. In-app it runs on the user's own model as a job; from an external
+   client you can look at the overview sheets yourself and pass
+   `--analysis='{…}'` instead.
+3. Ask the user for the slots (their footage is required; the rest they give,
+   type, or leave to you), then `reference.render --id --slots='{"footage":
+   {"mode":"files","paths":["/abs/take.mp4"]}, "cta": {"mode":"text","text":"…"},
+   "logo": {"mode":"agent"}}' [--mode=recipe --recipeId] [--projectId]` →
+   `{ prompt, missing }`. Follow the prompt. `mode=learn` (default) learns the
+   style and, with saveRecipe (default), saves it as a personal recipe;
+   `mode=recipe` applies a recipe, by default a curated entry's prebuilt one.
+4. The prompt's core loop: rebuild every element natively (motion elements
+   incl. the creator effects, catalog graphics, caption templates, zooms,
+   transitions, sound cues) with neutral placeholders, then for each one
+   `project.render-frame` → `reference.compare --id --frame=<png> --atMs=<ref
+   time>` (side-by-side JPG: reference left, edit right) → look →
+   `reference.score --id --element --score=1-5 --note`. Below 4: fix the
+   biggest difference, compare again (≤3 rounds). Only THEN put the user's
+   content in. `reference.attach --id --projectId` records the link on the
+   project (project.read `reference`).
+
+**The reference is guarded in code.** Its footage, frames, face, voice,
+words, music and logos never go into the user's video: every media verb
+refuses the reference file, any copy of it and anything under its study
+folder (`REFERENCE_MEDIA`), and export refuses a project that uses one. Don't
+work around it (no screenshots of it as overlays, no transcribing it, no
+quoting its words); rebuild from the user's own material. `reference.list` /
+`reference.get` / `reference.delete` manage prepared references.
 
 ## Routines — work the agent does on its own
 
@@ -2397,8 +2441,10 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   list-channels; **social** — channels, connect, connect-status, disconnect,
   post-status; **instagram** (older aliases of social) — connect, disconnect,
   status, account (publishing.md)
-- **recipe** — list, get, render, apply-style, save, export, import, delete
-  (recipes.md)
+- **recipe** — list, pick, get, render, apply-style, save, export, import, delete,
+  prepare-reference (recipes.md)
+- **reference** — check-link, gallery, prepare, analyze, render, compare, score,
+  attach, get, list, delete (recipes.md)
 - **memory** — save, list, forget
 - **recording** — list-sources, start, stop, get-countdown, set-countdown
   (recording.md)
@@ -2447,7 +2493,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - [`reference/publishing.md`](reference/publishing.md) — YouTube and social (Instagram, TikTok, Facebook, LinkedIn, X) publishing rules.
 - [`reference/projects-and-transcription.md`](reference/projects-and-transcription.md) — workspaces, brand kit, project defaults, folders, rename, transcription languages and providers, preview proxies, standalone transcription.
 
-When asked to learn or copy an editing style from a reference video, use `recipe.prepare-reference` and the reference-study workflow in `reference/recipes.md`. Save observed sound and transition behavior as reference-specific defaults; preserve the current project.
+When asked to make the user's video like a reference video, use `reference.prepare` → `reference.analyze` → `reference.render` (section "Make a video like a reference"). When asked only to learn or save an editing style from a reference (no edit now), use `recipe.prepare-reference` and the reference-study workflow in `reference/recipes.md`. Save observed sound and transition behavior as reference-specific defaults; preserve the current project.
 
 `pandastudio system.set-transcription-preferences --language=tamil --provider=deepgram`
 saves both workspace defaults in one write. Use only when the user wants future

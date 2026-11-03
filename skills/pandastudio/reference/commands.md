@@ -510,6 +510,15 @@ The MCP tool descriptions are kept short to save context. These are the details 
 | Verb | Arguments | Result |
 | --- | --- | --- |
 | `recipe.prepare-reference` | `file` (absolute path), `title`, `sourceUrl` (optional) | Async evidence preparation only: contact sheets, motion windows, mixed-audio excerpts, manifest and limitations. Agent inspects and saves with recipe.save; leaves projects unchanged. |
+| `reference.check-link` | `url` | Is this a YouTube / TikTok / Instagram / X single-video link? `{ url, platform }` or a clear error. No download. |
+| `reference.gallery` | — | Curated references `{ entries: [{ id, title, creator, platform, format, views, viewsLabel, poster, referenceVideo, resultVideo, recipeId, tags }] }`. |
+| `reference.prepare` | one of `url`, `file`, `galleryId`; `title` | Async. Fetch (on this computer) + study; 30-min cap. Result `{ id, title, durationMs, manifestPath, source }`. Guards the reference. |
+| `reference.analyze` | `id`, `analysis` (object, optional), `providerId`, `modelId` | Setup analysis: title, format, aspect, summary, elements, ≤5 slots. Async on the user's model, or stores the given analysis. |
+| `reference.render` | `id`, `slots`, `mode` (learn\|recipe), `recipeId`, `saveRecipe`, `projectId`, `note` | `{ prompt, missing }`: the rebuild → compare → score → content instruction. Changes nothing. |
+| `reference.compare` | `id`, `frame` (abs PNG), `atMs` (reference ms) | Side-by-side JPG `{ path, referenceFrame }`. |
+| `reference.score` | `id`, `element`, `score` (1-5), `note`, `atMs` | Records a rebuild's closeness; one per element. |
+| `reference.attach` | `projectId`, `id`, `recipeId`, `clear` | Writes `reference` on the project (metadata only). |
+| `reference.get` / `reference.list` / `reference.delete` | `id` | Prepared references. Delete removes downloads + study files, not uploads or projects. |
 
 ### Concurrent project saves
 

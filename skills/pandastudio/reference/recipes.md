@@ -112,6 +112,34 @@ When the user runs a recipe from the app, the in-app agent receives the same `ru
 - A recipe that asks for things the footage can't support (a Short recipe on landscape footage, chapters on a 40-second clip) should be flagged to the user before running.
 - Recipes declare the footage they need (`footageKinds`: camera, screen, podcast, audio, none). An audio-only project (a WAV / MP3 episode with no video) takes only recipes made for audio: `recipe.pick` offers no others, and `recipe.apply-style` / `recipe.render` fail on a camera or screen recipe with "This recipe needs camera footage; this project is audio only" without changing anything.
 
+## Make a video like a reference (Home → Reference a video)
+
+PandaStudio 2.1.47+, CLI / MCP 1.265.0+. The user pastes a YouTube, TikTok,
+Instagram or X link, uploads an MP4 / MOV / WebM, or picks a curated
+reference (`reference.gallery`: signed list on writepanda.ai; each entry has
+the reference clip, a poster, the finished PandaStudio result and optionally
+a prebuilt `recipeId`; cards show views). Then:
+
+| Step | Verb | Notes |
+| --- | --- | --- |
+| Check a link | `reference.check-link --url` | No download. YouTube / TikTok / Instagram / X single-video links only. |
+| Bring it in + study | `reference.prepare --url \| --file \| --galleryId` | Job. yt-dlp on this computer, 30-min cap, same evidence as `recipe.prepare-reference`. Registers the reference with the guard. |
+| Setup | `reference.analyze --id [--analysis]` | Job on the user's model (contact sheets attached), or your own analysis. ≤5 slots, footage first; rebuild list with reference times. |
+| The edit | `reference.render --id --slots [--mode learn\|recipe] [--recipeId] [--saveRecipe] [--projectId] [--note]` | Returns the prompt to follow and `missing` slots. |
+| Check a rebuild | `reference.compare --id --frame --atMs` → `reference.score --id --element --score --note` | Side-by-side vs the reference; scores 1-5, ≥4 to move on. |
+| Remember | `reference.attach --id --projectId [--recipeId] [--clear]` | Writes `reference` on the project (metadata only). |
+
+Slot fills: `{ "mode": "file", "path" }`, `{ "mode": "files", "paths" }`
+(footage takes), `{ "mode": "text", "text" }`, `{ "mode": "agent" }` (you
+decide from the user's transcript / brand kit, or leave it out; never from the
+reference). Footage can't be left to you.
+
+Guard: every verb except `reference.*`, `recipe.prepare-reference` and
+`audio.describe` refuses a path that is the reference, a byte-identical copy
+(content fingerprint) or anything under its study folder, with
+`details.code = "REFERENCE_MEDIA"`; export refuses a project using one. The
+reference teaches the edit; it never appears in it.
+
 ## Learn an editing style from a reference
 
 The Recipes tab has **Learn editing style**: choose a local reference or
