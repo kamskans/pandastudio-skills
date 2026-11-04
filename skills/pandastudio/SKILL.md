@@ -795,7 +795,10 @@ video** is the same flow in the app.) CLI / MCP 1.265.0+.
    "logo": {"mode":"agent"}}' [--mode=recipe --recipeId] [--projectId]` →
    `{ prompt, missing }`. Follow the prompt. `mode=learn` (default) learns the
    style and, with saveRecipe (default), saves it as a personal recipe;
-   `mode=recipe` applies a recipe, by default a curated entry's prebuilt one.
+   `mode=recipe` applies a recipe, by default a curated entry's prebuilt one;
+   `mode=save --recipeTitle="…"` only studies the reference and saves its style
+   as a recipe, with no video made now (slots ignored; Home's "Learn a style
+   from a video" and the setup screen's "Just save the style").
 4. The prompt's core loop: rebuild every element natively (motion elements
    incl. the creator effects, catalog graphics, caption templates, zooms,
    transitions, sound cues) with neutral placeholders, then for each one
@@ -2493,7 +2496,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - [`reference/publishing.md`](reference/publishing.md) — YouTube and social (Instagram, TikTok, Facebook, LinkedIn, X) publishing rules.
 - [`reference/projects-and-transcription.md`](reference/projects-and-transcription.md) — workspaces, brand kit, project defaults, folders, rename, transcription languages and providers, preview proxies, standalone transcription.
 
-When asked to make the user's video like a reference video, use `reference.prepare` → `reference.analyze` → `reference.render` (section "Make a video like a reference"). When asked only to learn or save an editing style from a reference (no edit now), use `recipe.prepare-reference` and the reference-study workflow in `reference/recipes.md`. Save observed sound and transition behavior as reference-specific defaults; preserve the current project.
+When asked to make the user's video like a reference video, use `reference.prepare` → `reference.analyze` → `reference.render` (section "Make a video like a reference"). When asked only to learn or save an editing style from a reference (no edit now), use `reference.prepare` → `reference.render --mode=save --recipeTitle` (a link, guarded like any reference), or `recipe.prepare-reference` and the reference-study workflow in `reference/recipes.md` for a file you may study directly. Save observed sound and transition behavior as reference-specific defaults; preserve the current project.
 
 `pandastudio system.set-transcription-preferences --language=tamil --provider=deepgram`
 saves both workspace defaults in one write. Use only when the user wants future

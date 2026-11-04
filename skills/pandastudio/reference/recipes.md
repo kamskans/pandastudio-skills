@@ -126,6 +126,7 @@ a prebuilt `recipeId`; cards show views). Then:
 | Bring it in + study | `reference.prepare --url \| --file \| --galleryId` | Job. yt-dlp on this computer, 30-min cap, same evidence as `recipe.prepare-reference`. Registers the reference with the guard. |
 | Setup | `reference.analyze --id [--analysis]` | Job on the user's model (contact sheets attached), or your own analysis. ≤5 slots, footage first; rebuild list with reference times. |
 | The edit | `reference.render --id --slots [--mode learn\|recipe] [--recipeId] [--saveRecipe] [--projectId] [--note]` | Returns the prompt to follow and `missing` slots. |
+| Only save the style | `reference.render --id --mode save [--recipeTitle] [--note]` | The study-and-save prompt: a new personal recipe, no video now. |
 | Check a rebuild | `reference.compare --id --frame --atMs` → `reference.score --id --element --score --note` | Side-by-side vs the reference; scores 1-5, ≥4 to move on. |
 | Remember | `reference.attach --id --projectId [--recipeId] [--clear]` | Writes `reference` on the project (metadata only). |
 
