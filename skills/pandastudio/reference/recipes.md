@@ -116,9 +116,11 @@ When the user runs a recipe from the app, the in-app agent receives the same `ru
 
 PandaStudio 2.1.47+, CLI / MCP 1.265.0+. The user pastes a YouTube, TikTok,
 Instagram or X link, uploads an MP4 / MOV / WebM, or picks a curated
-reference (`reference.gallery`: signed list on writepanda.ai; each entry has
-the reference clip, a poster, the finished PandaStudio result and optionally
-a prebuilt `recipeId`; cards show views). Then:
+reference (`reference.gallery`: signed list on writepanda.ai of real creators'
+posts; each card shows the original's poster and length, the creator's avatar,
+name and views, and may have a hover preview, the finished PandaStudio result
+and a prebuilt `recipeId`; Use fetches the whole original from its post on this
+computer). Then:
 
 | Step | Verb | Notes |
 | --- | --- | --- |
