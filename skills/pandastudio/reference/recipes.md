@@ -115,12 +115,13 @@ When the user runs a recipe from the app, the in-app agent receives the same `ru
 ## Make a video like a reference (Home → Reference a video)
 
 PandaStudio 2.1.47+, CLI / MCP 1.265.0+. The user pastes a YouTube, TikTok,
-Instagram or X link, uploads an MP4 / MOV / WebM, or picks a curated
-reference (`reference.gallery`: signed list on writepanda.ai of real creators'
-posts; each card shows the original's poster and length, the creator's avatar,
-name and views, and may have a hover preview, the finished PandaStudio result
-and a prebuilt `recipeId`; Use fetches the whole original from its post on this
-computer). Then:
+Instagram or X link or uploads an MP4 / MOV / WebM. Curated creator references
+(`reference.gallery`: signed list on writepanda.ai of real creators' posts, each
+with a prebuilt `recipeId`) appear on Home as the first cards of "Start from a
+proven edit" (the recipe list), with the creator's video and credit: when the
+user names one of those creators' edits, run its `recipeId` with `recipe.render`
+directly; prepare the reference (`--galleryId`) only to study or compare it.
+Then, for a pasted or uploaded reference:
 
 | Step | Verb | Notes |
 | --- | --- | --- |
