@@ -774,8 +774,10 @@ Detail: [`reference/recipes.md`](reference/recipes.md).
 
 "Make my video like this TikTok", "copy the edit of this Reel", a pasted
 YouTube / TikTok / Instagram / X link with "do this with my footage": the
-user wants THEIR video edited like the reference. (Home → **Reference a
-video** is the same flow in the app.) CLI / MCP 1.265.0+.
+user wants THEIR video edited like the reference. (In the app: Home → Start
+from a proven edit → "Don't see your style?".) If the named video is one of
+the curated creator references (`reference.gallery`), run its `recipeId` with
+`recipe.render` instead: it is already a recipe. CLI / MCP 1.265.0+.
 
 1. `reference.prepare --url=<link>` (or `--file=/abs.mp4|.mov|.webm`, or
    `--galleryId` from `reference.gallery`) → `{ jobId }`; `job.wait` →
@@ -797,8 +799,8 @@ video** is the same flow in the app.) CLI / MCP 1.265.0+.
    style and, with saveRecipe (default), saves it as a personal recipe;
    `mode=recipe` applies a recipe, by default a curated entry's prebuilt one;
    `mode=save --recipeTitle="…"` only studies the reference and saves its style
-   as a recipe, with no video made now (slots ignored; Home's "Learn a style
-   from a video" and the setup screen's "Just save the style").
+   as a recipe, with no video made now (slots ignored; the setup screen's
+   "Just save the style").
 4. The prompt's core loop: rebuild every element natively (motion elements
    incl. the creator effects, catalog graphics, caption templates, zooms,
    transitions, sound cues) with neutral placeholders, then for each one

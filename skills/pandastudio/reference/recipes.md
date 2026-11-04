@@ -112,7 +112,7 @@ When the user runs a recipe from the app, the in-app agent receives the same `ru
 - A recipe that asks for things the footage can't support (a Short recipe on landscape footage, chapters on a 40-second clip) should be flagged to the user before running.
 - Recipes declare the footage they need (`footageKinds`: camera, screen, podcast, audio, none). An audio-only project (a WAV / MP3 episode with no video) takes only recipes made for audio: `recipe.pick` offers no others, and `recipe.apply-style` / `recipe.render` fail on a camera or screen recipe with "This recipe needs camera footage; this project is audio only" without changing anything.
 
-## Make a video like a reference (Home → Reference a video)
+## Make a video like a reference (Home → Start from a proven edit → "Don't see your style?")
 
 PandaStudio 2.1.47+, CLI / MCP 1.265.0+. The user pastes a YouTube, TikTok,
 Instagram or X link or uploads an MP4 / MOV / WebM. Curated creator references
