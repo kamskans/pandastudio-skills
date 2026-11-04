@@ -363,6 +363,26 @@ moved. Full guide: [`reference/projects-and-transcription.md`](reference/project
   media for another computer; `project.import-package --source=<zip|folder>`
   (job) brings one in as a new project.
 
+## The user records themselves, with your script (`recording.open-recorder`, 2.1.47+)
+
+You wrote a script and the user should now record it on camera (from any
+client: Claude, ChatGPT, Hermes, OpenClaw, the CLI): call
+`recording.open-recorder --script="<plain text they will read>" --mode=camera|screen|both --orientation=landscape|portrait`.
+Decide the format yourself from the plan: camera (solo talking head), screen
+(screen only) or both (screen with their camera bubble), and portrait for
+Shorts / Reels / TikTok, landscape for YouTube or a course. Orientation sets the
+camera shape for a camera take; a screen take is recorded as the screen is and
+made vertical while editing (project.set-aspect-ratio 9:16).
+It opens PandaStudio's recorder bar with the script in the teleprompter (it
+scrolls as they record, can follow their voice, and never shows in the video).
+Then tell them to press Record in the bar at the bottom of the screen. You
+never start their camera or microphone yourself. When they stop, the take opens
+in the editor as a new project: `project.current` gives its id, then edit as
+usual. Keep the script to what they'll say out loud (no headings, markdown or
+stage directions); about 150 words is a minute on camera (the result's
+`readSeconds`). In chat apps that show MCP views it comes with a recorder card
+(edit the script, reopen the recorder, "I've recorded it").
+
 ## Recording the screen yourself (agent-driven, v1.86+)
 
 Area recording: `recording.start --area='{"displayId":1,"x":100,"y":80,"width":640,"height":360}' --aspectRatio=16:9`. Coordinates are display-local points (minimum 32 x 32). `recording.list-sources` returns displayId, bounds and scaleFactor. Aspect presets: Free, 16:9, 9:16, 1:1, 4:3. Without area, aspectRatio fits a region on the selected display. Native cropped files preserve framing through pause/recovery. See [recording.md](reference/recording.md). Requires the app build containing these source changes; no package release is implied.
