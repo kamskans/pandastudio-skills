@@ -194,7 +194,7 @@ walls and panels centre on the face.
 | add to cart | `productCard { title, price? }` |
 | text behind you | `behind { text }` |
 | scrapbook text | `scrapbook { text }` |
-| background blur | `project.add-background-effect --mode=blur` |
+| background blur | whole video: `project.set-speaker-background --mode=blur` (replaces any earlier whole-video background); one stretch: `project.add-background-effect --mode=blur` |
 | three scenes | `splitScreen {}` |
 | keys falling | `keycaps { text }` |
 | scroll overlays | `scrollList { title, items }` |

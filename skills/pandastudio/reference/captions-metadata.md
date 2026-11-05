@@ -24,6 +24,15 @@ pandastudio caption.set-style --id=$ID --fontFamily="Noto Sans Tamil"
 pandastudio caption.set-style --id=$ID --uppercase=true
 ```
 
+To copy a complete look (a recipe's, a reference video's) use one call that
+replaces whatever was there, so nothing from an earlier style survives:
+
+```bash
+pandastudio caption.set-look --id=$ID --enabled=true --templateId=mutedBox \
+  --wordsPerLine=4 --positionY=70 \
+  --style='{"fontFamily":"Poppins","color":"#9C9C9C","highlightColor":"#111111","uppercase":false}'
+```
+
 `caption.set-template` starts from the template's own look: it clears earlier style overrides (as picking a style in the Captions tab does) and takes the template's designed words per group when it has one; position is kept. So pick the template FIRST, then tune with `caption.set-style`.
 
 Static templates: `classic | modern | minimal | bold | spotlight | boxed | neon | colored | coloredWords | editorial | glowStack`. Emphasis templates: `hormoziEmphasis | tiltedBox | serifItalic | condensedCaps | scriptKeyword` (below). New projects start by shape: vertical `hormoziEmphasis`, everything else `classic` (turning captions on with `caption.toggle` uses it and detects the key words). When the user says "add captions" without naming a style, choose by format: vertical Shorts / Reels / TikTok → `hormoziEmphasis`; long-form / 16:9 / tutorials / talking heads → `classic`; then match the highlight to the brand colour if the brand kit has one. Use `glowStack` only when asked for it. A recipe or destination profile wins (a recipe's caption setting always does, e.g. Ali style keeps captions off).

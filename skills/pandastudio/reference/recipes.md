@@ -3,7 +3,7 @@
 A recipe is an edit that worked, saved so it can be run again on new footage:
 
 - a **prompt** with fill-in blanks (`{{language}}`, `{{accentColor}}`) for the parts that depend on the video,
-- an optional **fixed style** (aspect ratio, color correction, grade, background, camera layout, captions) to apply exactly,
+- a **fixed style**: the whole look of the reference edit, applied exactly: aspect ratio, the full caption look (template, words per line, position, font, colours, case, emphasis), the speaker background (none / blur / remove / studio), vertical framing, grade, camera layout, plus the B-roll rule and the title / callout design (fonts, colours, element family) that the agent must use verbatim,
 - a **checklist** to verify with rendered frames before saying the edit is done.
 
 Recipes are grouped by **format**: `short` (vertical Shorts / Reels / TikTok) and `long` (YouTube videos, product demos, courses, explainers). Starter recipes ship with the app; users can save their own per workspace. In the app, users find them in three places: the **Start from a recipe** row on the home screen (pick a recipe, then record, import or choose a project; the editor opens with that recipe ready), the suggestions in an empty AI chat, and the **Recipes** tab of the AI agent panel, where they fill the blanks and press **Run on this project**. After an edit, the chat offers **Save this edit as a recipe**, which asks you to run `recipe.save`.
@@ -73,12 +73,40 @@ pandastudio recipe.render --id=product-demo-walkthrough \
 ```
 
 ```bash
-# 4. Apply the fixed style (aspect ratio, captions + template, wallpaper, camera
-#    layout, backdrop, grade). Deterministic — do this BEFORE the content work.
+# 4. Apply the fixed style (aspect ratio, the full caption look, speaker
+#    background, framing, wallpaper, camera layout, grade). Deterministic: do
+#    this BEFORE the content work. It replaces an earlier recipe's look.
 pandastudio recipe.apply-style --id=product-demo-walkthrough \
   --values='{"product":"PandaStudio"}' --json
 # → { applied: ["Aspect ratio 16:9", "Captions off"], failed: [], notes: [], warnings: [] }
 ```
+
+What `style` holds, and who applies it:
+
+| key | shape | applied by |
+|---|---|---|
+| `captions` | `{ enabled, templateId?, wordsPerLine?, positionY?, style?: { fontFamily, fontSize, color, backgroundColor, highlightColor, highlightBackgroundColor, strokeColor, strokeWidth, uppercase, highlightMode, emphasisColor, emphasisBackgroundColor, emphasisScale, emphasisItalic, emphasisFontFamily, boxRotation } }` | apply-style via `caption.set-look`: the whole look REPLACES the current one, so a recipe run after another never keeps the last one's position or overrides |
+| `speakerBackground` | `{ mode: none\|blur\|remove\|image, image?, strength?, outline? }` | apply-style via `project.set-speaker-background` (whole video; `none` clears a previous recipe's). The legacy `background` key (remove / image only) is still read when this is absent |
+| `framing` | `{ shortsLayout: full\|camera-corner }` | apply-style via `project.set-shorts-layout` (camera-only footage) |
+| `broll` | `{ use: none\|ask\|generate\|user-images, layout?: full\|split\|card, notes? }` | you: the moments depend on what's said; follow the rule exactly (`ask` = ask before generating) |
+| `graphics` | `{ family?, titleFont?, bodyFont?, accentColor?, textColor?, surfaceColor?, notes? }` | you: every title, callout and card uses these exact fonts and colours |
+
+**The target look, as pictures.** Most starter recipes (and recipes learned
+from a reference) carry `lookFrames`: 3 to 6 stills of the finished look at
+its key moments, each with what it shows. The run context lists them; before
+the first edit call `recipe.look-frames --id=<recipe>` (over MCP the images are
+attached) and look at every one. Match the look (caption size and position,
+framing, where and how big cards and titles sit, how B-roll shows), never the
+content (their words, people, logos, topic). When the edit is done,
+`project.render-frame` at the matching beats and compare each with its still;
+fix visible differences in the look before reporting done. A recipe saved with
+`recipe.save` can carry its own `lookFrames` (`[{ src: absolute image path,
+shows, atMs? }]`, up to 8): the store keeps a copy, and `.pandarecipe` exports
+embed them.
+
+Never change a fixed value because another looks better on this footage: the
+recipe is a copy of a reference style. If the user asks for a change, change
+that one thing (e.g. `caption.set-style --positionY`) and say so.
 
 A recipe's `style` can carry the whole screen + camera layout, and apply-style
 sets all of it: `screen` (`padding`, `borderRadius`, `shadow`, `fill`: `fit` |
@@ -102,7 +130,7 @@ When the user runs a recipe from the app, the in-app agent receives the same `ru
 
 ## Saving and sharing
 
-- **"Save this as a recipe" / "remember this style"** after an edit came out right → `recipe.save --recipe='<json>'`. A recipe that builds on pictures can declare an images blank: `{ "key": "images", "label": "Your own images", "type": "images", "optional": true, "maxCount": 12 }` and use `{{images}}` in the prompt (the app shows a file picker and which image connector would generate them otherwise). Turn video-specific values (language, colors, product name, topic) into blanks with sensible defaults; keep the things that define the look fixed in `style`; write 3 to 6 checklist items a frame can confirm. Set `format` to `short` for vertical output and `long` otherwise (it's inferred from `aspectRatio` when omitted).
+- **"Save this as a recipe" / "remember this style"** after an edit came out right → `recipe.save --recipe='<json>'`. A recipe that builds on pictures can declare an images blank: `{ "key": "images", "label": "Your own images", "type": "images", "optional": true, "maxCount": 12 }` and use `{{images}}` in the prompt (the app shows a file picker and which image connector would generate them otherwise). Turn video-specific values (language, colors, product name, topic) into blanks with sensible defaults; put everything that defines the look in `style` (the full caption look with every value you set, the speaker background, framing, the B-roll rule and the title fonts and colours), not only in the prompt; write 3 to 6 checklist items a frame can confirm. Set `format` to `short` for vertical output and `long` otherwise (it's inferred from `aspectRatio` when omitted).
 - `recipe.export --id=<id>` writes a `.pandarecipe` file (no project data or footage). `recipe.import --file=<path>` adds one. Users can do both from the app: Import sits at the top of the Recipes tab, and Export (plus Delete, for their own) sits in a recipe's detail view.
 - `recipe.delete --id=<id>` removes a saved recipe; starters can't be deleted.
 

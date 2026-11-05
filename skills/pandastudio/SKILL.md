@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.291.0 -->
+<!-- version: 3.293.0 -->
 
 # PandaStudio
 
@@ -759,8 +759,9 @@ memory, wins. Otherwise, for any "edit my video" / "make this a Short" /
    a 16:9 project becoming a Short is cut out with `export.generate-shots` +
    `project.fork-from-shot` first, and the recipe runs on the fork).
 4. `recipe.apply-style --id --projectId` (sets the fixed look), `recipe.render
-   --id --values=…`, then follow the prompt and verify its checklist with
-   rendered frames.
+   --id --values=…`, then `recipe.look-frames --id` (stills of the target
+   look; match the look, never the content), follow the prompt, and verify
+   its checklist with rendered frames compared against those stills.
 5. Tell the user which recipe and why in one line, and name one or two
    alternatives from `candidates`.
 
@@ -1462,9 +1463,13 @@ give you.
   screen, and the tilt eases off inside zooms. For a polished product demo:
   browser frame + mesh background + `--tilt=left --tiltFollowCursor=true
   --tiltStrength=60`. Check with `project.render-frame`.
-- **Speaker background:** `project.add-background-effect
+- **Speaker background:** for the whole video `project.set-speaker-background
+  --mode=none|blur|remove|image` (replaces any earlier whole-video background,
+  `none` clears it); for one stretch `project.add-background-effect
   --mode=blur|remove|image` (AI person matte, camera footage only; `remove`
   puts the outline on by default; `image` = virtual studio plates).
+- **Copy a caption look exactly:** `caption.set-look` (template + every value
+  in one call; replaces the current look). Recipes apply theirs this way.
 - **Green screen:** `project.set-overlay-chroma-key` (overlay) /
   `project.set-clip-chroma-key` (main video or `--target=camera`); `--color=auto`
   detects the key; always check with `render-frame` and nudge `--similarity` by
