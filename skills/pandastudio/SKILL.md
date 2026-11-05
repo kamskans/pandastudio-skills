@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.293.0 -->
+<!-- version: 3.295.0 -->
 
 # PandaStudio
 
@@ -517,6 +517,13 @@ recipes, for a custom style no recipe covers:
 | Landscape with 2+ people (interview, podcast, talk show) | `project.auto-reframe` (tracked active-speaker camera; set 9:16 first) |
 | Podcast / interview WIDE (both people in one shot) to 9:16 | `project.auto-reframe --split=true`: two-person shots become two stacked tiles, left person on top; then `caption.set-style --positionY=50` to put captions on the seam. `clips.make` does both automatically. |
 | One stationary talking head, crop nudge | `project.set-focal-point` |
+
+**Same shape, follow the speaker (16:9 in 16:9):** `project.auto-reframe` also works
+when the footage already has the video's shape (a 16:9 wide of two hosts in a
+16:9 video): it punches in on whoever is talking inside the frame and shows the
+whole frame when it's unclear. It is the way to get face-tracked or
+active-speaker zooms on the MAIN video; `project.center-camera-on-face` is only
+for a separate camera card or podcast tiles. No speaker IDs needed.
 
 Camera card ring / circle on a camera-only video: `project.set-style
 --borderWidth --borderColor [--shape=circle]` (not `set-webcam-style`).
@@ -1819,8 +1826,9 @@ media-generation.md "Faceless videos".
 `media.generate-image --prompt [--aspectRatio=1:1|3:2|2:3|4:3|3:4|16:9|9:16]
 [--quality] [--referenceImagePath] [--transparent=true]
 [--provider=auto|replicate|higgsfield]` runs on the user's OWN image connector
-and bills their credits there: `auto` (default) = Replicate (gpt-image-2) when
-connected, otherwise Higgsfield (GPT Image 2.5). Returns `{ imagePath,
+and bills their credits there: `auto` (default) = GPT Image 2.6 on Replicate when
+connected, otherwise on Higgsfield (Flare for new images, Sunburst when a
+reference image is passed). Returns `{ imagePath,
 provider, model, aspectRatio, transparent, transparency?, warnings? }`; say
 which service it used. Each call is a paid generation: never repeat one "to be
 safe", and relay `warnings`.

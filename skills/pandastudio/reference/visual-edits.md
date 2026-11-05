@@ -228,6 +228,8 @@ pandastudio project.follow-speaker --id=$ID [--dryRun=true]
 #   --pair=false          never show both, always cut
 #   --exchangeTurnMs=2600 turns this short count toward a back-and-forth
 # One wide shot of several people isn't a podcast recording: project.auto-reframe.
+# It also works when the wide already has the video's shape (16:9 in 16:9):
+# it punches in on whoever talks inside the frame.
 
 # PODCAST SOURCE FRAMING AND SCREEN-SHARE DISCOVERY
 # The editor's source framing controls have the same CLI + MCP API.

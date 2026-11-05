@@ -136,7 +136,7 @@ hero shot. Rules:
    `media.generate-image` + `media.image-to-video` (Ken Burns) as what you can
    do instead. Never swap in the fallback silently.
 5. **Stills: use `media.generate-image`, not Higgsfield's tools.** It already
-   runs on Higgsfield (GPT Image 2.5) when Replicate isn't connected, headless
+   runs on Higgsfield (GPT Image 2.6) when Replicate isn't connected, headless
    (submit + poll, never the widget tools), with `use_unlim: false`, downloads
    the result before the link expires, and returns a local path.
    `--provider=higgsfield` forces it when both are connected.
@@ -148,8 +148,8 @@ connector, billed to their credits there:
 
 | Connected | Used |
 |---|---|
-| Replicate (connector, or an older saved key) | `openai/gpt-image-2` on Replicate |
-| Higgsfield only | `gpt_image_2_5` on Higgsfield |
+| Replicate (connector, or an older saved key) | `openai/gpt-image-2.6-flare` on Replicate (`-sunburst` with reference images) |
+| Higgsfield only | `gpt_image_2_6_flare` on Higgsfield (`gpt_image_2_6`, the Sunburst variant, with reference images) |
 | neither | error `NO_IMAGE_CONNECTOR` |
 
 - `--provider=replicate|higgsfield` picks one explicitly (only when the user

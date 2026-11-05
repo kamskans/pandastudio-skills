@@ -152,7 +152,7 @@ call. Pass only the fields you want to change.
 
 ## YouTube thumbnails (v1.18+)
 
-PandaStudio generates YouTube thumbnails on **the user's own image connector**: Replicate's `openai/gpt-image-2` when Replicate is connected, otherwise Higgsfield's GPT Image 2.5 — PandaStudio never pays for or proxies these calls.
+PandaStudio generates YouTube thumbnails on **the user's own image connector**: GPT Image 2.6 on Replicate when Replicate is connected, otherwise on Higgsfield (Flare for a new thumbnail, Sunburst for an edit of the current one) — PandaStudio never pays for or proxies these calls.
 
 Requires Replicate or Higgsfield connected in **Settings → Integrations →
 Connectors** (a sign-in the user does in the app, never via CLI). If a verb
@@ -161,7 +161,7 @@ and offer the fallback: they give you an image of their own and you set it with
 `export.set-thumbnail`.
 
 **Verbs:**
-- `export.generate-thumbnail --id=$EID` — GPT Image at 3:2, cropped to 1280×720. Two ways to drive it:
+- `export.generate-thumbnail --id=$EID` — GPT Image 2.6 at 16:9, scaled to 1280×720. Two ways to drive it:
   - **Controlled (preferred):** `--subject="a phone showing a first $79 Stripe sale"`
     `--hook="FIRST SALE"` `--reaction=excitement` `--layout=reaction-split`. The
     prompt is assembled deterministically — no transcript/LLM needed. `reaction` ∈
@@ -179,7 +179,7 @@ and offer the fallback: they give you an image of their own and you set it with
 - `export.revert-thumbnail --iterationId=…` / `export.clear-thumbnail` — history
   is in `entry.thumbnailIterations[]` (via `export.get`).
 
-**Prompt shape that works** (gpt-image-2 rewards photo-language): one focal
+**Prompt shape that works** (GPT Image rewards photo-language): one focal
 subject in photo terms ("extreme close-up of…"); specify lighting; **quote
 on-image text** (`reading "GAME OVER"` — its text rendering is sharp); on edits,
 lock what shouldn't change and iterate one thing at a time.

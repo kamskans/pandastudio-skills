@@ -126,8 +126,9 @@ scene to its line (TTS runs longer than you'd guess; see promo-and-mg-videos.md
 ## B-roll generation (the user's image connector)
 
 PandaStudio ships with a project-level image-gen verb that runs on the
-user's own image connector: Replicate (openai/gpt-image-2) when it's
-connected, otherwise Higgsfield (GPT Image 2.5). Use it to author B-roll,
+user's own image connector: GPT Image 2.6 on Replicate when it's
+connected, otherwise on Higgsfield (Flare for new images, Sunburst when a
+reference image is passed). Use it to author B-roll,
 concept stills, mood-board frames, stickers, or reference imagery for
 explainer beats — without leaving the editor.
 
@@ -143,7 +144,7 @@ pandastudio media.generate-image \
   --aspectRatio=3:2 \
   --quality=medium
 # → { imagePath: "/Users/.../generated-images/<ts>-cinematic-35mm.webp",
-#     provider: "replicate", model: "openai/gpt-image-2", ... }
+#     provider: "replicate", model: "openai/gpt-image-2.6-flare", ... }
 ```
 
 **Aspect ratios:** `1:1`, `3:2`, `2:3`, `4:3`, `3:4`, `16:9`, `9:16` (both
@@ -219,7 +220,7 @@ render with `motion.render-html --durationMs=…`.
 
 - **YouTube thumbnails** — use `export.generate-thumbnail` (it's tied to an export entry and tracks iteration history).
 - **Logos / brand marks / typography** — image-gen wrecks fine type. Author those as HTML in `motion.render-html`.
-- **Anything with text overlays** — gpt-image-2's text rendering is unreliable. Generate a clean photo, add text via the motion-graphic wrap.
+- **Anything with text overlays** — generated text can still come out wrong. Generate a clean photo, add text via the motion-graphic wrap.
 
 
 
