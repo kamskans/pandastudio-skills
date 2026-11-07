@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.295.0 -->
+<!-- version: 3.297.0 -->
 
 # PandaStudio
 
@@ -622,8 +622,8 @@ recording. Order:
    title, privacy and destinations with the user first. Check
    `failedDestinations`, then `podcast.live-status` for each output's state.
 4. During the show: `podcast.set-scene --scene=auto|solo|pair|grid|screen|pip|starting|brb|ending
-   [--participants=host,guest]`, `podcast.set-stage --participant --onAir/--muted`
-   (backstage guests and call-ins wait off air), `podcast.show-overlay
+   [--participants=host,guest]`, `podcast.set-stage --participant --stage=on|back
+   [--upNext --muted]` (backstage guests and call-ins wait off air), `podcast.show-overlay
    --kind=lower-third|banner|ticker|comment|logo|countdown` /
    `podcast.hide-overlay`, `podcast.live-comments` then `show-overlay
    --kind=comment --commentId`, `podcast.play-media --which=intro|outro`.
@@ -651,6 +651,58 @@ time they're connected (one at a time); everyone sees it as the main view
 labelled with the sharer's name. `podcast.start-screen-share` shares the
 host's.
 
+### Roles and stage: a producer runs the show
+
+Two separate things per person. Role = what they can do (producer, host,
+guest, caller). Stage = whether the audience gets them: only ON-STAGE people
+are in the stream, the recording and the edit. Backstage people can watch the
+show (guests by default, callers only when queued), and a producer can talk
+privately into their ear (talkback, never on air or recorded).
+
+- The desktop either hosts (default: its operator is the host, on camera) or
+  produces: `podcast.set-mode --mode=producing` (not while recording; also
+  `podcast.schedule --mode=producing --host={name,email}`). The producer
+  stays backstage and is never recorded unless they step on stage. The show's
+  host joins by the host link: `podcast.invite --sessionCode --as=host`.
+  A second producer can watch from a browser: `podcast.invite --as=producer`
+  (talks privately, approves the AI producer's cards, drops markers; never on
+  stage, never recorded; at most 2).
+- Ids: `host` is always the show's host (desktop or host link), `producer`
+  the desktop when producing, `cohost` someone on the host link while the
+  desktop hosts, `guest`/`guest-2`/`guest-3`, `caller-N`, `producer-web-N`.
+- `podcast.set-stage --participant --stage=on|back [--upNext --muted]` works
+  before the show, while recording and while live. Producing: the host link
+  lands on stage, guests and callers backstage; the producer brings them on.
+- `podcast.talkback --to=host|guest-2|stage [--active=false]`: the desktop's
+  mic reaches only them until stopped. `podcast.cue-host --text="Wrap up in
+  2"` puts a card on the host's page. `podcast.host-control --on` gives the
+  host Record, stage and next segment on their page (graphics and going live
+  stay with the producer).
+- Recording follows the stage: `podcast.start-recording` records everyone on
+  stage now and everyone else from their first time on stage; backstage
+  stretches are recorded as silence. `podcast.status` → `people[]` (role,
+  stage, upNext, talkingPrivately, recording) and, while recording,
+  `takeStage` (who was on stage when). The edit gets layout sections for
+  stretches where not everyone recorded was on stage (solo / pair / grid /
+  screen share with the on-stage people), plus `podcast.stage` in the project.
+- Moving someone on stage is an approve-tier action for agents and the AI
+  producer: the host or producer confirms it in the studio (`waitSec`).
+
+### Shows (agencies: a series per client)
+
+A workspace is the client (brand kit, accounts, social channels); a show is
+one of its series. `show.list`; `show.create --name [--mode=producing
+--host={name,email} --hostControl --recipeId --rundownTemplate={…}
+--destinationIds=[…] --delivery={…}]`; `show.update --id …`; `show.delete
+--id` (ask first; episodes stay). `podcast.schedule --showId` makes an episode
+that starts from the show's defaults. `show.set-delivery --id
+--delivery={folder, rawFiles, edit, audioMaster, shorts, youtube:{accountId,
+privacy}}`: raw files (each person's own recording, named by who they are, the
+live program and a delivery.json) are copied to <folder>/<show>/<episode>/raw
+as soon as an episode is recorded; the edit, MP3, Shorts and upload run as a
+"Deliver <show>" routine on podcast.ended, which you propose and the user
+turns on (from the user's own Show dialog it's on at once).
+
 ### Planning episodes (schedule, guests, invite)
 
 An episode is a podcast project with its own join link from the day it's
@@ -666,9 +718,9 @@ planned. Home > Podcasts lists the upcoming ones.
 - `podcast.list-upcoming` (soonest first, undated last, with `displayStatus`
   scheduled / prepared / live and `missed`); `podcast.get-episode
   --sessionCode` for one, with `joinLink` / `callInLink`.
-- `podcast.invite --sessionCode [--out=/abs/path/invite.ics]`: join link,
-  invite text and a calendar invite (.ics, needs a date). Give these to the
-  user; don't email guests unless they ask you to.
+- `podcast.invite --sessionCode [--as=guest|host|producer --out=/abs/path/invite.ics]`:
+  the link, invite text and a calendar invite (.ics, needs a date). Give these
+  to the user; don't email guests unless they ask you to.
 - Prepare or start it: `podcast.open-host --sessionCode --projectPath=<path>`.
   The episode title is the project name (`project.rename`); delete with
   `project.delete` after the user confirms.
@@ -1481,6 +1533,11 @@ give you.
   `project.set-clip-chroma-key` (main video or `--target=camera`); `--color=auto`
   detects the key; always check with `render-frame` and nudge `--similarity` by
   0.05.
+- **Recording upside down or mirrored:** `project.set-clip-flip --clipId
+  --horizontal --vertical` (both = turned 180 degrees, e.g. a monitor mounted
+  upside down; `--horizontal` alone = mirrored). It corrects the source: crop,
+  cursor and zoom positions read the flipped picture. Both `false` removes it.
+  The camera tile's own mirror is `set-webcam-style --mirror`.
 - **Cursor (screen recordings):** `project.set-style --cursorScale
   --cursorHideIdle --cursorHideDuringZoom --cursorStyle=classic|modern|bold|soft`
   (modern: clean dark arrow, white outline; bold: high contrast for busy or

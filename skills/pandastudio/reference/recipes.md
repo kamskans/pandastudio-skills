@@ -102,7 +102,12 @@ content (their words, people, logos, topic). When the edit is done,
 fix visible differences in the look before reporting done. A recipe saved with
 `recipe.save` can carry its own `lookFrames` (`[{ src: absolute image path,
 shows, atMs? }]`, up to 8): the store keeps a copy, and `.pandarecipe` exports
-embed them.
+embed them. Without `lookFrames`, `recipe.save` takes three stills of the edit it
+was saved from (20%, 50%, 80% of the edited length; `--id` = that project,
+default the one open in the editor; `--stills=false` skips it). They are the
+recipe's cover on Home and the look the next run matches, so save from the
+finished edit. The result says `stills: N` (0 with a `note` when there was no
+project or nothing rendered).
 
 Never change a fixed value because another looks better on this footage: the
 recipe is a copy of a reference style. If the user asks for a change, change
