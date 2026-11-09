@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.297.0 -->
+<!-- version: 3.298.0 -->
 
 # PandaStudio
 
@@ -278,6 +278,16 @@ error code `whisper_model_not_downloaded` → ask the user, then
 `system.download-whisper-model` (async job). `system.get-transcription-language`
 returns `route { engine, reason }`; job results carry `engine` + `engineReason`:
 tell the user which engine ran when it matters.
+**A transcript that can't be trusted (report #161).** The job result's
+`warnings[]` flags a run whose words can't cover the audio (long stretches of
+sound with no words, or far fewer words than the sound holds: music, singing,
+noise, crosstalk or another language) and a re-run that came back word for
+word the same as before. Surface it to the user and don't cut by those words
+unchecked. Retrying the same way can't help: Parakeet isn't locked by
+`--language=english`, so the same audio gives the same words. Get a second
+reading with `--engine=whisper` (locked to the language; download its model
+first if `whisper_model_not_downloaded`) or a cloud provider with the user's
+consent.
 Overrides do not change workspace preferences. Confirm consent to send audio
 before selecting cloud. `--force=true` targets all clips; `--clipId` targets one.
 Plain `transcript.transcribe`
@@ -1778,9 +1788,14 @@ score first. Then:
    Each comes back with its `atMs` / `durationMs` (lands just before the word,
    held for the phrase plus a beat), `phrase`, `sentence`, `problems` and, when
    blocked, a `suggestion` nearby. `block` problems: the word was cut, it
-   overlaps the steps list / end card / words behind the speaker / another
-   picture, or it's within 2.5 s of another beat. `note`s (over the hook,
-   shortened at the end) are fine. `insetSide` is where a picture card goes
+   overlaps the steps list / end card / words behind the speaker, a picture or
+   graphic the beat would draw over and hide, a graphic drawn over most of the
+   picture, or it's within 2.5 s of another beat. Overlays count by where they
+   sit and how they stack: a thin strip drawn over the picture (a persistent
+   header, a logo bug) is no problem. Planning an inset card? Pass
+   `"layout":"inset"` on the moment so it's checked against the card, not the
+   whole frame. `note`s (over the hook, shortened at the end, a graphic over
+   part of the picture) are fine. `insetSide` is where a picture card goes
    (away from the face). It also returns `imageConnector` (`"replicate"`,
    `"higgsfield"` or `null`); without `--moments` it returns `free[]`, the
    stretches with room for a beat.

@@ -184,7 +184,10 @@ in `reference/motion-philosophy.md` — read it before authoring):
 # the end (the result's atMs is the time captured, plus a warning).
 pandastudio motion.screenshot --htmlPath=/tmp/scene.html --atMs=1500 --json
 # Screenshot and render load the same document: web fonts named in CSS
-# (font-family: 'Caveat') are embedded in both, and with no --aspectRatio/--width
+# (font-family: 'Caveat', the font shorthand `font: 900 76px Inter`, and canvas
+# strings like ctx.font = "900 76px Inter") are embedded in both. Still end every
+# family list with a generic (Inter, sans-serif): with no network a font that
+# can't be fetched falls back to it instead of the browser's serif. With no --aspectRatio/--width
 # the HTML's own data-width/data-height is used and reported (1080×1920 stays 1080×1920).
 
 # Render to MP4 (opaque). Renders are SEQUENTIAL — job.wait before firing the

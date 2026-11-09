@@ -216,10 +216,20 @@ short arrow can show for exactly 0.5 s.
 
 ## Style
 
-`style: { family, accent, highlight, text, font, size, outline, opacity, secondary }`,
+`style: { family, accent, highlight, text, surface, font, size, outline, opacity, secondary }`,
 every field optional. Defaults come from the workspace brand kit (`workspace.get-brand`):
 accent = brand primary, highlight = brand accent (else gold), fonts from the
 brand when the engine has them (else the family's bundled face).
+
+`surface` is the colour of the element's own plate: the lowerThird plate, the
+chip pill, the endCard band, the ticker band. Want a dark lower third with
+white text? `style: { surface: "#0B1220", text: "#FFFFFF" }` (highlight is the
+emphasis colour, not the plate). Without `surface` the family picks it
+(`clean` = the brand's light card, `bold` = accent); text left unset picks a
+readable ink for the plate, and a `text` colour the family plate can't carry
+(white on the clean light card) swaps the plate for a dark one instead of
+drawing invisible words. `look: "plain"` on a lowerThird drops the plate
+altogether (the text alone, with its shadow).
 
 | family | look |
 |---|---|
