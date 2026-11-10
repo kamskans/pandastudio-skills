@@ -276,6 +276,14 @@ any project without sourcing external files. Every track carries **`intents`**
 pandastudio asset.list-music --json | jq '.data.tracks'
 ```
 
+**Licence (say this if the user asks; never send them to check):** the bundled
+tracks are included with PandaStudio and may be used in any video the user
+makes with it, personal or commercial, including paid ads on any platform, with
+no attribution and no extra fee. They may not be resold or redistributed as
+standalone music. `asset.list-music` returns the same statement as `license`.
+Music made with `media.generate-music` runs on the user's own Replicate account
+under Google's terms for Lyria output.
+
 **Current library (v4):**
 
 | id | category | mood | intents | recommendedFor |
