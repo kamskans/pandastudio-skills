@@ -35,7 +35,7 @@ the browser: the runtime still calls it connected). The row then says
 the id is listed in `data.needsReconnect`. Nothing on it will run, and waiting
 or retrying won't fix it: `connector.tools` and `connector.call` answer with the
 same error straight away, without calling the service. Tell the user its
-`howToConnect` line: press **Reconnect** on it in Settings → Integrations →
+`howToConnect` line: press **Reconnect** on it in Settings → Connectors →
 Connectors (for Replicate, paste a current API token from
 replicate.com/account/api-tokens on its sign-in page). Reconnect removes the
 refused sign-in, runs the browser sign-in again and replaces PandaStudio's
@@ -107,7 +107,7 @@ pandastudio connector.call --connector=higgsfield --tool=<name> \
 
 Don't quietly substitute a different service, don't burn a paid generation on
 a fallback they didn't choose, and never try to connect it: each disconnected
-entry carries a `howToConnect` line pointing at Settings → Integrations →
+entry carries a `howToConnect` line pointing at Settings → Connectors →
 Browse connectors, and that browser sign-in is something only the person at
 the keyboard can finish. Say which connector it needs, repeat that line, and
 offer what you CAN do without it (for example a Ken-Burns still instead of
@@ -170,7 +170,7 @@ connector, billed to their credits there:
 ## Avatar (talking-head) videos — HeyGen
 
 HeyGen connects through its own hosted MCP server, not a PandaStudio key: the
-user clicks **Connect** on HeyGen in **Settings → Integrations** (or adds
+user clicks **Connect** on HeyGen in **Settings → Connectors** (or adds
 `https://mcp.heygen.com/mcp/v1/` to an external agent) and signs in. It works
 on every HeyGen plan, free included, and renders use the user's HeyGen plan
 credits. There are no `media.*-avatar` verbs any more.

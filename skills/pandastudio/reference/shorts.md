@@ -22,7 +22,7 @@ pandastudio export.generate-shots --id="$EXPORT" --json
 
 **Needs:**
 - **A transcript on the export.** Exports copy the source project's transcript at export time, so run `transcript.transcribe` on the project BEFORE exporting. An export without one fails with `code: no_transcript`.
-- **The local AI model.** If it isn't downloaded the verb fails with `code: model_missing`. There is no verb to download it: ask the user to click **Settings → AI Model → Download model** in PandaStudio (or the "Download AI model" banner in the Exports library), then retry. `llm.status` reports `downloaded: true` once it's ready. If it fails with `code: llm_unsupported` (`llm.status` shows `supported: false`, e.g. macOS before 14), the local model can never run on that machine: don't ask for a download, pick the moments yourself from the transcript.
+- **The local AI model.** If it isn't downloaded the verb fails with `code: model_missing`. There is no verb to download it: ask the user to click **Settings → Titles model → Download model** in PandaStudio (or the "Download AI model" banner in the Exports library), then retry. `llm.status` reports `downloaded: true` once it's ready. If it fails with `code: llm_unsupported` (`llm.status` shows `supported: false`, e.g. macOS before 14), the local model can never run on that machine: don't ask for a download, pick the moments yourself from the transcript.
 
 If the model reply is unusable, it falls back to pause-based ~45 s segments (title = the opening words, score 5). Shots under 10 s are dropped.
 
@@ -30,6 +30,8 @@ If the model reply is unusable, it falls back to pause-based ~45 s segments (tit
 
 ```bash
 pandastudio export.generate-shots --projectId="$ID" --json
+# Only shots about one subject (2.1.52+): add --topic="voter registration".
+# Nothing about it = empty shots plus a note; offer other words or no topic.
 # → .data = { projectId, shots: [{ id, startMs, endMs, sourceStartMs, sourceEndMs, title, description, score }] }
 pandastudio project.fork-from-shot --projectId="$ID" --shotId="$SHOT" --json
 # or: --projectId="$ID" --sourceStartMs=120000 --sourceEndMs=165000 --title="The hook"

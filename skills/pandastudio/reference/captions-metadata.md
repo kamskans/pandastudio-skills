@@ -154,7 +154,7 @@ call. Pass only the fields you want to change.
 
 PandaStudio generates YouTube thumbnails on **the user's own image connector**: GPT Image 2.6 on Replicate when Replicate is connected, otherwise on Higgsfield (Flare for a new thumbnail, Sunburst for an edit of the current one) — PandaStudio never pays for or proxies these calls.
 
-Requires Replicate or Higgsfield connected in **Settings → Integrations →
+Requires Replicate or Higgsfield connected in **Settings → Connectors →
 Connectors** (a sign-in the user does in the app, never via CLI). If a verb
 returns "No image connector is connected…", tell the user rather than looping,
 and offer the fallback: they give you an image of their own and you set it with

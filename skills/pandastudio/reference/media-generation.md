@@ -14,7 +14,7 @@ engines, and **local is the default so it works out of the box**:
   `system.is-kokoro-model-downloaded`.
 - **Cloud Replicate (opt-in).** Set `--model` to a Replicate model when you want
   more voices/languages or the most expressive delivery. Needs Replicate
-  connected (Settings → Integrations → Connectors).
+  connected (Settings → Connectors).
 
 ### The verb
 
@@ -77,7 +77,7 @@ pandastudio media.generate-narration \
   record their voice yourself.
 - **Their cloned voice:** `--model=elevenlabs-direct` uses the user's OWN
   ElevenLabs account (pass the voice name or voice_id; needs ElevenLabs
-  connected in Settings → Integrations).
+  connected in Settings → Connectors).
 
 ### Narrations and voiceovers in the transcript
 
@@ -160,7 +160,7 @@ overlay.
 the verb fails with `details.code: "NO_IMAGE_CONNECTOR"`. Don't loop on this
 and don't swap in text cards: ask the user for their own images (or use
 images already in the project folder) and continue with those; mention once
-that connecting Replicate or Higgsfield in Settings → Integrations lets you
+that connecting Replicate or Higgsfield in Settings → Connectors lets you
 generate them. Each call is a paid generation on the user's account: never
 re-run one that failed without telling them.
 
@@ -356,7 +356,7 @@ optional title card or a lower-third stat.
 narration at the `startMs` the verb returned (beats carry the +400ms tail, so
 never sum raw narration lengths). If Replicate isn't connected, image
 generation is unavailable: say so and offer bundled templates as a lesser
-fallback, or ask them to connect Replicate (Settings → Integrations →
+fallback, or ask them to connect Replicate (Settings → Connectors →
 Connectors).
 
 ```bash

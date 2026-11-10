@@ -6,6 +6,8 @@
 
 PandaStudio uploads directly to YouTube via the Google Data API v3 — no PandaStudio backend, no proxy. Each workspace has its own connected Google accounts; publishing is always scoped to the active workspace.
 
+**PandaStudio asks the user itself before anything goes public (2.1.53 and later).** `export.publish-youtube`, `export.publish-social`, `export.publish-instagram`, `export.update-youtube` and `export.update-youtube-thumbnail` don't run on your call alone: in PandaStudio's own chat they return `ok:false` with `details.code: "confirmation_required"` and a Publish / Cancel card waits for the user (tell them to press it and wait; the result arrives as their next message, don't call again); from any other app a PandaStudio dialog asks (`confirmation_declined`, `confirmation_unavailable`, `confirmation_timeout` as for deletes). Still agree the details in chat first, so the card is no surprise. A schedule approved on the `post.plan` card needs no second confirmation.
+
 **Flow** (only when the user asks to publish — never pre-emptively):
 
 1. **Gate:** `youtube.is-configured` → if `false`, tell the user this build can't publish and stop (the other verbs will all fail).
@@ -14,7 +16,7 @@ PandaStudio uploads directly to YouTube via the Google Data API v3 — no PandaS
 4. **List a channel's videos:** `export.list-youtube --accountId=… --max=50`.
 
 **Missing Google permission (`youtube_permission_missing`).** Google's consent screen lets the user untick individual permissions. Each account from `youtube.list-accounts` carries `permissions { canListChannels, canUpload }` and `permissionIssue` (null when fine); `issues[]` lists the affected accounts. `youtube.list-channels`, `export.publish-youtube` and `export.list-youtube` fail with `details.code: "youtube_permission_missing"`, `details.missing` (`channels` / `upload` / `edit`), `details.message` and `details.howToFix`.
-- Relay `details.message` to the user, then ask them to open Settings > Integrations > YouTube, click **Reconnect** on that account and leave every box ticked on Google's screen. You cannot run the sign-in for them; `youtube.connect --email=<account email>` only opens their browser and still needs them to click through, so call it only if they ask you to.
+- Relay `details.message` to the user, then ask them to open Settings > Connectors > YouTube, click **Reconnect** on that account and leave every box ticked on Google's screen. You cannot run the sign-in for them; `youtube.connect --email=<account email>` only opens their browser and still needs them to click through, so call it only if they ask you to.
 - Only `channels` missing (`canListChannels: false`, `canUpload` not false; `youtube.list-channels` says `canStillPublish: true`): publishing still works. Call `export.publish-youtube` **without `channelId`**; the video goes to that Google account's own YouTube channel (the result's `channelId` says which). Tell the user the channel name can't be shown until they reconnect.
 - `upload` missing: publishing can't work until they reconnect. Don't retry.
 

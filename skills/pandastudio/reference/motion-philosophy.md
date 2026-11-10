@@ -6,7 +6,7 @@
 > prescriptions made every output look the same and read as generic — they were
 > the cause of the meh promo videos we kept hitting. The new contract is
 > **brand-driven**: read the user's brand from the editor context (set in
-> Settings → Integrations → Brand kit), and let the brand decide colors, type,
+> Settings → Connectors → Brand kit), and let the brand decide colors, type,
 > mood. The rules here are about correctness and craft, not taste.
 
 **Load this file BEFORE writing any motion graphic** — `motion.generate` with a

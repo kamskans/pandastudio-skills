@@ -484,6 +484,73 @@ Shared rules:
 - UI: select the overlay → Green screen → On; for clips, Video tab → Green
   Screen (Screen / Camera toggle; On detects the colour, Detect re-reads it).
 
+## Stabilization: shaky camera footage (PandaStudio 2.1.53+)
+
+`project.stabilize-clip` steadies handheld or walking footage on a main-track
+clip (Video > Framing > Stabilize in the editor). It is an async job.
+
+```bash
+pandastudio project stabilize-clip --id <id> --clipId <clipId> --json   # standard
+pandastudio job wait --id <jobId> --json
+pandastudio project stabilize-clip --id <id> --clipId <clipId> --strength strong --json
+pandastudio project stabilize-clip --id <id> --clipId <clipId> --enabled false --json  # show the original
+pandastudio project stabilize-clip --id <id> --clipId <clipId> --strength off --json   # remove
+pandastudio project stabilize-clip --id <id> --analyzeOnly true --json  # report only, every camera clip
+pandastudio project stabilization-status --id <id> --json
+```
+
+How it works: the camera motion of the SOURCE FILE is analysed once (every
+frame; a few seconds per minute of footage, around 15 s per minute for 4K at 60 fps) and cached on
+disk per file, so reopening the project, another project using the same file,
+a different strength and the before / after switch cost nothing. The clip
+stores only `stabilization: { strength, enabled? }`. Preview,
+`project.render-frame` and export all draw the same per-frame correction
+(shift, rotation, a little scale), then zoom the picture just enough to hide
+the borders the correction would uncover.
+
+| Strength | Smoothing | Zoom budget | Use for |
+|---|---|---|---|
+| `light` | gentle | up to 5% | a standing handheld shot with small jitter, when framing is tight |
+| `standard` (default) | medium | up to 10% | most handheld footage |
+| `strong` | locked-off feel | up to 18% | walking shots, very shaky footage, when losing the edges is fine |
+
+The zoom actually used is the smallest the footage needs (often well under the
+budget). Where a correction would need more than the budget, it is held back
+smoothly: some shake stays instead of a border showing.
+
+The job result, per clip:
+
+- `shake`: `level` (`steady` | `mild` | `shaky` | `very-shaky`), `shakePct`
+  (the shake as % of the picture width), `rotationDeg`, `trackedPct`.
+- for the strength applied: `zoomPct`, `cropPct` (picture area cut away),
+  `shakeBeforePct`, `shakeAfterPct`, `reductionPct`, `limitedPct` (frames held
+  back by the zoom budget).
+- `strengths`: the same numbers for all three, to choose from without another
+  call.
+- `applied` (false with `reason: "already_steady"` when the footage needs
+  none; `--force=true` overrides).
+
+Rules:
+
+- Camera footage only. Screen recordings (`code: "not_stabilizable"`,
+  `reason: "screen"`: scrolling and window movement would be mistaken for
+  shake), images, audio-only and podcast clips are refused.
+- Report the crop to the user ("stabilized, standard: 6% zoom"), and move to
+  `strong` when `limitedPct` is above about 20 and the shake left still shows.
+- Crop, auto-reframe, face centring, zoom regions, speed changes, freeze
+  frames, trims and splits compose with it: they all read the stabilized
+  picture. A split keeps the setting on both halves (same source file, same
+  analysis).
+- Check the look with `project.render-frame` at two or three moments, like any
+  framing change. A text or logo near the edge of the source may be cut by
+  the zoom.
+- Not corrected: rolling-shutter wobble ("jello"), motion blur inside a frame,
+  and the small speaker pictures of `@speaker` motion elements (they show the
+  recorded frame).
+- An export of a stabilized clip whose analysis is missing (a project opened
+  on another computer) analyses it first; nothing is skipped silently. If the
+  analysis fails the export carries a warning naming the clip.
+
 ## Seeing frames: render-frame, render-sheet, detect-face, export.verify
 
 - **`project.render-frame --atMs=<ms> [--width=<px>] [--outPath=<png>]

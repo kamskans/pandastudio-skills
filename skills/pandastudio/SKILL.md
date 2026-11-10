@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.298.0 -->
+<!-- version: 3.301.0 -->
 
 # PandaStudio
 
@@ -12,7 +12,7 @@ remove-fillers, delete-words, insert-pause, space-out, set-audio-ducking,
 caption emphasis, place-on-beats, track-focus-face / track-region,
 convert-to-keyframes, auto-sync-podcast, set-clip-webcam, layouts, and the async
 jobs: transcription, voiceover, audio cleanup, rendered graphics, auto-reframe,
-downloads) measure on the project as read and apply their result to the project
+stabilization, downloads) measure on the project as read and apply their result to the project
 as it is on disk when they write, keeping edits that landed meanwhile. They do
 NOT fail because the editor saved. If what they measured changed (the clip was
 swapped, the words retimed) they measure again; if it keeps changing they fail
@@ -22,6 +22,13 @@ longer bump `revision`. `project.batch` retries a conflicting command up to
 three times. An explicit `expectedRevision` is checked when the verb starts
 (`code: "revision_conflict"`, `status: 409`, `expected`, `actual`); re-read
 before retrying, never write back an old snapshot.
+
+A project saved by a newer PandaStudio than the one running (PandaStudio
+2.1.53 and later check this): every verb that would write it fails with
+`code: "project_needs_update"` (409, `fileSchemaVersion`, `appSchemaVersion`)
+and changes nothing; reading it (project.read, transcript.get, render-frame,
+export) still works. Do not retry, and do not copy its contents into a new
+project to get around it: tell the user to update PandaStudio.
 
 Sources on Dropbox / iCloud / OneDrive / Google Drive (`~/Library/CloudStorage`,
 `~/Library/Mobile Documents`): a clip's audio is read once and cached, so only
@@ -173,16 +180,20 @@ without asking**; a `workspace_limit_reached` error means tell the user to
 upgrade, don't retry. Full detail (switch, create, rename, delete, contents):
 [`reference/projects-and-transcription.md`](reference/projects-and-transcription.md).
 
-**Destructive actions need the user's confirmation, in PandaStudio.**
+**Destructive and publishing actions need the user's confirmation, in PandaStudio.**
 `project.delete`, `workspace.delete`, `recipe.delete`, `memory.forget`,
 `export.delete`, `export.clear-thumbnail`, `youtube.disconnect`,
-`social.disconnect` and `instagram.disconnect` never run on your say-so alone:
+`social.disconnect` and `instagram.disconnect`, and (PandaStudio 2.1.53 and
+later) everything that goes public: `export.publish-youtube`,
+`export.publish-social`, `export.publish-instagram`, `export.update-youtube`
+and `export.update-youtube-thumbnail`, never run on your say-so alone:
 1. Ask the user plainly in chat first, naming what goes ("Delete project
-   'Demo'? This can't be undone."). Call the verb only after they agree. For a
+   'Demo'? This can't be undone.") or what gets published, where and with
+   which privacy. Call the verb only after they agree. For a
    workspace, show `workspace.contents` counts first.
 2. PandaStudio then asks them itself. From PandaStudio's own chat the call
    returns `ok:false` with `details.code: "confirmation_required"` and changes
-   NOTHING; a Delete / Cancel card waits for the user. Tell them in one
+   NOTHING; a card (Delete / Publish / Update, and Cancel) waits for the user. Tell them in one
    sentence to press it, don't call the verb again, and wait: their answer and
    the result arrive as their next message. From any other app (CLI, Claude
    Desktop, Cursor) a PandaStudio dialog asks: `confirmation_declined` = they
@@ -315,6 +326,9 @@ Remove a head/tail trim first to transcribe what it hides.
 
 ### Importing a transcript file (transcript.import)
 
+(A TRANSLATED subtitle file is not a transcript: add it as a caption language with
+`--as=translation --language=<tag>`, see "Captions in other languages".)
+
 When the user has a better transcript (a corrected SRT, faster-whisper JSON,
 subtitles from another tool), or local transcription keeps mixing languages:
 
@@ -372,6 +386,16 @@ moved. Full guide: [`reference/projects-and-transcription.md`](reference/project
 - `project.package --format=zip|folder` (job) bundles the project with all its
   media for another computer; `project.import-package --source=<zip|folder>`
   (job) brings one in as a new project.
+- `project.create-sample` (2.1.53+): the sample project, a short talking-head
+  video that is already edited (transcript with deleted mistakes, captions, a
+  zoom, a name graphic, a screen clip on top, music). Returns
+  `{ projectId, path, name, created }`: the sample already in the library, or
+  a new one made from the copy bundled with the app (offline, about a second);
+  `--fresh=true` always makes a new untouched one. Use it when a new user asks
+  what the app can do, or to try a verb on a safe project; `project.open` the
+  id to show it. It is a normal project (`origin.kind` is `sample`): edit or
+  `project.delete` it freely. Exporting it with its own footage on the main
+  track does not use a free-trial export.
 
 ## The user records themselves, with your script (`recording.open-recorder`, 2.1.47+)
 
@@ -460,13 +484,20 @@ How to use them well:
 
 "Make clips / Shorts from this podcast / webinar / long video" with a FILE
 (not an open project) → `clips.make --file=<path> [--length=short|medium|long]
-[--format=9:16|1:1|16:9] [--captionTemplate=<id>|none]`. One call does the whole
+[--format=9:16|1:1|16:9] [--captionTemplate=<id>|none] [--topic="<subject>"]`. One call does the whole
 OpusClip-style job with no agent work: import, transcribe, title the video
 from its transcript, find the strongest self-contained moments across the
 WHOLE video (sentence-aligned, scored 0-100), and fork each into its own
 project in that format with captions and face-following framing (whole
 picture over a blur when there's no face), plus a preview still and video.
 Defaults: 15-30 s clips, 9:16, Glow Stack.
+The user names a subject ("only the parts about voter registration", "clips
+on the pricing section") → pass it as `--topic`, a few words. Only moments
+about it become clips (the local model judges meaning; with no model the
+transcript must mention the topic's words), so expect fewer clips. When
+nothing is about it, `clips.get` has `topicMatched:false` and the clips are
+the strongest moments overall: tell the user and offer a run with other
+words. App 2.1.52 and later (older apps reject the unknown arg).
 Async: returns `{ clipSetId, jobId, transcription }`: `transcription.estimate`
 is how long transcribing takes on this computer (tell the user; for a long
 Whisper run `transcription.advice` names faster options, e.g. switching the
@@ -489,7 +520,7 @@ transcribing, `transcription.etaMs` is the time left). Then:
   `error` text, fix the cause, then `clips.retry --id` (reuses the import and
   transcript, keeps finished clips).
 - `usedModel:false` = the local AI model isn't downloaded, so moments came
-  from the transcript alone; tell the user Settings → AI Model gives better
+  from the transcript alone; tell the user Settings → Titles model gives better
   picks and titles.
 In chat apps that show MCP views (Claude, ChatGPT), `clips_get` / `clips_make`
 also show the set as cards with Open, Export and Remove, following a running
@@ -801,6 +832,73 @@ the user to click Reconnect in Settings > YouTube and leave every box ticked
 still works: omit `channelId` and the video goes to that account's own channel.
 Flows: [`reference/publishing.md`](reference/publishing.md).
 
+## Share links (a hosted link with comments)
+
+*PandaStudio 2.1.53 and later.* "Send this to my client", "get me a link for
+feedback", "share it for review": `share.create` uploads a lighter copy of a
+finished export and returns a link anyone can watch and comment on, no account.
+The app makes the copy on this computer (1080p, about 3 Mbps: a 4 minute video
+is roughly 95 MB) and uploads that; the full-quality export stays local.
+
+Rules that hold every time:
+
+- **Only share when the user asks.** It puts their video online. Same for
+  `share.delete` (it deletes the hosted video and its comments) and
+  `share.reply` (viewers read it as the user).
+- **Share an export, not a project.** Export first (`export.start`, after the
+  user has seen the preview), then `share.create --exportId`.
+- **Check `share.status` first.** It says whether this licence can share and
+  how much storage is left. Trial copies cannot (`trial_not_included`).
+  Lifetime plans have capped storage and links that expire after a set number
+  of days unless renewed (`account.expiryDays`); Pro and Agency get more
+  storage and links that do not expire (`expiryDays` 0). One link: at most
+  `account.maxDurationS` and `account.maxBytes`.
+- **When storage is full** (`details.code` `quota_exceeded`, with
+  `quota_bytes`, `used_bytes`, `needed_bytes`): tell the user the numbers, list
+  their links (`share.list`) and ask which to delete, or mention upgrading.
+  Never delete a link to make room without their yes. Nothing else in the app
+  is affected by the cap.
+
+```bash
+pandastudio share.status --json
+pandastudio share.create --exportId=EXPORT_ID --title="Launch cut v2" --json   # { jobId, taskId }
+pandastudio job.wait --id=JOB_ID --json                                        # { shareId, url, expiresAt }
+pandastudio share.list --json                                                  # links + storage + uploads
+pandastudio share.renew --shareId=SHARE_ID --json
+pandastudio share.update --shareId=SHARE_ID --password="..." --json            # or --removePassword=true, --title, --commentsEnabled=false
+pandastudio share.delete --shareId=SHARE_ID --json
+```
+
+`share.create` is async: progress is on the job (checking, making the share
+copy, uploading, finishing). If the upload is cut off the job fails and the
+share shows under `uploads` in `share.list` with stage `interrupted`:
+`share.resume --taskId` sends only the missing parts; `share.cancel --taskId`
+drops it. `expiresAt` is epoch seconds, `null` when the link does not expire.
+An expired link shows viewers a clear "expired" page and can still be renewed
+until `restorableUntil`; after that the video is gone and the export must be
+shared again.
+
+**Comments come back as review pins.** `share.comments` (open project by
+default, or `--id` / `--path`) reads the comments of every link made from that
+project and brings each thread into the project as a review pin at its moment
+(`review.list` shows them with `source.kind: "share"`, the author and the
+replies). That is the feedback loop:
+
+1. `share.comments` to pull the latest comments in.
+2. Treat each open pin like any review item: apply the change it asks for.
+3. `review.resolve` the pin (or `share.resolve-comment`); the next
+   `share.comments` marks it Done on the viewer page too.
+4. If the user wants to answer, `share.reply --shareId --commentId --body`.
+   Re-export and share again when they want viewers to see the new cut: a link
+   always plays the copy that was uploaded.
+
+`share.comments --shareId=...` reads one link without touching a project.
+`share.delete-comment` is for spam or abuse only. MCP: `share_status`,
+`share_create`, `share_resume`, `share_cancel`, `share_list`, `share_update`,
+`share_renew`, `share_delete`, `share_comments`, `share_reply`,
+`share_resolve_comment`, `share_delete_comment`. Shapes:
+reference/commands.md "share.*".
+
 ## Recipes — every edit style lives in a recipe
 
 A recipe is a proven edit style with blanks, a fixed look and a checklist. The
@@ -989,8 +1087,13 @@ recipe, a Short) starts as a **plan the user approves**:
    `needsApproval` on anything that spends money (image, music or voice
    generation, paid connectors), publishes, or reaches outside the app.
 2. **End your turn.** PandaStudio shows a plan card; nothing has changed yet.
+   From the Home chat (no project open in the editor), first make or find the
+   project (`project.new` / `project.list`) and pass its `--id`: the card then
+   appears in that same chat, with an Open project button. Never point the user
+   at a card you have not just proposed in this chat.
 3. When the user presses **Start editing** you get `Start the editing plan
-   (planId ...)` with their answers. Do the steps in order and call
+   (planId ... on project <id>)` with their answers; the project id is there
+   when the chat has no project open, so pass it as `--id` to every edit. Do the steps in order and call
    `plan.update-step --planId --stepId --status=running|done|skipped|failed
    --result="Removed 53 fillers and 12 pauses"` after each, with the real
    counts. Stop at a `needsApproval` step and ask (`chat.ask`) before it runs.
@@ -1058,6 +1161,10 @@ Word and filler cuts now land on measured audio pauses. Fillers reported as `ski
    button) after content cleanup. Steps 2, 4, 5 add trims and shift the edited
    timeline, so finish cleanup BEFORE placing graphics/zooms; anything placed
    earlier from a transcript word needs `--anchorSourceMs`.
+   **Shaky camera footage** (handheld, walking; the user says it shakes or
+   asks to steady it): `project.stabilize-clip` (job, standard strength), never
+   on screen recordings. It leaves footage that is already steady alone. Not a
+   step for every edit.
 6. **Enhance voice** (`audio.enhance`) where `voiceEnhanced` is absent: one
    step with the defaults (Light, plus Studio mic sound on Apple silicon): do
    not pass `--strength` or `--restore` unless the user asked. `--keepBackground=true` for vlogs /
@@ -1149,6 +1256,7 @@ and the doc named in the row.
 | Restyle or retime a region already placed | `project.update-region`, `project.set-animation`, `project.set-keyframes` | `project.save` with the whole project JSON |
 | Privacy on a person who moves | `project.add-spotlight --kind=blur` + `project.track-focus-face --regionId` | a static blur box |
 | Blur / spotlight on something else that moves (a window, a card, a scrolling email) | `project.add-spotlight` around it at the frame it shows, then `project.track-region --regionId --atMs=<that frame>` | hand-made keyframes |
+| Handheld or walking camera footage that visibly shakes (vlog, event, a product held in the hand, a bumped tripod) | `project.stabilize-clip --clipId [--strength=light\|standard\|strong]` then `job.wait`; read `shake.level`, `reductionPct`, `zoomPct`. `limitedPct` high = `--strength=strong` | a screen recording (refused), a tripod talking head (already steady: it would only crop), rolling-shutter wobble or motion blur (not corrected) |
 | Presenter filmed on green (main video or camera tile) | `project.set-clip-chroma-key --target=screen\|camera` (on an overlay: `set-overlay-chroma-key`) | `add-background-effect` (AI matte for real rooms) |
 | Messy real room behind the presenter | `project.add-background-effect --mode=blur\|image` | chroma key |
 | Music under a voice | `project.set-audio-ducking --regionId` or `project.add-audio --ducking=true`; to keep the music full, `project.set-audio-carve --trackId` (with a lighter duck) | hand-drawn volume dips (volume keyframes are for deliberate swells) |
@@ -1543,6 +1651,30 @@ give you.
   `project.set-clip-chroma-key` (main video or `--target=camera`); `--color=auto`
   detects the key; always check with `render-frame` and nudge `--similarity` by
   0.05.
+- **Shaky camera footage (handheld, walking):** `project.stabilize-clip --clipId
+  [--strength=light|standard|strong]` (PandaStudio 2.1.53+). ASYNC: `{ jobId }`,
+  then `job.wait`; `job.cancel` stops the analysis. The source file's camera
+  motion is analysed once (a few seconds per minute of footage, cached per
+  file, reused on reopen and by other projects) and the clip stores only the
+  strength, so preview, `render-frame` and export draw the same correction.
+  Strength trades smoothness for crop: `light` up to 5% zoom, `standard`
+  (default) up to 10%, `strong` up to 18%; the zoom used is the smallest the
+  footage needs. Read the result per clip: `shake.level` (`steady` | `mild` |
+  `shaky` | `very-shaky`), `shakePct` before and `shakeAfterPct` after (shake as
+  % of the picture width), `reductionPct`, `zoomPct` / `cropPct`, and
+  `limitedPct` (frames held back by the crop budget; above about 20, go
+  `strong`). Tell the user the crop it cost. Steady footage is left alone
+  (`applied: false`, `reason: "already_steady"`); screen recordings, images,
+  audio-only and podcast clips are refused (`code: "not_stabilizable"`). Use it
+  when the user says the footage shakes, was shot handheld or walking, or asks
+  to steady it; do not add it to every edit. `--strength=off` removes it;
+  `--enabled=false` / `true` shows the original / the stabilized picture
+  without re-analysing (before / after); `--analyzeOnly=true` reports shake and
+  the crop of every strength without changing the project;
+  `project.stabilization-status` reads the same numbers and the analysis
+  state. Run it before framing work is judged (`render-frame`): crop,
+  auto-reframe, zoom regions, speed, trims and splits all read the stabilized
+  picture and need no redo. Not corrected: rolling-shutter wobble, motion blur.
 - **Recording upside down or mirrored:** `project.set-clip-flip --clipId
   --horizontal --vertical` (both = turned 180 degrees, e.g. a monitor mounted
   upside down; `--horizontal` alone = mirrored). It corrects the source: crop,
@@ -1921,13 +2053,13 @@ safe", and relay `warnings`.
   "NO_IMAGE_CONNECTOR"`): don't give up and don't substitute text cards. Ask
   the user for their own images (or use images already in the project folder:
   `workspace.contents` / the project's media), and build with those. Mention
-  once that connecting Replicate or Higgsfield in Settings → Integrations lets
+  once that connecting Replicate or Higgsfield in Settings → Connectors lets
   you generate them.
 - Thumbnails (`export.generate-thumbnail`) use the same connector order.
 
 ## Connectors (Higgsfield, HeyGen, ElevenLabs, Replicate, your own)
 
-Hosted MCP services the user signs in to in Settings → Integrations, billed to
+Hosted MCP services the user signs in to in Settings → Connectors, billed to
 their own credits. Replicate and Higgsfield also power PandaStudio's own image
 verbs (`media.generate-image`, thumbnails; Replicate first): use those verbs
 for stills rather than calling the connector's tools directly. **Run `connector.list` before promising anything that
@@ -2328,6 +2460,68 @@ from the top, `wordsPerLine`, `uppercase`, font, `highlightMode`, emphasis look,
 `edit-thumbnail`, `set-thumbnail`, `revert-thumbnail`, `clear-thumbnail`).
 Detail: [`reference/captions-metadata.md`](reference/captions-metadata.md).
 
+### Captions in other languages, and subtitle files (2.1.53+)
+
+A project can hold its captions in several languages. The original (the
+transcript) keeps word timing; each translation is a track of lines (a sentence,
+or part of a long one) shown over the time its source words are spoken, so it
+follows later cuts.
+
+**When to use it.** "Translate the captions to German", "make a Spanish
+version", "give me an SRT", "subtitles for YouTube", "one video per language".
+Not for dubbing (the voice is unchanged) and not for transcribing a non-English
+recording (that is `transcript.transcribe --language`).
+
+```bash
+pandastudio caption.list-languages --id=$ID                      # source, showing, tracks[], engines
+pandastudio caption.translate --id=$ID --languages=de,es         # async -> job.wait; engine=local by default
+pandastudio caption.translate --id=$ID --languages=de --engine=provider   # the user's connected AI model
+pandastudio caption.set-language --id=$ID --language=de          # preview + burned-in exports show German
+pandastudio caption.set-language --id=$ID --language=original
+pandastudio caption.list-languages --id=$ID --language=de --lines=true   # line ids, source, text, state
+pandastudio caption.edit-translation --id=$ID --language=de --lineId=<id> --text="…"
+pandastudio caption.translate --id=$ID --languages=de --lineIds=<id>      # have the model redo one line
+pandastudio caption.remove-language --id=$ID --language=de
+pandastudio transcript.import --id=$ID --as=translation --language=fr --file=/abs/talk.fr.srt --timeBase=edited
+pandastudio export.subtitles --id=$ID --languages=all --format=both --grouping=lines --outputPath=/abs/folder
+pandastudio export.start --id=$ID --captionLanguages=de,es       # one video per language: name.de.mp4, name.es.mp4
+pandastudio export.start --id=$ID --subtitles=srt                # one video + a .srt per language beside it
+```
+
+Rules:
+
+- **Engines.** `local` (default) is the on-device model: offline, free, and a
+  DRAFT. Say so ("translated on this computer, worth a read-through") and
+  relay `qualityNote`. `provider` is the AI model the user connected for the
+  assistant: clearly better wording, but it uses THEIR account. Use it only
+  when they ask for it or agree; when `caption.translate` says
+  `providerAvailable`, offer it, never switch on your own. If it fails with
+  `provider_not_connected` / `agent_not_in_plan`, say so and offer local.
+- **Order.** Translate AFTER the cut is done (fillers, silences, word fixes):
+  a line whose source words change goes `stale`. Re-running
+  `caption.translate` is cheap, it only redoes stale, missing and new lines.
+- **Hand edits are kept.** A line changed with `caption.edit-translation` (or
+  by the user in Captions > Languages > Edit lines) is never replaced; the
+  result's `keptEdited` counts those whose source changed. Pass
+  `overwriteEdited=true` only after asking.
+- **Names.** The workspace brand name and the transcript's corrected names are
+  kept as written; add more with `--glossary="Opus Clip,Riverside"`.
+- **Look.** Translated captions use the project's caption style. The
+  word-by-word highlight runs on timing spread across each line (not each
+  spoken word), and emphasis (key-word) styling is not carried over. Chinese,
+  Japanese and Thai page by phrase. Bleeps mask the original's words only:
+  check the translated line where a word is bleeped.
+- **Subtitle files** are timed to the EDITED video. `grouping=lines`
+  (subtitle-sized, up to two rows of 42 characters) is what YouTube and players
+  want; `grouping=captions` (default) mirrors the on-screen pages line for line.
+  They are sidecar files: burned-in captions are the video itself.
+- **YouTube.** `export.publish-youtube --subtitles=true` uploads the tracks
+  only when the account's granted permissions already allow it (most do not:
+  PandaStudio's sign-in asks for upload only). When `subtitles.allowed` is
+  false the video still publishes: give the user the `.srt` files
+  (`export.subtitles`) to add in YouTube Studio > Subtitles. Never ask them to
+  reconnect for this.
+
 **Fonts.** `asset.list-fonts` lists what text can use: `bundled` families,
 `custom` (fonts the user imported in the font picker) and, with
 `--includeSystem=true`, installed families. Any of them works as
@@ -2483,12 +2677,13 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   ("Live streaming a podcast" above; commands.md)
 - **project**, lifecycle — list, locate, current, read, show, new, open, save,
   duplicate, rename, set-folder, delete, fork-from-shot, batch, apply-edit-plan,
-  media-status, relink, sync-status, package, import-package,
+  media-status, relink, sync-status, package, import-package, create-sample,
   clear-edits
 - **project**, clips and layout — add-clip, move-clip, split-clip, remove-clip,
   set-clip-duration, set-clip-kind, set-clip-webcam, set-clip-layout,
   set-clip-style, set-aspect-ratio, set-crop, set-screen-transform,
   set-backdrop, set-style, set-wallpaper, set-focal-point, auto-reframe,
+  stabilize-clip, stabilization-status,
   set-shorts-layout, set-vertical-screen-layout, set-webcam-layout,
   set-webcam-style, set-webcam-offset, center-camera-on-face, detect-face,
   add-clip-transform-region, add-podcast-clip, auto-sync-podcast, follow-speaker,
@@ -2518,6 +2713,9 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   find-issues, delete-words, restore-words, find-replace, insert-words
   (transcript-editing.md)
 - **timeline** — source-to-edited, edited-to-source
+- **share** — status, create, resume, cancel, list, update, renew, delete,
+  comments, reply, resolve-comment, delete-comment (hosted share links with
+  viewer comments; see "Share links")
 - **review** — list, resolve, add, update, delete (pins the user put on the
   preview; "Review items" below, commands.md)
 - **caption** — toggle, set-template, set-style, set-punctuation, move (captions-metadata.md)
