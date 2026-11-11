@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.304.0 -->
+<!-- version: 3.311.0 -->
 
 # PandaStudio
 
@@ -1524,6 +1524,11 @@ give you.
   `inCut: true` = parked inside a cut (`ms` is the cut point).
 - `project.new --withMedia='["/a.mp4"]'` creates pre-loaded; `project.duplicate`
   makes an exact copy for a variant edit; `project.open` opens the full editor.
+- **Lost edits / "go back to how it was".** `project.versions --id` lists the
+  project's earlier versions (one about every 10 minutes of editing, kept up to
+  30 days); `project.open-version --id --versionId` brings one back as a NEW
+  project beside the original (never overwrites). Show the user the times and
+  let them pick. For undoing YOUR last chat edit, prefer `agent.run-restore`.
 - **Excerpt / preview / highlight projects (parts of a recording).** A clip
   always holds its WHOLE file; a range is its in / out point, never a field on
   the clip. Make each excerpt a ranged clip, in the file's own ms (that

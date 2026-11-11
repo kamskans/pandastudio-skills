@@ -78,8 +78,8 @@ pandastudio transcript.restore-words --id=$ID --wordIds='["clip-1:w-42","clip-1:
 **`transcript.get` shows ALL words, including deleted ones.** Deleted words
 become trims (gone from the export) but stay in the raw word list. To confirm a
 deletion, check `trimsAdded` in the response instead of looking for missing
-words. Each word has `startMs` (source) and `editedStartMs` (output; `null` =
-inside a trim).
+words. A compact word is `[id, text, editedStartMs, editedEndMs, sourceStartMs]`:
+edited times first (what plays; `null` = inside a trim), the source start last.
 
 **STT coherence:** fix transcript errors with `transcript.find-replace` BEFORE
 `motion.generate`, `llm.generate-title` or captions. Titles, slot values and
