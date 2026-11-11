@@ -300,6 +300,68 @@ pandastudio project.set-webcam-layout --id=$ID --preset=picture-in-picture \
 Tell the user the presenter is AI-generated and that platforms may require a
 disclosure label.
 
+## AI video with MiniMax H3 on fal (`media.generate-video`)
+
+PandaStudio 2.1.58 and later. Generates a real moving shot with MiniMax H3 on
+the user's OWN fal account (Settings > Connectors > fal: they paste their fal API
+key, PandaStudio checks it with fal and stores it encrypted; generations bill
+their fal credits, never PandaStudio's). Two modes, picked by the arguments:
+
+- **Text to video**: `--prompt` only. `--aspectRatio` 16:9 (default), 9:16,
+  1:1, 4:3, 3:4, 21:9. Match the project (9:16 for Shorts).
+- **Image to video**: `--image` (first frame) and/or `--endImage` (last
+  frame): an absolute path (PNG, JPEG, WebP; uploaded to fal for you) or an
+  https URL. The clip takes the image's shape, so `--aspectRatio` is refused;
+  crop the still first. Describe the MOTION in the prompt, not the picture.
+  Pairs well with `media.generate-image`: generate the still, then animate it.
+
+Models (`--model`):
+
+| model | what | seconds | resolution | list price / s |
+|---|---|---|---|---|
+| `h3` (default) | MiniMax H3 | whole seconds 5 to 15 | 480P, 768P (default), 2K, 4K (upscales of 768P) | $0.05 / 0.06 / 0.13 / 0.16 |
+| `h3-max` | fal's post-trained H3 | 0.92 to 15 | 480P, 768P (default), 1080P | $0.05 / 0.08 / 0.16 |
+| `h3-max-turbo` | faster, cheaper Max | 0.92 to 15 | 480P, 768P (default), 1080P | $0.025 / 0.04 / 0.08 |
+
+Out-of-range values fail before anything is sent (nothing is clamped
+silently). The result's `estimatedCostUsd` is fal's list price; fal bills.
+
+```bash
+# Ask first, in one line: "One 6 s H3 clip at 768P on your fal account (about $0.36)?"
+pandastudio media.generate-video --no-launch --json \
+  --prompt="Slow dolly in on a ceramic coffee mug on a wooden desk by a rainy window, steam rising, soft morning light, shallow depth of field" \
+  --durationSec=6 --aspectRatio=16:9
+# → { jobId, model: "h3", endpointId: "minimax/h3/text-to-video", estimatedCostUsd: 0.36 }
+pandastudio job.wait --id=<jobId> --timeoutMs=600000 --no-launch --json
+# → { videoPath: ".../generated-videos/fal-h3-....mp4", durationMs, width, height,
+#     provider: "fal", model, endpointId, mode, resolution, requestId, expandedPrompt? }
+
+# Animate a still (first frame), vertical comes from the image:
+pandastudio media.generate-video --no-launch --json \
+  --image=/abs/path/hero.png --prompt="The camera slowly orbits right, hair moves in the wind" --durationSec=5
+
+# Place it: moving B-roll over the speaker, or a beat on the main track
+pandastudio project.add-motion-graphic --id=$PID --file="<videoPath>" --atMs=12000 --durationMs=<durationMs> --no-launch --json
+pandastudio project.add-clip --id=$PID --media="<videoPath>" --no-launch --json
+```
+
+Rules:
+1. PAID. Generate only when the user asked or agreed; say model, length,
+   resolution and the estimate first. One call per shot.
+2. Never retry a failed, canceled or timed-out job on your own: the request
+   may still finish and bill. Errors name the fal `requestId`; the user can see
+   it at fal.ai/dashboard/requests.
+3. Errors that fail at once (no job, nothing billed): `INVALID_ARGS`,
+   `FAL_NOT_CONNECTED` (relay `details.howToConnect`: the user connects fal in
+   Settings > Connectors; never ask for the key in the chat),
+   `FAL_OFF_FOR_CHAT` (the user switched fal off for this chat). A key fal
+   refuses mid-job fails the job with "fal refused the API key" and marks fal
+   as needing a new key in `connector.list`.
+4. `--promptExpansion` (`balanced` default, `fast`, `quality`, `disabled`) is
+   fal's prompt rewriting; `disabled` sends the prompt word for word.
+   `--seed` for a repeatable take.
+5. fal has no `connector.tools` / `connector.call`: this verb is the way in.
+
 ## Faceless videos — the full pipeline
 
 A "faceless" video is **narration carrying the story over AI-generated IMAGES

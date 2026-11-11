@@ -1,4 +1,4 @@
-# Connectors: Higgsfield, HeyGen, ElevenLabs, Replicate and your own MCP servers
+# Connectors: Higgsfield, fal, HeyGen, ElevenLabs, Replicate and your own MCP servers
 
 Connectors are hosted MCP servers the user signs in to (Settings →
 Integrations → Connect), billed to their own plan credits. They power the
@@ -6,6 +6,12 @@ agent AND built-in features (Replicate for images / TTS / presenters,
 ElevenLabs for cloned voices). A server the user added themselves can sign in
 with an API key instead of a browser sign-in (Vocallab, for example): the user
 pastes the key in Settings, it's stored encrypted, and you never see it.
+
+One built-in connector is not an MCP server at all: **fal** (`native: true` in
+`connector.list`). The user connects it with their fal API key (checked with fal,
+then stored encrypted), and PandaStudio calls fal itself: use the verbs in its
+`usedThrough` (`media.generate-video`), never `connector.tools` /
+`connector.call` (they answer that fal has no tools).
 
 ## Check what's actually connected: `connector.list`
 
@@ -140,6 +146,25 @@ hero shot. Rules:
    (submit + poll, never the widget tools), with `use_unlim: false`, downloads
    the result before the link expires, and returns a local path.
    `--provider=higgsfield` forces it when both are connected.
+
+## fal: MiniMax H3 video on the user's API key
+
+fal (fal.ai) runs MiniMax H3 text to video and image to video on the user's
+own fal account. It is native: no MCP tools, no browser sign-in. In
+`connector.list` it shows `native: true`, `auth: "api-key"` and
+`usedThrough: ["media.generate-video"]`.
+
+- Not connected (`state: "off"`): its `howToConnect` asks the user to open
+  Settings > Connectors, find fal, press Connect and paste a key from
+  fal.ai/dashboard/keys. PandaStudio checks the key with fal before saving it.
+- `state: "failed"` with `needsKey: true`: fal refused the saved key (checked
+  when saved, on Reconnect, or a 401 during a generation). Only a new key
+  fixes it (Update key). `needs_auth`: the saved key can't be read on this
+  computer; paste it again.
+- Generate with `media.generate-video` (see media-generation.md: models,
+  durations, resolutions, prices, placement). Higgsfield also offers Hailuo
+  models through its own tools; when the user asks for MiniMax H3, or for fal,
+  use fal.
 
 ## Image generation: which connector PandaStudio's own image verbs use
 

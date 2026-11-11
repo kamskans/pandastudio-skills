@@ -233,7 +233,7 @@ The export library (MyExports view). Read + patch only — there's no `export.st
 | `export.get` | `id` (string, required) | Single entry by id. |
 | `export.update` | `id` (string, required), `patch` (object, required) | Patch entry fields (e.g. `generatedTitle`, `generatedDescription`). |
 | `export.delete` | `id` (string, required) | Delete the library row (does NOT delete the underlying MP4 on disk). |
-| `export.publish-social` | `id` (required), `channelIds` and/or `networks`, `caption`, `captions` ({channelId: text}), `settings` ({channelId: {...}}), `when` (now \| schedule), `scheduledAt` | Publish an export to the active workspace's connected social accounts (Instagram, TikTok, Facebook, LinkedIn, X). Returns `{ jobId }`; `job.wait` → `{ postId, state, channels[{ platform, name, status, permalink, error }], summary }`. Public and irreversible: confirm first. |
+| `export.publish-social` | `id` (required), `channelIds` and/or `networks`, `caption`, `captions` ({channelId: text}), `settings` ({channelId: {...}}), `when` (now \| schedule), `scheduledAt` | Publish an export to the active workspace's connected social accounts (Instagram, TikTok, Facebook, LinkedIn, X). Returns `{ jobId }`; `job.wait` → `{ postId, state, channels[{ platform, name, status, permalink, error }], summary }`. Public and irreversible; runs without a confirmation card (2.1.58+), so call it when the user asked to publish. |
 | `export.publish-instagram` | `id` (required), `caption` | Same as `export.publish-social --networks=instagram`. Returns `{ jobId }`; `job.wait` → `{ postId, state, permalink, channels, summary }`. |
 
 ## social.*

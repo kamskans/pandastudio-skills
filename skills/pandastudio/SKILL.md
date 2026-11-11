@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.302.0 -->
+<!-- version: 3.304.0 -->
 
 # PandaStudio
 
@@ -182,20 +182,17 @@ without asking**; a `workspace_limit_reached` error means tell the user to
 upgrade, don't retry. Full detail (switch, create, rename, delete, contents):
 [`reference/projects-and-transcription.md`](reference/projects-and-transcription.md).
 
-**Destructive and publishing actions need the user's confirmation, in PandaStudio.**
+**Destructive actions need the user's confirmation, in PandaStudio.**
 `project.delete`, `workspace.delete`, `recipe.delete`, `memory.forget`,
 `export.delete`, `export.clear-thumbnail`, `youtube.disconnect`,
-`social.disconnect` and `instagram.disconnect`, and (PandaStudio 2.1.53 and
-later) everything that goes public: `export.publish-youtube`,
-`export.publish-social`, `export.publish-instagram`, `export.update-youtube`
-and `export.update-youtube-thumbnail`, never run on your say-so alone:
+`social.disconnect` and `instagram.disconnect` never run on your say-so alone
+(publishing runs without asking; see `reference/publishing.md`):
 1. Ask the user plainly in chat first, naming what goes ("Delete project
-   'Demo'? This can't be undone.") or what gets published, where and with
-   which privacy. Call the verb only after they agree. For a
+   'Demo'? This can't be undone."). Call the verb only after they agree. For a
    workspace, show `workspace.contents` counts first.
 2. PandaStudio then asks them itself. From PandaStudio's own chat the call
    returns `ok:false` with `details.code: "confirmation_required"` and changes
-   NOTHING; a card (Delete / Publish / Update, and Cancel) waits for the user. Tell them in one
+   NOTHING; a card (Delete, and Cancel) waits for the user. Tell them in one
    sentence to press it, don't call the verb again, and wait: their answer and
    the result arrive as their next message. From any other app (CLI, Claude
    Desktop, Cursor) a PandaStudio dialog asks: `confirmation_declined` = they
@@ -512,7 +509,7 @@ transcribing, `transcription.etaMs` is the time left). Then:
   export is recorded on the clip (`exports[]`), each with a `libraryEntryId`.
 - publish an exported clip: pass that `libraryEntryId` as the export id to
   `export.publish-youtube` (Shorts) or `export.publish-social` (Instagram,
-  TikTok…). Same confirm-before-publishing rules as any export.
+  TikTok…). Publishes without a confirmation card, like any export: do it when the user asked to publish.
 - change every clip's captions: `clips.set-caption --id --captionTemplate=<id>|none`
   (finished clips are restyled in the background).
 - to polish one clip, edit its `projectPath` with any project verb (recipe
@@ -1362,8 +1359,9 @@ goes into the transcript automatically (its script timed to the audio); pass
 `--transcribe=true` for any OTHER voiceover. `job.wait` the `transcribeJobId`
 before captions. Never for music. Detail: media-generation.md.
 
-Services behind a connector (Higgsfield video, HeyGen avatars, ElevenLabs,
-Replicate): see "Connectors" before promising anything.
+Services behind a connector (Higgsfield video, fal video with MiniMax H3,
+HeyGen avatars, ElevenLabs, Replicate): see "Connectors" before promising
+anything.
 
 Combine asks into a single message. If these are clear, proceed.
 </HARD-GATE>
@@ -1993,7 +1991,11 @@ new picture in place, paid, only when the user asks); in a faceless video, `medi
 bring-your-own fallback. `media.generate-presenter` (Seedance, Replicate) makes a
 realistic AI presenter with its own voice (one take ≤30s; describe the person,
 the line in double quotes; never add narration on top), used as a camera-only
-clip or attached with `project.set-clip-webcam`. `media.import --url` brings in
+clip or attached with `project.set-clip-webcam`. `media.generate-video` (MiniMax
+H3 on the user's fal account) makes a real moving shot from a prompt, or from a
+still (`--image`, optional `--endImage`): async, `job.wait --timeoutMs=600000`,
+paid, ask first; place `videoPath` with `project.add-motion-graphic` (overlay)
+or `project.add-clip`. `media.import --url` brings in
 any remote file. Detail: [`reference/media-generation.md`](reference/media-generation.md).
 
 **Online video (YouTube, Vimeo, archive.org, ...)** →
@@ -2059,7 +2061,7 @@ safe", and relay `warnings`.
   you generate them.
 - Thumbnails (`export.generate-thumbnail`) use the same connector order.
 
-## Connectors (Higgsfield, HeyGen, ElevenLabs, Replicate, your own)
+## Connectors (Higgsfield, fal, HeyGen, ElevenLabs, Replicate, your own)
 
 Hosted MCP services the user signs in to in Settings → Connectors, billed to
 their own credits. Replicate and Higgsfield also power PandaStudio's own image
@@ -2068,7 +2070,10 @@ for stills rather than calling the connector's tools directly. **Run `connector.
 depends on one.** Inside PandaStudio's chat their tools are reached on demand:
 `connector.tools --connector=<id> [--search | --tool=<name>]` →
 `connector.call --connector --tool --args='{…}'`; import any returned remote
-link with `media.import` before placing it (Higgsfield links expire). Say the
+link with `media.import` before placing it (Higgsfield links expire). **fal is
+native** (`native: true`, the user's API key): it has no connector tools; generate
+video on it with `media.generate-video` (MiniMax H3; `FAL_NOT_CONNECTED` = relay
+the `howToConnect` line). Say the
 model, clip count and length before a paid generation. **A needed connector
 that isn't on: stop and say which one and repeat its `howToConnect` line**;
 never substitute silently, never try to connect it (custom servers are added by
@@ -2647,7 +2652,7 @@ the user reports the in-app agent doing something unattended.
 ## What this skill is NOT for
 
 - Cloud video APIs called directly (Runway, Sora's API). Editing and export are
-  local; generation goes through connectors (Higgsfield, HeyGen).
+  local; generation goes through connectors (Higgsfield, HeyGen, fal).
 - Direct edits to `.pandastudio` JSON: the format changes between versions; use
   the verbs (`project.save` only with JSON you got from `project.read`).
 
@@ -2735,7 +2740,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   list-motion-elements (motion-elements.md)
 - **media** — import, generate-image, remove-background, image-to-video, generate-narration,
   compose-soundtrack (soundtrack.md), generate-music, generate-sound-effect,
-  generate-presenter (media-generation.md)
+  generate-presenter, generate-video (media-generation.md)
 - **asset** — list-music, list-sounds, list-fx, list-luts, list-transitions,
   list-emoji, list-fonts, import-font, resolve
 - **clips** — make, list, get, export, retry, set-caption, delete (long video → clips)
@@ -2797,7 +2802,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - [`reference/longform-styles.md`](reference/longform-styles.md) — the long-form retention grammar (measured study) and 2.0 moves.
 - [`reference/recipes.md`](reference/recipes.md) — starter recipes, running, saving, sharing.
 - [`reference/media-generation.md`](reference/media-generation.md) — narration, voiceover transcription, B-roll images, AI presenters, the faceless pipeline.
-- [`reference/connectors.md`](reference/connectors.md) — connector verbs, Higgsfield, HeyGen, ElevenLabs, Replicate, custom servers.
+- [`reference/connectors.md`](reference/connectors.md) — connector verbs, Higgsfield, fal, HeyGen, ElevenLabs, Replicate, custom servers.
 - [`reference/recording.md`](reference/recording.md) — agent-driven screen recording.
 - [`reference/fx-transitions.md`](reference/fx-transitions.md) — transitions and FX overlays with the restraint rules.
 - [`reference/publishing.md`](reference/publishing.md) — YouTube and social (Instagram, TikTok, Facebook, LinkedIn, X) publishing rules.
