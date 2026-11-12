@@ -333,7 +333,7 @@ No UI: these give an agent the evidence (videos that beat their own channel's me
 
 | Command | Args | Purpose |
 |---|---|---|
-| `ideas.research` | `query`, `seedChannel`, `format`, `minMultiplier`, `maxAgeDays`, `maxChannels`, `period` | Outliers across a niche: searches the topic (comma-separate several angles) and/or expands from a seed channel the audience watches, reads every channel found and ranks their recent uploads by multiplier. Trending: period month, maxAgeDays 30. Async (~20-40 s): returns { researchId, jobId }; job.wait, then ideas.get. |
+| `ideas.research` | `query`, `seedChannel`, `format`, `minMultiplier`, `maxAgeDays`, `maxChannels`, `period` | Outliers across a niche: searches the topic (comma-separate several angles) and/or expands from a seed channel the audience watches, reads every channel found and ranks their recent uploads by multiplier. Trending: period month, maxAgeDays 30. With maxAgeDays, undated outliers are kept only once their publish date checks out (the rest count in stats.undatedSkipped). Async (~20-40 s): returns { researchId, jobId }; job.wait, then ideas.get. |
 | `ideas.list` | — | Every research in this workspace, newest first, with options, status, stats and top multiplier. |
 | `ideas.get` | `researchId` (req), `limit`, `offset`, `onTopicOnly` | One research: outliers best first (25 per page), channels read (median views, hit rate, uploads a week), title patterns (phrases, hook shares, formulas). |
 | `ideas.cancel` | `researchId` (req) | Stop a running research. |
