@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.312.0 -->
+<!-- version: 3.313.0 -->
 
 # PandaStudio
 
@@ -264,8 +264,24 @@ to a third party and bills them. `apple` (Apple's on-device speech, Macs only)
 is the user's opt-in for speed: it needs a chosen language, keeps fewer filler
 words than local, and does not support Tamil, Telugu, Kannada or Malayalam;
 `apple.languages[]` lists what it can do on this Mac (`fillers: false` = it
-leaves out um/uh, so `transcript.remove-fillers` finds nothing). Missing keys fail clearly. Network/provider failures
-can use the local engine; always surface job `warnings` to the user.
+leaves out um/uh, so `transcript.remove-fillers` finds nothing). Missing keys fail clearly.
+
+**Cloud runs never switch engines silently (report #185).** Long audio goes up
+in ~5 min parts (cut in pauses, stitched with exact word times); each part is
+retried on network drops, timeouts, 5xx and 429. `--fallback` decides what
+happens to a part that still fails: `none` = the job FAILS (`job.errorDetails.code`
+`cloud_failed` with `failedRanges`; nothing runs on this computer; parts that
+worked are kept, so running it again only re-sends the failed ones), `local` =
+this computer transcribes only the failed parts (the whole file when nothing
+came back). Default: `none` when you pass `--provider` (you asked for that
+provider), else the workspace setting (`system.set-transcription-preferences
+--fallback=local|none`, default `local`). When the user wants a cloud provider
+ONLY, pass `--fallback=none` and/or save it. The job says what really ran:
+`progress.data.engine` / `fallbackFrom` while running, result `clips[].engine`,
+`engines`, `fallback { from, to, reason, ranges, audioSec }` and a warning: tell
+the user. `job.cancel` stops every upload, retry and on-device helper of the
+job at once; while an agent job transcribes a clip, the open editor waits for it
+instead of transcribing the same clip again.
 
 If a transcript looks wrong or the user speaks a non-English language, ask or
 confirm the spoken language. `transcript.detect-language --id=$ID --clipId=…`
@@ -273,7 +289,7 @@ returns a cheap local guess from up to 30 seconds, or null if unavailable.
 Pass explicit per-run `--language` and `--provider`; never use cloud with auto:
 
 ```bash
-pandastudio transcript.transcribe --id=$ID --clipId=… --force=true --language=tamil --provider=deepgram
+pandastudio transcript.transcribe --id=$ID --clipId=… --force=true --language=tamil --provider=deepgram --fallback=none
 ```
 
 **Which local engine runs (report #122).** Language `auto` or `english` →
@@ -507,9 +523,11 @@ transcribing, `transcription.etaMs` is the time left). Then:
 - show the user the titles + hook scores; `clips.export --id [--clipIds=[...]]`
   writes MP4s to Movies/PandaStudio Clips/<video>/ (async, job.wait); every
   export is recorded on the clip (`exports[]`), each with a `libraryEntryId`.
-- publish an exported clip: pass that `libraryEntryId` as the export id to
-  `export.publish-youtube` (Shorts) or `export.publish-social` (Instagram,
-  TikTok…). Publishes without a confirmation card, like any export: do it when the user asked to publish.
+- publish a clip: export it first (`clips.export --clipIds=[id]`; job.wait
+  gives `exported[].exportId`, also on the clip as `exports[].libraryEntryId`),
+  then pass that id to `export.publish-youtube` (a Short; `--addShortsTag=true`)
+  or `export.publish-social` (Instagram, TikTok…). The app's Publish button on a
+  clip does the same in one click. Publishes without a confirmation card, like any export: do it when the user asked to publish.
 - change every clip's captions: `clips.set-caption --id --captionTemplate=<id>|none`
   (finished clips are restyled in the background).
 - to polish one clip, edit its `projectPath` with any project verb (recipe
@@ -679,6 +697,14 @@ recording. Order:
    `clips.make --file=<programPath>` makes Shorts from it. Then
    `podcast.stop-recording` and `podcast.open-in-editor` for the per-person
    edit as usual.
+6. A take saves itself: from `podcast.stop-recording` on, its tracks go into
+   the episode project as they land (the desktop's once finalized, each
+   guest's when the upload finishes), even if the studio is left or closed
+   (it finishes receiving in the background). `stop-recording` returns
+   `savedTo`; `open-in-editor` only opens it. Recordings of an older take
+   that never reached their episode: `podcast.found-recordings`, then (after
+   the user agrees: they're matched by time) `podcast.add-found-recordings
+   --path --key`, then check the sync.
 
 ### In the call: mute, camera, devices, screen share
 
@@ -1203,8 +1229,9 @@ Word and filler cuts now land on measured audio pauses. Fillers reported as `ski
     sits inside the frame (nothing clipped at an edge), nothing covers the
     face, the planned moves are there. Fix, then re-check.
 12. **Generate** title / description / timestamps (`llm.generate-title`,
-    `llm.generate-description`, `llm.generate-timestamps`), then
-    **preview**.
+    `llm.generate-description`, `llm.generate-timestamps`; they name known
+    speakers on their own, and `--instruction` passes on what the user wants
+    stressed), then **preview**.
 
 **Report what actually ran.** Every confirmed step is a real verb call this
 session; quote each result ("removed 14 fillers, cut 2 bad takes + 3 repeated
@@ -2156,6 +2183,20 @@ restores the original audio. The job result has `before` / `after` per source
 `balanceDeviationDb`): tell the user the headline ("-24 to -16 LUFS, pauses
 12 dB quieter"). `project.read` shows `voiceEnhanced` per clip (a project
 cleaned before 2.2 reads as `light` with `legacy: "clean"`).
+A screen recording made with both the microphone and System audio keeps them
+apart (the mix plays; the mic and the system audio are tagged stems inside the
+file): Enhance voice cleans only the mic and mixes the computer's sound back
+untouched, and the result says `systemAudioKept: true`. Older recordings (and
+any file whose voice and background are one track) are processed whole.
+**Original voice** (`project.add-original-voice --id=$ID --atMs --durationMs`,
+returns `regionId`; `project.remove-original-voice --regionId`; ids in
+`editor.enhanceOffRegions`) turns Enhance voice off for a stretch: the main
+track plays its original audio there, enhanced everywhere else. Use it when
+the enhancement hurts part of a take (a video or song playing in the room that
+the denoiser eats, a laugh, a sound effect). Edited-timeline ms, follows its
+words through later cuts like a mute region; only enhanced clips change (run
+`audio.enhance` first); preview and export match. The app's timeline "+" menu
+calls it "Original voice here".
 The noise-removal engine is automatic: the studio model (MossFormer2) once the
 app has downloaded it in the background, DeepFilterNet3 before that, offline,
 or if the studio model fails (`denoiser` / `denoiserReason` in the result).
@@ -2683,7 +2724,8 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   get-brand, set-brand, capture-brand, get-project-defaults,
   set-project-defaults (projects-and-transcription.md)
 - **podcast**, live host — open-host, status, start-recording, stop-recording,
-  start-screen-share, stop-screen-share, open-in-editor (commands.md)
+  start-screen-share, stop-screen-share, open-in-editor, found-recordings,
+  add-found-recordings (commands.md)
 - **podcast**, live streaming — live-destinations, add-destination,
   remove-destination, check-upload, go-live, stop-live, live-status, set-scene,
   set-stage, show-overlay, hide-overlay, live-comments, play-media, stop-media,
@@ -2710,7 +2752,8 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   add-transition, add-motion-graphic, add-designed-segment, add-lower-third,
   add-spotlight, update-spotlight, remove-spotlight, add-background-effect,
   add-caption-region [hide-captions], remove-caption-region [show-captions],
-  add-mute-region, remove-mute-region, add-bleep, update-bleep, remove-bleep,
+  add-mute-region, remove-mute-region, add-original-voice, remove-original-voice,
+  add-bleep, update-bleep, remove-bleep,
   update-region, remove-region,
   duplicate-region, set-region-sound, set-graphic-sound, update-motion-graphic,
   set-overlay-crop, set-overlay-backdrop-blur, set-overlay-chroma-key, remove-overlay-background,
@@ -2875,9 +2918,16 @@ longer than 10 minutes require a smaller range. `fromMs`/`toMs` are edited ms in
 ranges may start or end on cuts). The mix is exactly as long as the export, which ends on
 its last whole video frame, so a `toMs` a few ms past that is cut to it and the result
 carries `clampedToMs` + `rangeNote`. A range outside 0..editedDurationMs fails at once. The result includes `describe`,
-500ms voice/music/SFX RMS, and `audibleUnderVoice` flags. Explicit music or overlays
-at least 10s long (including uncapped beds) are music; other audio overlays are SFX.
-Overlay video audio and recorded/generated/transcribed voiceovers belong to voice. Music is sensible at -6 to -30 dB relative to
+500ms voice/music/SFX RMS, `audibleUnderVoice` flags, and `tracks[{id, kind, basis}]`:
+which stem each audio overlay went to and why. The kind comes from how the track was
+added, the same answer `project.edit-summary` (`audioTracks`) gives: its stored
+`audioKind` (library music, sound cues, `project.add-audio --audioKind`), what a
+generated file was made as (narration = voice, music / score = music, sound effect =
+sfx), words on the track (voice), a voiceover / narration file name, the bundled music
+library (music) or sound library (sfx). Only an upload with none of that falls back to
+length (10 s or longer = music). Add an uploaded song with `--audioKind=music` (or fix a
+track later with `project.update-region --regionType=audio-overlay` patch
+`{"audioKind":"music"}`). Overlay video audio belongs to voice. Music is sensible at -6 to -30 dB relative to
 speech; flags mark music above voice, music below -30 dB relative, and SFX masked by
 more than 18 dB by speech or music at their strongest 20ms moment within each 500ms window. These are heuristics; inspect the numbers and
 surface warnings. Final stem RMS estimates common normalization gain; raw levels

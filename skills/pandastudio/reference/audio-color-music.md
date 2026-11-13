@@ -59,6 +59,27 @@ pandastudio audio.normalize --id=$ID --clipId=clip-1 --targetLufs=-16 --json
 null loudness means silent or measurement unavailable. Probe measures the audio
 file, before clip volume/keyframes and the music mix.
 
+### Original voice: Enhance voice off for a stretch
+
+```bash
+pandastudio project.add-original-voice --id=$ID --atMs=42000 --durationMs=8000 --json
+# -> { regionId: "enhance-off-1", ... }  (editor.enhanceOffRegions)
+pandastudio project.remove-original-voice --id=$ID --regionId=enhance-off-1 --json
+```
+- The main track plays its ORIGINAL audio inside the region (the enhanced WAV
+  everywhere else). Only clips with Enhance voice applied change; with nothing
+  enhanced the result carries a `warning` and the region does nothing yet.
+- Edited-timeline ms, anchored like a mute region (it follows its words through
+  later cuts). Mute regions still win: a muted stretch stays silent.
+- Export parity: the enhanced track is muted over the region and the clip's own
+  audio is laid over it from the same source position, with the clip's volume,
+  the voice bus and the main voice FX rack, so preview and export match.
+- Typical use: a reaction recording where Enhance voice ate the video playing in
+  the room, a laugh, or a sound effect the denoiser treats as noise.
+- Recordings made with the mic AND System audio no longer need it for the
+  computer's sound: Enhance voice cleans the mic stem only and mixes the system
+  audio back untouched (`systemAudioKept: true` in the result).
+
 ### Per-clip volume (balance loudness across clips)
 
 Each main-track clip carries a linear audio **gain**: `1` = original level (the

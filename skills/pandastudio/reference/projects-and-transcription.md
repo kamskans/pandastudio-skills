@@ -466,8 +466,17 @@ Ask/confirm the language when a transcript looks wrong or speech is non-English.
 overrides workspace preferences for this run only. Supported language names include
 English, Parakeet's European set and the Whisper languages. Provider is
 `local|apple|deepgram|elevenlabs`. Never use cloud or apple with `auto`; choose a language first.
-Cloud needs a connected key and user consent to upload audio. Surface job `warnings`
-when a network/provider failure caused a local fallback.
+Cloud needs a connected key and user consent to upload audio.
+
+Cloud audio goes up in ~5 min parts, each retried on network drops, timeouts,
+5xx and 429. `--fallback=none` fails the job when a part still fails
+(`job.errorDetails.code` `cloud_failed`, `failedRanges`; nothing runs on this
+computer, and a re-run only re-sends the failed parts); `--fallback=local` lets
+this computer transcribe only the failed parts. Default: `none` when `--provider`
+is passed, else the workspace setting (`--fallback` on
+`system.set-transcription-preferences`, default `local`). A local fallback is
+always reported: result `clips[].engine` / `engines` / `fallback` and a warning.
+Surface them.
 
 `pandastudio system.set-transcription-preferences --language=tamil --provider=deepgram`
 saves both workspace defaults in one write. Use only when the user wants future

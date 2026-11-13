@@ -132,6 +132,15 @@ pandastudio llm.generate-timestamps --id=$ID --maxChapters=8 --json
 # → { timestamps: [ { timeMs, label }, ... ] }
 ```
 
+**Speakers and focus (2.1.61 and later).** All three name the people speaking
+when the project knows them (a podcast's participant names; the transcript's
+speaker labels say who said what) and use the episode info from
+`project.set-episode-info`. Pass `--instruction="…"` (max 500 chars) to steer
+them the way the user asks, e.g.
+`llm.generate-description --id=$ID --instruction="focus on the pricing story, mention it's episode 12"`.
+It is the same as the "What should the title and description focus on?" box on
+the export page, which is saved on the export (`generationFocus`).
+
 These are READ-ONLY — they return text; they don't write anything. To actually
 SAVE title / description / timestamps onto the export (the fields in the export's
 Content tab), use `export.set-details`:

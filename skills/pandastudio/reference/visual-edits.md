@@ -154,6 +154,29 @@ pandastudio project.set-webcam-style --id=$ID --reset=true            # back to 
 pandastudio project.set-clip-webcam --id=$ID --clipIndex=0 --webcam="/abs/path/presenter.mp4"
 # Then style it with set-webcam-layout / set-webcam-style below. In the editor:
 # Video tab -> Camera video -> Add camera video.
+# The main video KEEPS its kind: camera / imported footage stays footage (face
+# framing, Follow speakers); a kind-less clip becomes "screen" only when it has
+# cursor data.
+
+# REACTION VIDEO (someone reacting to an interview / clip): the video being
+# reacted to is the MAIN clip, the reactor's camera is attached to it, and
+# --audio=mix plays BOTH sounds (the interview plus the reactor's voice; the
+# editor asks the same question when both videos have sound).
+pandastudio project.set-clip-webcam --id=$ID --clipIndex=0 --webcam="/abs/path/me-reacting.mp4" --audio=mix
+pandastudio transcript.transcribe --id=$ID          # the mixed sound needs a new transcript
+# 16:9: picture-in-picture (camera card in a corner) or side-by-side.
+# 9:16: vertical-stack = the interview fills the TOP half, the reactor the
+# bottom half (the editor picks it when you switch to 9:16). Then run
+# project.auto-reframe: it frames the interview's speakers INSIDE the top half
+# (tracks are computed for the main video's own shape, 9:8 on a 9:16 canvas).
+# A clip with a camera is never split into "two people stacked" (split=true is
+# ignored for it, result.note says so): the camera keeps its half.
+pandastudio project.set-webcam-layout --id=$ID --preset=vertical-stack
+pandastudio project.auto-reframe --id=$ID
+# Shorts cut from it (project.fork-from-shot) keep the camera: 9:16 forks use
+# vertical-stack, square / landscape forks fill with the footage and keep the
+# camera card. Make clips (clips.make) only takes a single video file, so it
+# can't carry a reaction camera; fork shots from the project instead.
 
 # Camera CARD shapes (v1.89.3+). A picture-in-picture tile is square unless the
 # camera is cropped: then the tile takes the crop's shape (clamped 9:16..16:9),
