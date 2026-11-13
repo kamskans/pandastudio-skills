@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.313.0 -->
+<!-- version: 3.314.0 -->
 
 # PandaStudio
 
@@ -2946,8 +2946,13 @@ Short-term LUFS needs a 3s warm-up. Energy activity is not speech recognition, a
 attacks can be words or percussion as well as SFX. Never identify a specific song,
 whoosh or click from these numbers. Reference studies now include `audioDescription`
 for each excerpt and its source `audioStartMs`; use that evidence without claiming
-that the agent listened or recognized a sound. Preview uses export preparation,
-and normalizes the whole project before slicing; long projects can take longer.
+that the agent listened or recognized a sound. A project range renders only that
+range (sources read from where it starts, trims and speed regions applied), so a few
+minutes of a long edit cost those minutes; the job reports progress and `job.cancel`
+stops it. The whole project is loudness-normalized exactly as the export does it; a
+range is normalized on its own (`loudnessScope: "range"` + `loudnessNote`), since the
+export's gain comes from the whole mix, so its level in the export can differ by the
+gap between its loudness and the project's.
 
 Audio FX racks, voiceover carve and mix groups (details and examples in
 [Audio, colour and music](reference/audio-color-music.md) "Voiceover carve,
