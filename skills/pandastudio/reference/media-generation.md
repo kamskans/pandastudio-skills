@@ -13,7 +13,7 @@ engines, and **local is the default so it works out of the box**:
   model does); pre-warm it with `system.download-kokoro-model` or check
   `system.is-kokoro-model-downloaded`.
 - **Your voice, on device (`--model=zonos3-local`, PandaStudio 2.1.65 and
-  later).** The user's OWN voice, cloned once from ~20 s of them speaking and
+  later).** The user's OWN voice, cloned once from about 20 s of them speaking (at least 8 s) and
   then spoken on this computer by Zonos3-Mini: free, offline, 44 languages
   (`--language=es|hi|ta|...`), `--speed` 0.6-1.6. `voice.list` shows their
   voices; see "The user's OWN voice" below to make one.
@@ -83,15 +83,28 @@ pandastudio media.generate-narration \
 - **Their cloned voice, on this computer (first choice, 2.1.65+):**
   `voice.list` → speak an existing voice with
   `media.generate-narration --model=zonos3-local --voice=<id or name>
-  [--language=ta]`. No voice yet: `voice.create --name="Kamal"
-  --sample=<a recording where ONLY they speak, no music> [--sampleStartMs=
-  --sampleDurationMs=20000]` (ASYNC: `job.wait`; 8-60 s used, ~20 s of clear
-  speech is best; the first voice downloads the ~1.2 GB model once, the job
-  shows progress). The user confirms on a card that it is their voice or they
-  have the speaker's permission: never clone someone else's voice. In the
-  editor the same lives in AI Voiceover → **Add your voice** (record now or
-  pick a file). Free and offline afterwards, so prefer it over cloud clones.
-  `voice.rename` / `voice.delete` (asks the user) manage them.
+  [--language=ta]`. No voice yet, ask how they want to make it (`chat.ask`:
+  record now, or use a recording of them):
+  - **Record now** (they have no recording, or say "record"):
+    `voice.record [--name="Kamal"]` opens PandaStudio's recorder in the window
+    they are using, on Home or in a project (2.1.66+). They read a short
+    passage aloud (at least 8 s, about 20 s is best, up to 60 s), name the
+    voice and tick the consent box there; the app makes the voice. In
+    PandaStudio's own chat, END YOUR TURN right after it, without listing the
+    steps: their next message says the voice they saved ("I recorded my voice
+    and saved it as ..."), or that they closed the recorder. Other agents:
+    `job.wait` its jobId (`{ made, voice | reason }`; give it a few minutes).
+    Never tell the user to go find the panel instead.
+  - **From a recording:** `voice.create --name="Kamal" --sample=<a recording
+    where ONLY they speak, no music> [--sampleStartMs= --sampleDurationMs=20000]`
+    (ASYNC: `job.wait`; at least 8 s and up to 60 s used, about 20 s of clear
+    speech is best). The user confirms on a card that it is their voice or they
+    have the speaker's permission: never clone someone else's voice.
+  The first voice downloads the ~1.2 GB model once (progress shows in the
+  recorder or the job). In the editor the same lives in AI Voiceover → **Add
+  your voice** (record now or pick a file). Free and offline afterwards, so
+  prefer it over cloud clones. `voice.rename` / `voice.delete` (asks the user)
+  manage them.
 - **Cloud clone alternatives:** with **Fish Audio** connected (`connector.list`),
   it is excellent for voice cloning and natural speech.
   `connector.call --connector=fishaudio --tool=create_voice_clone` (their
