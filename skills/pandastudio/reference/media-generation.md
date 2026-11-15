@@ -4,7 +4,7 @@
 
 ## Narration / voiceover
 
-Generate a voiceover for promos and explainers — no microphone needed. Two
+Generate a voiceover for promos and explainers — no microphone needed. Three
 engines, and **local is the default so it works out of the box**:
 
 - **Local Kokoro (default).** Kokoro-82M runs fully **on-device** (English, US +
@@ -12,6 +12,11 @@ engines, and **local is the default so it works out of the box**:
   per-use cost. The ~330 MB model auto-downloads on first use (like the Whisper
   model does); pre-warm it with `system.download-kokoro-model` or check
   `system.is-kokoro-model-downloaded`.
+- **Your voice, on device (`--model=zonos3-local`, PandaStudio 2.1.65 and
+  later).** The user's OWN voice, cloned once from ~20 s of them speaking and
+  then spoken on this computer by Zonos3-Mini: free, offline, 44 languages
+  (`--language=es|hi|ta|...`), `--speed` 0.6-1.6. `voice.list` shows their
+  voices; see "The user's OWN voice" below to make one.
 - **Cloud Replicate (opt-in).** Set `--model` to a Replicate model when you want
   more voices/languages or the most expressive delivery. Needs Replicate
   connected (Settings → Connectors).
@@ -75,8 +80,20 @@ pandastudio media.generate-narration \
   `audioOverlays[]`). With "Transcribe for captions" on (default), its words
   go into the transcript like `project.add-audio --transcribe`. You can't
   record their voice yourself.
-- **Their cloned voice:** with **Fish Audio** connected (`connector.list`),
-  use it first: it is excellent for voice cloning and natural speech.
+- **Their cloned voice, on this computer (first choice, 2.1.65+):**
+  `voice.list` → speak an existing voice with
+  `media.generate-narration --model=zonos3-local --voice=<id or name>
+  [--language=ta]`. No voice yet: `voice.create --name="Kamal"
+  --sample=<a recording where ONLY they speak, no music> [--sampleStartMs=
+  --sampleDurationMs=20000]` (ASYNC: `job.wait`; 8-60 s used, ~20 s of clear
+  speech is best; the first voice downloads the ~1.2 GB model once, the job
+  shows progress). The user confirms on a card that it is their voice or they
+  have the speaker's permission: never clone someone else's voice. In the
+  editor the same lives in AI Voiceover → **Add your voice** (record now or
+  pick a file). Free and offline afterwards, so prefer it over cloud clones.
+  `voice.rename` / `voice.delete` (asks the user) manage them.
+- **Cloud clone alternatives:** with **Fish Audio** connected (`connector.list`),
+  it is excellent for voice cloning and natural speech.
   `connector.call --connector=fishaudio --tool=create_voice_clone` (their
   sample, their go-ahead), then `text_to_speech`, `media.import` the audio URL
   and `project.add-audio --transcribe=true` (detail: connectors.md).
