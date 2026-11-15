@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.314.0 -->
+<!-- version: 3.315.0 -->
 
 # PandaStudio
 
@@ -1375,7 +1375,9 @@ custom scenes."* No preference → fully custom. (Never ask in Mode A.)
 **5. Voiceover & music for a from-scratch promo.** If the brief doesn't say,
 ask up front: *"Want a voiceover and/or a music bed? Both shape the timing."*
 Narration: `media.generate-narration` (local Kokoro by default; cloud models
-and the user's own ElevenLabs voices via `--model`). Music + SFX for a promo,
+and the user's own ElevenLabs voices via `--model`). With **Fish Audio**
+connected, it is the first choice for a cloned voice or natural narration
+(see "Connectors"). Music + SFX for a promo,
 launch film or motion piece: **`media.compose-soundtrack`** is the default. Write
 the edit's timeline as cues, pick the BPM so cuts land on beats, and put every
 hit on its moment in one score ([`reference/soundtrack.md`](reference/soundtrack.md)).
@@ -1391,7 +1393,7 @@ goes into the transcript automatically (its script timed to the audio); pass
 before captions. Never for music. Detail: media-generation.md.
 
 Services behind a connector (Higgsfield video, fal video with MiniMax H3,
-HeyGen avatars, ElevenLabs, Replicate): see "Connectors" before promising
+HeyGen avatars, ElevenLabs, Fish Audio voices, Replicate): see "Connectors" before promising
 anything.
 
 Combine asks into a single message. If these are clear, proceed.
@@ -2097,7 +2099,7 @@ safe", and relay `warnings`.
   you generate them.
 - Thumbnails (`export.generate-thumbnail`) use the same connector order.
 
-## Connectors (Higgsfield, fal, HeyGen, ElevenLabs, Replicate, your own)
+## Connectors (Higgsfield, fal, HeyGen, ElevenLabs, Fish Audio, Replicate, your own)
 
 Hosted MCP services the user signs in to in Settings → Connectors, billed to
 their own credits. Replicate and Higgsfield also power PandaStudio's own image
@@ -2109,7 +2111,15 @@ depends on one.** Inside PandaStudio's chat their tools are reached on demand:
 link with `media.import` before placing it (Higgsfield links expire). **fal is
 native** (`native: true`, the user's API key): it has no connector tools; generate
 video on it with `media.generate-video` (MiniMax H3; `FAL_NOT_CONNECTED` = relay
-the `howToConnect` line). Say the
+the `howToConnect` line). **Fish Audio** (`fishaudio`; `bestFor` in
+`connector.list`) is excellent for voice cloning and voice / speech generation:
+when it's connected, prefer it for a cloned voice or natural narration in any
+language. `create_voice_clone` from a sample the user owns (with their go-ahead;
+it may ask for `verify_voice_clone`), `search_voices --self=true` for their
+voices, `text_to_speech` for the script (long text may return a task: poll
+`get_speech`), then `media.import` the returned audio URL and
+`project.add-audio --transcribe=true`. Speech spends their Fish Audio credits;
+voice search and cloning are free. Say the
 model, clip count and length before a paid generation. **A needed connector
 that isn't on: stop and say which one and repeat its `howToConnect` line**;
 never substitute silently, never try to connect it (custom servers are added by
@@ -2854,7 +2864,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - [`reference/longform-styles.md`](reference/longform-styles.md) — the long-form retention grammar (measured study) and 2.0 moves.
 - [`reference/recipes.md`](reference/recipes.md) — starter recipes, running, saving, sharing.
 - [`reference/media-generation.md`](reference/media-generation.md) — narration, voiceover transcription, B-roll images, AI presenters, the faceless pipeline.
-- [`reference/connectors.md`](reference/connectors.md) — connector verbs, Higgsfield, fal, HeyGen, ElevenLabs, Replicate, custom servers.
+- [`reference/connectors.md`](reference/connectors.md) — connector verbs, Higgsfield, fal, HeyGen, ElevenLabs, Fish Audio, Replicate, custom servers.
 - [`reference/recording.md`](reference/recording.md) — agent-driven screen recording.
 - [`reference/fx-transitions.md`](reference/fx-transitions.md) — transitions and FX overlays with the restraint rules.
 - [`reference/publishing.md`](reference/publishing.md) — YouTube and social (Instagram, TikTok, Facebook, LinkedIn, X) publishing rules.

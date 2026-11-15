@@ -75,9 +75,13 @@ pandastudio media.generate-narration \
   `audioOverlays[]`). With "Transcribe for captions" on (default), its words
   go into the transcript like `project.add-audio --transcribe`. You can't
   record their voice yourself.
-- **Their cloned voice:** `--model=elevenlabs-direct` uses the user's OWN
-  ElevenLabs account (pass the voice name or voice_id; needs ElevenLabs
-  connected in Settings → Connectors).
+- **Their cloned voice:** with **Fish Audio** connected (`connector.list`),
+  use it first: it is excellent for voice cloning and natural speech.
+  `connector.call --connector=fishaudio --tool=create_voice_clone` (their
+  sample, their go-ahead), then `text_to_speech`, `media.import` the audio URL
+  and `project.add-audio --transcribe=true` (detail: connectors.md).
+  `--model=elevenlabs-direct` uses the user's OWN ElevenLabs account (pass the
+  voice name or voice_id; needs ElevenLabs connected in Settings → Connectors).
 
 ### Narrations and voiceovers in the transcript
 

@@ -1,9 +1,10 @@
-# Connectors: Higgsfield, fal, HeyGen, ElevenLabs, Replicate and your own MCP servers
+# Connectors: Higgsfield, fal, HeyGen, ElevenLabs, Fish Audio, Replicate and your own MCP servers
 
 Connectors are hosted MCP servers the user signs in to (Settings →
 Integrations → Connect), billed to their own plan credits. They power the
 agent AND built-in features (Replicate for images / TTS / presenters,
-ElevenLabs for cloned voices). A server the user added themselves can sign in
+ElevenLabs for cloned voices). Fish Audio is the first choice for voice
+cloning and speech when it's connected. A server the user added themselves can sign in
 with an API key instead of a browser sign-in (Vocallab, for example): the user
 pastes the key in Settings, it's stored encrypted, and you never see it.
 
@@ -225,6 +226,26 @@ so say what you're about to do first:
   dubbing. Import generated audio with `media.import` before placing it.
   `media.generate-narration --model=elevenlabs-direct` uses their cloned voices
   directly (see media-generation.md).
+- **Fish Audio** (`fishaudio`): excellent for voice cloning and voice / speech
+  generation, so prefer it for a cloned voice or natural narration (many
+  languages) when it's connected. The sign-in picks a Fish Audio team; the
+  connection works in that team.
+  - Clone: get the user's go-ahead and a sample they own (`get_upload_url` for a
+    local file), then `create_voice_clone`. A clone that answers
+    `verification_required` needs the speaker to read the given sentence:
+    upload that recording and call `verify_voice_clone`. New clones are unlisted;
+    ask for a private voice to keep it to their team.
+  - Find voices: `search_voices` (`self=true` lists their own and team voices),
+    `get_voice` for one voice's languages and a sample.
+  - Speak: `text_to_speech` with the voice and the script (one voice, or a
+    multi-speaker dialogue). Long text can return a task id: poll `get_speech`.
+    It returns a permanent audio URL: `media.import` it, then
+    `project.add-audio --transcribe=true` (or place it as narration).
+  - Also: `design_voice` (a voice from a description, 2 samples) +
+    `save_designed_voice`, `generate_sound_effect`, `get_credit_balance` before
+    a long script.
+  - Costs: speech is 1 credit per UTF-8 byte of text on their plan; voice
+    search, cloning and uploads are free. Say what you'll generate first.
 - **Replicate**: any model on Replicate. Use PandaStudio's own `media.*` verbs
   first (they're tuned for editing, and `media.generate-image` already uses
   Replicate when it's connected); reach for this only for a model those don't
