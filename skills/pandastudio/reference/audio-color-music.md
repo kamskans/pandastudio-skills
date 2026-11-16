@@ -472,6 +472,47 @@ Order is fixed: correction, then LUT, in both preview and export. When footage
 looks grey or flat in a frame check, reach for `--preset=flat-footage` before
 picking a LUT.
 
+### Camera filters (one-tap looks + touch up on the person)
+
+A camera filter is what meeting apps and creator tools call a filter: a named
+look for the person on camera, at an intensity, plus touch up (edge-preserving
+skin smoothing: skin is softened, eyes, brows, hair and edges stay sharp).
+Use it when the user asks for a filter, a warmer / cooler / softer / B&W look
+on themselves, or skin smoothing. PandaStudio 2.1.67 and later.
+
+```bash
+# Every clip with a person on camera (the usual call)
+pandastudio project.set-camera-filter --id=$ID --look=warm --json
+# → { path, revision, changed: [{ clipId, layer: "camera"|"screen", filter }] }
+
+# Softer, with touch up; one clip only
+pandastudio project.set-camera-filter --id=$ID --clipId="$CLIP_ID" --look=soft --intensity=0.7 --smooth=0.4 --json
+
+# Touch up only (no look), then remove everything
+pandastudio project.set-camera-filter --id=$ID --look=none --smooth=0.35 --json
+pandastudio project.set-camera-filter --id=$ID --reset=true --json
+```
+
+Looks (`asset.list-camera-filters`): natural (gentle lift + light smoothing),
+warm, cool, vivid, soft (diffusion + smoothing + glow), studio (contrast,
+warmth, subtle vignette), film (faded, grain, vignette), bw.
+
+- Where it goes (target auto): the camera layer of a screen + camera clip; the
+  main video of a camera-only recording or imported footage; both people of a
+  two-person podcast clip. A screen recording without a camera fails with a
+  clear error; `--target=screen` forces the main video.
+- Order on a layer: grade (set-clip-color, then set-clip-lut), then the
+  filter (touch up first, then the look), then adjustment layers scoped to
+  that layer. Fix flat footage before choosing a look.
+- Merges: given fields win, the rest stay; `--look=none` drops the look and
+  keeps touch up.
+- Recorder: `recording.set-camera-filter --look=… [--smooth]` sets the filter
+  shown live in the camera preview (also the wand button on the preview). The
+  recorded files are never filtered; the recording's clip starts with it.
+- `smooth` is also an adjustment-layer effect (`project.add-adjustment
+  --smooth=0.4 --clipId --layer=camera`) for touch up over a time span.
+- Verify with `project.render-frame` on a frame with the face.
+
 ### Color grading clips (LUT presets)
 
 Every clip can have a non-destructive cinematic color grade applied. Grades are

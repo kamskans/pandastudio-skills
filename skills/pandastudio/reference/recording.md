@@ -101,6 +101,12 @@ Notes:
   Accessibility access to move other apps' windows: the error says how to grant
   it; pass it on rather than retrying. The result has `windowCentered` and
   `windowPixels`.
+- **Camera filter:** `recording.set-camera-filter --look=warm|cool|natural|vivid|soft|studio|film|bw
+  [--intensity=0..1] [--smooth=0..1] [--reset=true]` sets the filter the
+  camera preview shows live (the wand button on the preview does the same);
+  `recording.get-camera-filter` reads it with the list of looks. The recorded
+  files stay unfiltered: the recording's clip starts with the filter on its
+  camera layer, editable after with `project.set-camera-filter`.
 - **Mic check (recorder HUD only):** a take started with the mic off, unplugged
   or missing asks first (Record without microphone / Use default microphone /
   Cancel, with Don't ask again; Settings > Recording turns it back on).

@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.318.0 -->
+<!-- version: 3.319.0 -->
 
 # PandaStudio
 
@@ -446,6 +446,9 @@ Recording one window: `--windowSize=16:9|9:16|…|1080p` resizes it first and
 `--centerWindow=true` centres it for the take (put back after); also
 `recording.resize-window` and `recording.set-center-window`. macOS needs
 Accessibility access for both: relay the error's instructions.
+Camera filter: `recording.set-camera-filter --look=warm [--intensity --smooth]`
+sets the look shown live in the recorder's camera preview; the new clip starts
+with it (files stay unfiltered). `recording.get-camera-filter` reads it.
 A take interrupted by a crash, force-quit or power loss is kept:
 `recording.unfinished` lists them, `recording.recover --recordingId=…` rebuilds
 one into a project (tell the user any `warnings`).
@@ -2267,7 +2270,17 @@ or `--tag`; place many timed cues in one call with `project.add-sound-cues
 re-run with the same group to replace them; `media.generate-sound-effect` only
 when nothing fits) and colour (`project.set-clip-color
 --preset=flat-footage` first, then `project.set-clip-lut`; `--target=camera`
-grades the camera separately). Detail + sound design + loudness:
+grades the camera separately). "Add a filter to my camera", "make me look
+warmer / softer", "smooth my skin", "black and white me" = a camera filter,
+not a grade: `project.set-camera-filter --id=$ID --look=warm|cool|natural|vivid|soft|studio|film|bw
+[--intensity=0..1] [--smooth=0..1]` (no clipId = every clip with a person on
+camera; finds the camera layer itself: the camera of a screen + camera clip,
+the main video of camera footage, both people of a podcast clip). `--smooth`
+is touch up (skin smoothing that keeps eyes and edges sharp; 0.3-0.5 looks
+natural, never above 0.7 unasked); `--look=none` keeps only touch up,
+`--reset=true` clears. It runs after the colour grade, so fix flat footage with
+set-clip-color first. Looks: `asset.list-camera-filters`; project.read shows
+`clipStates[].cameraFilter`. Needs PandaStudio 2.1.67+. Detail + sound design + loudness:
 [`reference/audio-color-music.md`](reference/audio-color-music.md).
 
 **Cutting to the beat** (music-driven Shorts, B-roll / photo montages, a
@@ -2465,7 +2478,7 @@ WHEN: "Which tool for which moment" above. HOW:
   --holdMs`, `project.add-reverse`.
 - **Looks:** `project.add-adjustment` / `update-adjustment` (exposure, contrast,
   saturation, temperature, tint, blur, vignette, grain, glow,
-  chromaticAberration, LUT `look`, `correction`, `--clipId [--layer=camera]`,
+  chromaticAberration, smooth (touch up), LUT `look`, `correction`, `--clipId [--layer=camera]`,
   keyframes, fades); clip grades and adjustment layers are one effect library.
   `--blendMode` on overlays, FX and adjustments.
 - **Text behind you:** `project.add-title-behind --text --atMs [--style=3d|bold|serif
