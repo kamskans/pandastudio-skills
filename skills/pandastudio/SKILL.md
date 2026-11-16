@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.320.0 -->
+<!-- version: 3.321.0 -->
 
 # PandaStudio
 
@@ -448,7 +448,12 @@ Recording one window: `--windowSize=16:9|9:16|…|1080p` resizes it first and
 Accessibility access for both: relay the error's instructions.
 Camera filter: `recording.set-camera-filter --look=warm [--intensity --smooth]`
 sets the look shown live in the recorder's camera preview; the new clip starts
-with it (files stay unfiltered). `recording.get-camera-filter` reads it.
+with it (files stay unfiltered). `recording.get-camera-filter` reads it. The
+same setting is the podcast host's camera filter: guests and the live stream
+see it, the host's recording stays as filmed and the take carries the filter.
+Guests pick their own look on the guest page (`podcast.status` shows each
+person's `cameraFilter`); per person after the take: `project.set-camera-filter
+--participant=<speaker id|index|label>`.
 A take interrupted by a crash, force-quit or power loss is kept:
 `recording.unfinished` lists them, `recording.recover --recordingId=…` rebuilds
 one into a project (tell the user any `warnings`).
@@ -690,8 +695,15 @@ recording. Order:
    --kind=comment --commentId`, `podcast.play-media --which=intro|outro`.
    Callers (call-in link) wait backstage; `podcast.eject-caller` removes one.
    A screen share only goes on air when its owner is on stage.
+   Black bars on the host's camera (a capture dongle's letterbox) or a
+   too-wide shot: `podcast.set-camera-zoom --trimBars=true` (then `--zoom`
+   to tighten); it works live and the edit gets the same crop.
    `live-status` separates `state` (the destination accepts our stream) from
    `audience` (YouTube says viewers see it); report both honestly.
+   A YouTube destination saved with a stream key (no connected account)
+   reports `startInYouTubeStudio: true`: YouTube only shows a preview until
+   the user presses Go live in YouTube Studio's Live Control Room (or has
+   Auto-start on). Tell them to do that; never say viewers can see it.
    The app ends a show that reaches nobody (the studio stopped sending
    video or sound, every destination failed or got nothing, YouTube stopped
    receiving it): `live-status` then shows `state:"ended"` with
@@ -2279,12 +2291,14 @@ warmer / softer", "smooth my skin", "black and white me" = a camera filter,
 not a grade: `project.set-camera-filter --id=$ID --look=warm|cool|natural|vivid|soft|studio|film|bw
 [--intensity=0..1] [--smooth=0..1]` (no clipId = every clip with a person on
 camera; finds the camera layer itself: the camera of a screen + camera clip,
-the main video of camera footage, both people of a podcast clip). `--smooth`
+the main video of camera footage, every person of a podcast clip;
+`--participant=guest-2` (index, speaker id or label) sets one person, so each
+guest can have their own look). `--smooth`
 is touch up (skin smoothing that keeps eyes and edges sharp; 0.3-0.5 looks
 natural, never above 0.7 unasked); `--look=none` keeps only touch up,
 `--reset=true` clears. It runs after the colour grade, so fix flat footage with
 set-clip-color first. Looks: `asset.list-camera-filters`; project.read shows
-`clipStates[].cameraFilter`. Needs PandaStudio 2.1.67+. Detail + sound design + loudness:
+`clipStates[].cameraFilter` (podcast clips: `.participants` by speaker). Needs PandaStudio 2.1.67+. Detail + sound design + loudness:
 [`reference/audio-color-music.md`](reference/audio-color-music.md).
 
 **Cutting to the beat** (music-driven Shorts, B-roll / photo montages, a
@@ -2759,7 +2773,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   get-brand, set-brand, capture-brand, get-project-defaults,
   set-project-defaults (projects-and-transcription.md)
 - **podcast**, live host — open-host, status, start-recording, stop-recording,
-  start-screen-share, stop-screen-share, open-in-editor, found-recordings,
+  start-screen-share, stop-screen-share, set-camera-zoom, open-in-editor, found-recordings,
   add-found-recordings (commands.md)
 - **podcast**, live streaming — live-destinations, add-destination,
   remove-destination, check-upload, go-live, stop-live, live-status, set-scene,

@@ -491,6 +491,10 @@ pandastudio project.set-camera-filter --id=$ID --clipId="$CLIP_ID" --look=soft -
 # Touch up only (no look), then remove everything
 pandastudio project.set-camera-filter --id=$ID --look=none --smooth=0.35 --json
 pandastudio project.set-camera-filter --id=$ID --reset=true --json
+
+# Podcast: one person only (index 0 = main source, speaker id, or label)
+pandastudio project.set-camera-filter --id=$ID --clipId="$CLIP_ID" --participant=guest-2 --look=film --json
+# → changed: [{ clipId, participant: "guest-2", filter }]
 ```
 
 Looks (`asset.list-camera-filters`): natural (gentle lift + light smoothing),
@@ -498,8 +502,11 @@ warm, cool, vivid, soft (diffusion + smoothing + glow), studio (contrast,
 warmth, subtle vignette), film (faded, grain, vignette), bw.
 
 - Where it goes (target auto): the camera layer of a screen + camera clip; the
-  main video of a camera-only recording or imported footage; both people of a
-  two-person podcast clip. A screen recording without a camera fails with a
+  main video of a camera-only recording or imported footage; every person of a
+  podcast clip (2-4 people, every layout: pair, grid, screen-share strip).
+  `--participant` sets one person (omit clipId: that person on every podcast
+  clip). A podcast recorded with filters picked in the studio arrives with
+  each person's filter already set (files stay raw). A screen recording without a camera fails with a
   clear error; `--target=screen` forces the main video.
 - Order on a layer: grade (set-clip-color, then set-clip-lut), then the
   filter (touch up first, then the look), then adjustment layers scoped to

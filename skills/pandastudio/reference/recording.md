@@ -106,7 +106,9 @@ Notes:
   camera preview shows live (the wand button on the preview does the same);
   `recording.get-camera-filter` reads it with the list of looks. The recorded
   files stay unfiltered: the recording's clip starts with the filter on its
-  camera layer, editable after with `project.set-camera-filter`.
+  camera layer, editable after with `project.set-camera-filter`. The recorder's
+  camera pill (Filter menu + Touch up) and the preview's wand both edit it, and
+  it is also the podcast host's camera filter (see `podcast.status`).
 - **Mic check (recorder HUD only):** a take started with the mic off, unplugged
   or missing asks first (Record without microphone / Use default microphone /
   Cancel, with Don't ask again; Settings > Recording turns it back on).
