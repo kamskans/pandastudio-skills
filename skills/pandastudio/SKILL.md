@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.319.0 -->
+<!-- version: 3.320.0 -->
 
 # PandaStudio
 
@@ -1612,7 +1612,11 @@ give you.
   `add-adjustment --layer=camera`). Overlay-scoped verbs take `--regionId`.
 - **Clips:** `add-clip` (`--atIndex=0` prepends; an image path makes a still
   clip, `set-clip-duration` resizes it), `move-clip`, `split-clip`,
-  `remove-clip` carry every region with the clip. Insert at a moment (a
+  `remove-clip` carry every region with the clip. `split-clip` snaps its
+  point to the nearest pause (within 300 ms) so it never lands inside a word,
+  the same as a split made in the editor; read `result.split.ms` for where it
+  landed, and pass `--snapToAudio=false` only when the exact ms matters (a
+  frame-accurate picture cut in silence-free music, say). Insert at a moment (a
   re-recorded take, a cutaway clip) = `add-clip --atMs=<edited ms>`: it splits
   the clip under that moment and inserts between the halves (on a boundary,
   no split). Replace a flubbed stretch with a new take = `add-clip
