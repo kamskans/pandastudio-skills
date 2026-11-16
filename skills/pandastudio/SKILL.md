@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.317.0 -->
+<!-- version: 3.318.0 -->
 
 # PandaStudio
 
@@ -1378,8 +1378,10 @@ Narration: `media.generate-narration` (local Kokoro by default; cloud models
 and the user's own ElevenLabs voices via `--model`). In the user's OWN voice:
 `--model=zonos3-local` with a voice from `voice.list` (on device, free, 44
 languages; no voice yet: `voice.record` opens the app's recorder for them,
-`voice.create` makes one from a recording of them, see
-reference/media-generation.md). Fish Audio, when connected, is the cloud
+`voice.create` makes one from a recording of them; in another language it
+gets a native accent for Indian languages and sounds most like them with a
+sample in that language, `voice.add-language` / `voice.record --voice
+--language`, see reference/media-generation.md). Fish Audio, when connected, is the cloud
 alternative for cloning (see "Connectors"). Music + SFX for a promo,
 launch film or motion piece: **`media.compose-soundtrack`** is the default. Write
 the edit's timeline as cues, pick the BPM so cuts land on beats, and put every

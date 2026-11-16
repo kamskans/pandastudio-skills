@@ -15,8 +15,9 @@ engines, and **local is the default so it works out of the box**:
 - **Your voice, on device (`--model=zonos3-local`, PandaStudio 2.1.65 and
   later).** The user's OWN voice, cloned once from about 20 s of them speaking (at least 8 s) and
   then spoken on this computer by Zonos3-Mini: free, offline, 44 languages
-  (`--language=es|hi|ta|...`), `--speed` 0.6-1.6. `voice.list` shows their
-  voices; see "The user's OWN voice" below to make one.
+  (`--language=es|hi|ta|...`), `--speed` 0.6-1.6, `--accent=native|own`
+  (Indian languages). `voice.list` shows their voices; see "The user's OWN
+  voice" below to make one and to add samples in other languages.
 - **Cloud Replicate (opt-in).** Set `--model` to a Replicate model when you want
   more voices/languages or the most expressive delivery. Needs Replicate
   connected (Settings → Connectors).
@@ -105,6 +106,25 @@ pandastudio media.generate-narration \
   your voice** (record now or pick a file). Free and offline afterwards, so
   prefer it over cloud clones. `voice.rename` / `voice.delete` (asks the user)
   manage them.
+- **Other languages in their voice (2.1.67+).** The voice is made from one
+  language; in another it keeps that accent and sounds a bit less like them.
+  What the app does on its own: English words and numbers glued to an Indian
+  suffix ("video-வை", "2025-ல்") are separated so they are read as words, not
+  spelled out letter by letter or digit by digit; Indian languages (hi, ta,
+  te, kn, ml, bn, mr, gu, pa, or, ur) get a native accent by default, which
+  made voices from outside India clear (Tamil/Hindi 50-120% errors -> 1-6%)
+  and keeps an Indian voice almost as it is. Pass `--accent=own` to keep their
+  exact accent (the user prefers sounding like themselves over clarity).
+  To sound MOST like them in a language, add a sample of them speaking it:
+  `voice.record --voice=<id or name> --language=ta` opens the recorder with a
+  Tamil passage (in-app chat: end your turn; the note says "I recorded a
+  Tamil sample for my voice ..."), or `voice.add-language --voice= --language=
+  --sample=<file of them speaking it>` (job, consent card). That language
+  then always uses it (`voice.list` voices[].languageSamples);
+  `voice.remove-language` undoes it. Offer this when they say a language
+  "doesn't sound like me", never to someone who doesn't speak it.
+  Languages marked `weak` in `voice.list` (Hebrew) are often unclear: offer
+  Fish Audio or ElevenLabs there.
 - **Cloud clone alternatives:** with **Fish Audio** connected (`connector.list`),
   it is excellent for voice cloning and natural speech.
   `connector.call --connector=fishaudio --tool=create_voice_clone` (their
