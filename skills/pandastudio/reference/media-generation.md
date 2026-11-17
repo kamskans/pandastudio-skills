@@ -426,6 +426,14 @@ cave*, NOT a card with the word "Cyclops"). The words belong in the voiceover.
 Motion-graphic text scenes are the WRONG tool here; use them only for an
 optional title card or a lower-third stat.
 
+**The user recorded the narration themselves** (their voice, not an AI one):
+skip steps 1-3 and 6. `project.add-voiceover --id=$PID --audioPath=<file>`
+(`job.wait`) puts the whole take on the timeline as the voice track and
+returns its `beats`; generate one image per beat (step 4) and place it with
+`media.image-to-video --durationMs=<beat.durationMs>` in beat order
+(step 5), so every image starts at its beat's `startMs`. Never cut or
+re-voice the take.
+
 1. **Break the topic into beats.** One clear VISUAL idea per beat (~8–20s of
    narration). A 3–5 min video is ~12–20 beats.
 2. **Write the narration line** for the beat.

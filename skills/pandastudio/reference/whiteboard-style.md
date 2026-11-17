@@ -188,4 +188,11 @@ registration, no randomness.
 - Narration: if the user wants VO, generate it FIRST
   (`media.generate-narration`) and time each scene's caption + drawing to its
   line. Marker SFX at each scene start either way.
+- The user's OWN narration (they recorded it, or gave a file): `project.add-voiceover
+  --audioPath` first (`job.wait`), then one scene per returned beat, each
+  rendered at 30 fps for exactly `beat.durationMs` (whole frames, so laid end
+  to end they never drift), in order, so scene i starts at `beat.startMs`. The scene's caption is a short handwritten summary of
+  `beat.text` (never the whole sentence); its drawing shows what that beat
+  says. Their pace sets the scene length: a long beat gets a slower draw-on
+  and a longer hold, never a cut take.
 - 16:9 default; the style ports to 9:16 by stacking caption-over-drawing.

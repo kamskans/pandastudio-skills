@@ -53,7 +53,12 @@ pandastudio recipe.get --id=product-demo-walkthrough --json
 #    ask the user, never invent them. Fields with `allowScript: true` take an
 #    idea OR the user's finished script: for a script pass
 #    values.<key> = the script and values.<key>Kind = "script"; it's appended
-#    to the prompt and must be narrated word for word.
+#    to the prompt and must be narrated word for word. They also take the
+#    user's OWN recorded narration: values.<key> = the audio file's absolute
+#    path and values.<key>Kind = "recording"; the run adds it with
+#    project.add-voiceover and times every scene to its beats (no script,
+#    no AI voice). Fields with `withRecording` (narrator voice, length) are
+#    then filled from the recording.
 #    Fields with `type: "images"` take the user's OWN pictures: pass
 #    values.<key> as a JSON array (or newline list) of absolute image paths.
 #    Empty renders as "none": generate the images with media.generate-image

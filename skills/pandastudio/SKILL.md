@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.321.0 -->
+<!-- version: 3.322.0 -->
 
 # PandaStudio
 
@@ -994,7 +994,10 @@ choose them yourself, EXCEPT `fromUser` blanks (a faceless video's idea, a
 product name, an offer): render fails until the user gives them; ask, never
 invent. Optional `fromUser` blanks (people's names on a podcast clip) render as
 "none given" when empty: skip what they feed (name straps), never guess them. `allowScript` blanks take the user's script via `<key>Kind: "script"`,
-narrated word for word. `images` blanks take the user's OWN pictures
+narrated word for word, or their OWN recorded narration via `<key>Kind:
+"recording"` with `values.<key>` = the audio file's absolute path (the run
+uses `project.add-voiceover` and times scenes to its beats; `withRecording`
+blanks such as the narrator voice are filled from the recording). `images` blanks take the user's OWN pictures
 (`values.<key>` = JSON array of absolute paths); empty renders as "none" =
 generate them, or ask for images when no image connector is connected.
 
@@ -2047,8 +2050,32 @@ tone; also for `media.generate-sound-effect` / `-music` files placed with
 [--voice / --model / --style]`: only what you pass changes, it keeps its spot,
 volume and mix, re-times its transcript words from the new script
 (`transcribeJobId`), one undo step. Don't remove + re-add. The user does the same by selecting the
-narration (Edit & regenerate). The user wants their
-OWN voice → point them to Audio tab → Record voiceover (you can't record it).
+narration (Edit & regenerate).
+
+**The user's OWN voice as the narration (they recorded it, or have a file).**
+A narration-driven video (whiteboard explainer, faceless video, any recipe
+that would generate a narration) can run on THEIR recording instead of an AI
+voice: `project.add-voiceover --id=$PID --audioPath=<their file>` (audio, or a
+video of them speaking; ASYNC: `job.wait`) adds it as the voice track (whole
+file, volume 1), transcribes it and returns `beats[] { index, text, startMs,
+endMs, durationMs, speechStartMs, speechEndMs }`: one scene per beat from
+`startMs` to `endMs` (gapless, each changes just before its words), showing
+what `text` says. Render each scene at 30 fps (or pass `--frameRate`) for
+exactly the beat's `durationMs` and add them in order: the windows sit on the
+frame grid, so the scenes never drift from the words. Don't write a script and don't call `media.generate-narration`; never
+cut, move, speed up or re-voice their take: the scenes follow the voice, and
+the recording sets the length. `transcript.narration-beats --id [--overlayId]
+[--maxBeatMs=6000 for a Short]` re-reads the beats later. Fix misheard names
+(`transcript.find-replace`) before captions; music ducks under it as usual.
+A recipe run says so when the user chose **My recording** on the idea blank
+(`values.<key>Kind: "recording"`, `values.<key>` = the file).
+**When the user says the AI voice isn't good enough, offer two ways, in this
+order:** (1) their own recording: they record it in the recipe's **My
+recording** tab (Record now, or Choose a file), Audio tab → Record voiceover,
+or give you a file; (2) **Your voice** (PandaStudio 2.1.65+): a clone of their
+voice made on this computer from ~20 s of them speaking (`voice.record` /
+`voice.create`), then `media.generate-narration --model=zonos3-local`, so the
+AI still writes and re-takes lines in their voice.
 B-roll stills over a talking head: "B-roll beats" above (ask first, place with
 `project.add-broll`; a picture from `media.generate-image` keeps its prompt on
 the beat, and `media.regenerate-image --id --regionId [--prompt]` swaps in a
@@ -2082,6 +2109,11 @@ DEPICT each beat**, with slow Ken-Burns motion. No face, no camera.
 > → generate *a one-eyed giant in a torch-lit cave*, NOT a card saying
 > "Cyclops". Words belong in the voiceover. A deck of animated text titles is a
 > title slideshow, the classic failure.
+
+The user recorded the narration themselves? `project.add-voiceover` first,
+then one image per returned beat, each `media.image-to-video
+--durationMs=<beat.durationMs>` in order (no `project.add-audio`
+per beat: the recording is already the voice track).
 
 Per beat (~8–20 s): write the line → `media.generate-narration` (one beat per
 call; Kokoro caps ~25 s) → `media.generate-image` (literal scene, no text, ONE
