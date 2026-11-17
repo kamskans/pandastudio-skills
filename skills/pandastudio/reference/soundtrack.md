@@ -101,12 +101,12 @@ the picture and the sound on it:
 | `blip` | Pitched chirp | UI confirmations, price tags, badges | `from` (Hz) or `note`, `dur` |
 | `pop` | Bubbly rising pop | Cards, chips, icons, ears popping in | `from`/`to`, `bright` |
 | `typing` | A human burst of keys | A whole typed line in one event | `dur` = typing time |
-| `whoosh` | Airy swell and fade | Just before each cut or camera move (never two within a second) | `dur` 0.25-0.5, `pan` |
-| `riser` | Noise opening + rising tone | Into a drop, a slam, a logo | `dur` = lead-in, `from`/`to` |
-| `downlifter` | Falling sweep | Right after a hit, transitions out | `dur` |
-| `impact` | Kick + boom + crack | The single biggest moment | `dur`, `bright` |
-| `boom` | Distorted falling sub | Hero slams, logo lands | `from`/`to` (70→32 Hz), `dur` 1.5-2.5 |
-| `subdrop` | Clean sub sweep down | Drops, dramatic pauses | `from`/`to`, `dur` |
+| `whoosh` | Recorded swoosh (CC0 library; short / medium / long by `dur`), loudest in the middle of `dur` | Just before each cut or camera move (never two within a second) | `dur` 0.25-0.5, `pan` |
+| `riser` | Recorded riser, peaking at the end of `dur` | Into a drop, a slam, a logo | `dur` = lead-in |
+| `downlifter` | Recorded downlifter, starting on the event | Right after a hit, transitions out | `dur` |
+| `impact` | Recorded deep hit, landing on the event | The single biggest moment | `gain` |
+| `boom` | Recorded boom, landing on the event | Hero slams, logo lands | `gain` |
+| `subdrop` | A short soft hit on the event; `dur` over 2.5 s plays the long cinematic sub drop | Drops, dramatic pauses | `dur`, `gain` |
 | `shimmer` | Twinkling high partials | Sparkles, "magic" moments, logo glints | `note`, `dur` |
 | `bass` | Filtered saw + sub | Bass lines (sections do this) | `note`, `dur`, `bright` |
 | `pluck` | Soft plucked tone | Arps, melodies, logo chimes | `note`/`notes`, `dur` |
@@ -114,6 +114,11 @@ the picture and the sound on it:
 | `lead` | Detuned saw with vibrato | Hooks and melodies | `note`, `dur`, `bright` |
 | `bell` | FM bell | End cards, success moments | `note`, `dur` |
 | `keys` | Electric-piano tine | Warm chords, lo-fi, calm tutorials | `chord`/`notes`, `dur` |
+
+From PandaStudio 2.1.70 `whoosh`, `riser`, `downlifter`, `impact`, `boom` and `subdrop` play recorded CC0 samples from the bundled sound library (they were synthesized before and sounded cheap), placed so their loudest moment lands where the table says and levelled to the event's `gain`. `from`/`to`/`bright` no longer shape them. Every other sound is still synthesized.
+
+**Every render is mixed and mastered (2.1.70+).** After the score is played, PandaStudio runs a mix & master chain: a 28 Hz rumble cut, corrective EQ toward a full-range balance (two passes; the top shelf can cut fizz by up to 12 dB), bass mono under 120 Hz, a leveler that pulls any moment more than 2.5 dB over its surroundings back down (a sound effect that overpowers the music) and lifts long dips, 2:1 glue compression, a short dark room, then the fades and `master.lufs` / `master.ceiling`. The result reports the EQ moves and the leveler range. So don't fix balance by hand with `gain`: write the arrangement, and let the master balance it. AI music from `media.generate-music` gets a gentle version of the same chain (cuts what is wrong, barely boosts, keeps its dynamics and its loop ending); the untouched download is kept as `<name>.original.<ext>`.
+
 
 ## Recipes
 

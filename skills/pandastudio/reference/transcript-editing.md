@@ -113,6 +113,62 @@ comma-terminated parallel list items and lone stopword "repeats" across pause
 tokens. If a repeat might be intentional emphasis, or you can't tell which take
 is cleaner, ask the user which to keep.
 
+## Edit for clarity: `transcript.edit-for-clarity` → `transcript.apply-clarity`
+
+The Transcript tab's **Edit for clarity** (like Descript Underlord's): it
+PROPOSES cuts of words that don't change what the speaker means, and nothing
+is cut until a proposal is accepted. Use it for long talking-head videos and
+podcasts when the user wants the talk tighter ("edit for clarity", "tighten
+it up", "cut the rambling"). Run it after `remove-fillers` and `find-issues`;
+it skips words already cut.
+
+```
+pandastudio transcript.edit-for-clarity --id <projectId>            # rules + local model (job when the model runs)
+pandastudio transcript.edit-for-clarity --id <projectId> --engine=rules   # instant, no model
+pandastudio transcript.edit-for-clarity --id <projectId> --kinds=filler-phrase,repeat
+pandastudio transcript.edit-for-clarity --id <projectId> --cuts='[{"wordIds":["w12","w13","w14"],"kind":"restatement","reason":"repeats the line before"}]'
+pandastudio transcript.apply-clarity --id <projectId> --proposalIds='["cl_ab12","cl_cd34"]'   # or '["all"]'
+```
+
+- Kinds: `filler-phrase` ("you know what I mean", "basically what I'm saying
+  is", "if that makes sense"; English lexicon), `repeat` (a phrase said twice
+  in a row; the second is kept), `false-start`, `restatement` (a sentence or
+  clause that only says again what was just said), `retake`
+  (find-issues' duplicate-take).
+- **The model is the user's own.** The verb reads with the local model the
+  `llm.*` verbs use. When it is downloaded the verb returns `{ jobId }`;
+  `job.wait` for `{ proposals, sections, sectionsRead, refused }` (about
+  2 minutes for a 40-minute talk). Without it the verb answers at once with the
+  rules' proposals and `model: "unavailable"` (or `"off"` for
+  `--engine=rules`). The app's Edit for clarity button reads with the model
+  picked for the AI chat when one is connected (the user's own sign-in or
+  key), else the local model. Never send the transcript to another cloud
+  model for this.
+- The local model is small: it mostly confirms fillers; restated sentences
+  and false starts the rules miss are best found by YOU (next point).
+- **You are the user's AI too**: read `transcript.get` and pass your own picks
+  as `--cuts` (word ids, kind, reason). They go through the same checks as the
+  model's and come back as proposals (`source: "agent"`), refused ones with
+  `why`. Use this for restatements and false starts (and for languages the
+  lexicon doesn't cover). The checks decide the kind; yours is a hint.
+- Every model / agent pick is checked: a verbatim run of ONE sentence, no
+  negation ("not", "never", "n't") and no number, at a clause boundary unless
+  it is a real repeat or pure filler, at least 3 words of the sentence left,
+  and a `restatement` must really repeat the sentence before (its meaning
+  words). A whole sentence goes only as a restatement or an unfinished start.
+- Each proposal: `{ id, kind, source rules|ai|agent, wordIds, text, before,
+  after, cutAt (where text starts in before), reason, startMs, endMs (source),
+  editedStartMs }`. `after` is `""`
+  when the whole sentence goes.
+- **Show the user the before/after and let them choose** (accept all, some, or
+  none), then `transcript.apply-clarity --proposalIds`. Nobody to ask (a
+  routine): apply only `filler-phrase`, `repeat` and `retake`; leave
+  `restatement` and `false-start` for the user.
+- `apply-clarity` cuts like `delete-words` (snapped to measured pauses, one
+  revision, undoable, `restore-words` brings words back). Proposal ids are
+  stable for the same words and kept in memory per project until the app
+  restarts; one whose words changed since is skipped as `stale`.
+
 ## Silences
 
 `transcript.remove-silences` runs the SAME two passes as the UI Remove Silences

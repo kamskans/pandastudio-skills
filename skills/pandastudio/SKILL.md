@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.322.0 -->
+<!-- version: 3.324.0 -->
 
 # PandaStudio
 
@@ -1204,6 +1204,12 @@ Word and filler cuts now land on measured audio pauses. Fillers reported as `ski
    the LAST take). **Keep `severity: "low"` candidates** (often deliberate
    parallel structure) unless context clearly shows an abandoned take; ask the
    user when you can't tell which take is better.
+   **Tighter talk** (long talking head / podcast, the user asks to "edit for
+   clarity" or cut the rambling): `transcript.edit-for-clarity` proposes
+   cuts with before/after (rules + the user's local model, job when it runs;
+   add your own picks with `--cuts` for restatements), show them,
+   then `transcript.apply-clarity --proposalIds` on the ones the user accepts
+   (transcript-editing.md).
 5. **Remove silences** (`transcript.remove-silences`, 600ms default = the UI
    button) after content cleanup. Steps 2, 4, 5 add trims and shift the edited
    timeline, so finish cleanup BEFORE placing graphics/zooms; anything placed
@@ -1446,6 +1452,7 @@ enhancements); treat doubt as `camera` or ask, then lock it with
 |---|---|
 | `transcript.remove-fillers` | Safe tier (um/uh/uhm/umm/hmm/hm + immediate repeats). `--aggressive=true` (like / you know / I mean…) only for a requested thorough cleanup. |
 | `transcript.find-issues` → `delete-words` | Keep the most recent take; keep `severity: "low"`; ask when a repeat might be deliberate emphasis. |
+| `transcript.edit-for-clarity` → `apply-clarity` | Only when the user wants the talk tighter. Show before/after and apply what they accept; nobody to ask: only `filler-phrase` / `repeat` / `retake`. Model unavailable: rules only, or pass your own picks as `--cuts`. |
 | `transcript.remove-silences` | After content cleanup; 600ms default (don't raise it "to be safe"); two passes (word gaps + audio-level detection) like the UI button, so pauses the word timings run across are cut too. `removedCount: 0` comes with a warning saying why (`audioPauses` counts what the audio held): don't re-detect silences yourself. |
 | `audio.enhance` | Un-enhanced clips only, the defaults (Light + Studio mic sound on Apple silicon; don't pass `--strength` / `--restore`). `--keepBackground=true` for vlogs / ambience; no `--echo` (Enhance voice already removes room echo with the Studio AI model; only use `--echo` when the result reports the model did not run, i.e. fallback `denoiser: deepfilternet3`); `--strength=natural` / `strong` only when the user asks for fuller or punchier sound. Report the before/after loudness it returns. (`audio.clean` is a deprecated alias: Light.) |
 | `caption.set-template` ("add captions", no style named) | Pick by format, always pass `--templateId`: vertical Shorts / Reels / TikTok → `hormoziEmphasis` (heavy white caps with a black outline, readable on any footage, key word highlighted); long-form / 16:9 / tutorials / talking heads → `classic` (clean white sentence-case text with an outline). Set the highlight to the brand colour when the brand kit has one (`caption.set-style --highlightColor`, or `--emphasisColor` on an emphasis template). Don't pick `glowStack` unless asked: its yellow-orange gradient fights most footage and brands. (New projects already start on these defaults by shape; set the template anyway so a native-aspect vertical video gets the vertical style.) A recipe's caption setting wins (some turn captions off). Animated styles for Shorts energy, `bold` / `editorial` for long-form: captions-metadata.md. "Highlight the key word" / Hormozi / Captions.ai-style looks → an emphasis template (`hormoziEmphasis`, `tiltedBox`, `serifItalic`, `condensedCaps`, `scriptKeyword`, `wordBoxes`, `goldSerif`, `keywordBox`, `limeItalic`): it marks the IMPORTANT word of each phrase (detected from the audio on apply), not the spoken one. |
@@ -1931,7 +1938,10 @@ never convert it yourself first;
 When no template fits, author HTML against the HyperFrames contract: one paused
 GSAP timeline registered at `window.__timelines[<data-composition-id>]`, root
 `data-composition-id` / `data-width` / `data-height` / `data-duration` (in
-SECONDS), no `repeat:-1`, no `Math.random`. It moves with the house grammar
+SECONDS), no `repeat:-1`, no `Math.random`. (PandaStudio 2.1.70+ adds a missing root itself: the
+`<body>`, keyed to your `__timelines` id, sized to `aspectRatio` / `width` /
+`height` and the render's `durationMs`, so a 16:9 request no longer comes out
+9:16; declare the root anyway.) It moves with the house grammar
 (blur word reveals, rack focus, camera push; the `lf-kit.js` primitives work
 over footage too, on a transparent render). Read
 [`reference/motion-philosophy.md`](reference/motion-philosophy.md) +
@@ -2850,8 +2860,8 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - **project**, check and export settings — render-frame, render-sheet,
   set-export-settings (visual-edits.md)
 - **transcript** — import, transcribe, detect-language, get, search, remove-fillers, remove-silences,
-  find-issues, delete-words, restore-words, find-replace, insert-words
-  (transcript-editing.md)
+  find-issues, edit-for-clarity, apply-clarity, delete-words, restore-words,
+  find-replace, insert-words (transcript-editing.md)
 - **timeline** — source-to-edited, edited-to-source
 - **share** — status, create, resume, cancel, list, update, renew, delete,
   comments, reply, resolve-comment, delete-comment (hosted share links with
