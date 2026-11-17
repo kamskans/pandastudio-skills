@@ -955,7 +955,11 @@ bleeps; music = music beds (tracks 10 s or longer, or tagged music); sfx =
 sound effects (graphic, zoom and FX region sounds, short tracks). Applied
 after each track's own volume, ducking and FX, in preview and export alike
 (the preview caps each track at 100%). Omitted groups keep their value;
-`--reset=true` puts all back to 0 dB first.
+`--reset=true` puts all back to 0 dB first. When the user says the sound
+effects you added are too loud (or too quiet) overall, this is the move:
+one `--sfx` value, not a volume edit on every cue. In the app it is Levels
+at the top right of the timeline's Audio row (2.1.71 and later) and Mix
+groups at the bottom of the Audio tab; both take a typed dB value.
 
 ```bash
 pandastudio project.set-audio-buses --id=$ID --music=-3 --sfx=2 --json
