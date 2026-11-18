@@ -380,8 +380,26 @@ Models (`--model`):
 Out-of-range values fail before anything is sent (nothing is clamped
 silently). The result's `estimatedCostUsd` is fal's list price; fal bills.
 
+**The user picks the model, with the prices in front of them.** Before
+generating, call `media.video-models --durationSec=<planned length>` (free) and
+show the choices: in PandaStudio's chat one `chat.ask` card, an option per model
+that `fits`, labelled with its price for this clip, detail = its `bestFor`
+and resolution, `recommended` = the returned `recommended`; in another agent, a
+short list. End your turn and generate with the model they choose. Several
+shots: one card for the whole batch, prices summed. Skip the card only when
+the user already named the model.
+
 ```bash
-# Ask first, in one line: "One 6 s H3 clip at 768P on your fal account (about $0.36)?"
+pandastudio media.video-models --durationSec=6 --no-launch --json
+# → { recommended: "h3", options: [
+#     { model: "h3", label: "MiniMax H3", costUsd: 0.36, bestFor: "MiniMax's own model; the only one with 2K and 4K", ... },
+#     { model: "h3-max", label: "MiniMax H3 Max", costUsd: 0.48, ... },
+#     { model: "h3-max-turbo", label: "MiniMax H3 Max Turbo", costUsd: 0.24, ... } ] }
+pandastudio chat.ask --question="Which model for this 6 s clip (768P)?" \
+  --options='[{"label":"MiniMax H3 · $0.36","detail":"MiniMax'"'"'s own model; 2K and 4K"},{"label":"MiniMax H3 Max · $0.48","detail":"Best motion and detail; 1080P"},{"label":"MiniMax H3 Max Turbo · $0.24","detail":"Fastest and cheapest"}]' \
+  --recommended="MiniMax H3 · $0.36"
+# (end the turn; their answer arrives as the next message)
+
 pandastudio media.generate-video --no-launch --json \
   --prompt="Slow dolly in on a ceramic coffee mug on a wooden desk by a rainy window, steam rising, soft morning light, shallow depth of field" \
   --durationSec=6 --aspectRatio=16:9
@@ -400,8 +418,9 @@ pandastudio project.add-clip --id=$PID --media="<videoPath>" --no-launch --json
 ```
 
 Rules:
-1. PAID. Generate only when the user asked or agreed; say model, length,
-   resolution and the estimate first. One call per shot.
+1. PAID. Generate only when the user asked or agreed, after showing the
+   model options with prices (`media.video-models`) and getting their pick.
+   One call per shot.
 2. Never retry a failed, canceled or timed-out job on your own: the request
    may still finish and bill. Errors name the fal `requestId`; the user can see
    it at fal.ai/dashboard/requests.

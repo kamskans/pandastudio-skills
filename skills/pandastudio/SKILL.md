@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.326.0 -->
+<!-- version: 3.327.0 -->
 
 # PandaStudio
 
@@ -2098,7 +2098,9 @@ the line in double quotes; never add narration on top), used as a camera-only
 clip or attached with `project.set-clip-webcam`. `media.generate-video` (MiniMax
 H3 on the user's fal account) makes a real moving shot from a prompt, or from a
 still (`--image`, optional `--endImage`): async, `job.wait --timeoutMs=600000`,
-paid, ask first; place `videoPath` with `project.add-motion-graphic` (overlay)
+paid: first `media.video-models` and a `chat.ask` card of the models with
+their prices for this clip, then generate with the one the user picks; place
+`videoPath` with `project.add-motion-graphic` (overlay)
 or `project.add-clip`. `media.import --url` brings in
 any remote file. Detail: [`reference/media-generation.md`](reference/media-generation.md).
 
