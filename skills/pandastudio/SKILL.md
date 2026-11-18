@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.325.0 -->
+<!-- version: 3.326.0 -->
 
 # PandaStudio
 
@@ -1143,7 +1143,9 @@ recipe, a Short) starts as a **plan the user approves**:
    when the chat has no project open, so pass it as `--id` to every edit. Do the steps in order and call
    `plan.update-step --planId --stepId --status=running|done|skipped|failed
    --result="Removed 53 fillers and 12 pauses"` after each, with the real
-   counts. Stop at a `needsApproval` step and ask (`chat.ask`) before it runs.
+   counts. A step that failed and then passed on a retry: update it again
+   (`--status=done`, the new result), even after the plan finished. Stop at a
+   `needsApproval` step and ask (`chat.ask`) before it runs.
 4. `plan.get` shows the open plan and the next step; `plan.finish
    --status=done|dismissed` closes one. `plan.start` only when the user said
    in chat to go ahead; `plan.answer --questionId --optionId` records an
