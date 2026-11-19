@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.327.0 -->
+<!-- version: 3.328.0 -->
 
 # PandaStudio
 
@@ -874,6 +874,22 @@ account with `permissionIssue` (or any youtube error with `details.code`
 the user to click Reconnect in Settings > YouTube and leave every box ticked
 (you can't do the sign-in). If only the channel permission is missing, publishing
 still works: omit `channelId` and the video goes to that account's own channel.
+A social post's result lists every account: relay each failed account's
+`error` word for word (it's the network's own reason, e.g. an X account that
+needs reconnecting), and a channel with `delivery: "inbox"` (TikTok) is
+waiting in the user's TikTok inbox: tell them to finish it in the TikTok app.
+A post still `publishing` keeps going on PandaQueue's side; check it later
+with `social.post-status` rather than posting it again.
+X posts through an X developer app the user owns (X bills it directly, no
+posting limit). `social.connect --network=x` without the app's details fails
+with code `x_own_app_required`; an X account in `social.channels` with
+`canPost: false` and `fix: "reconnect_x_own_app"` was connected the old way and
+can't post. Either way: send the user to Settings > Social accounts > X (a
+guided window), or walk them through `social.x-setup` (the Callback URI must
+match exactly) and call `social.connect --network=x --clientId=… --clientSecret=…`
+with the OAuth 2.0 values they give you (never the API Key). Reconnecting the
+same X account updates it in place. Don't pick a `canPost: false` account to
+publish to.
 Flows: [`reference/publishing.md`](reference/publishing.md).
 
 ## Share links (a hosted link with comments)
