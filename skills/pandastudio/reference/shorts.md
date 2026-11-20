@@ -315,8 +315,11 @@ virtual camera** (the Opus Clip / Vizard approach):
 
 ```bash
 # Reframe every landscape clip — tracks + follows the active speaker.
+# ASYNC (2.1.77+): returns { jobId }; wait with job.wait (job_wait on MCP).
 pandastudio project.auto-reframe --id=$PID --json
-# → { reframed: [{clipId, shots, shotsWithFace}], skipped: [...], activePicture: [{clipId, rect}] }
+pandastudio job.wait --id=$JOB --json
+# → result { reframed: [{clipId, shots, shotsWithFace, framing, turns, warnings}],
+#            skipped: [...], activePicture: [{clipId, rect}] }
 # One clip only, or tune shot sensitivity / punch-in:
 pandastudio project.auto-reframe --id=$PID --clipId=clip-1 --threshold=0.3 --minShotMs=500 --zoom=1.3 --json
 # Podcast / interview WIDE (both people in one shot): stack them, one per half.
@@ -358,5 +361,23 @@ pandastudio project.auto-reframe --id=$PID --clear=true --json
   the EXPORTED mp4 across a close-up, a pan, AND a wide two-shot (render-frame
   is fine too, but the export is the source of truth near shot cuts).
 - Also in the editor as **"Track speakers"** (Video → Layout).
-- v1 limitation: one subject per shot — a *held* two-shot where two people
-  banter frames the dominant talker.
+- **A locked two-shot cuts between the speakers** inside the one shot, by turn
+  (2.1.77+: fragments of each person are merged into one "seat", the speech
+  level is read from the speech itself, not the loudest moment). On footage
+  that already has the canvas shape it also paces like an editor: a rapid
+  back-and-forth plays wide, and a long stretch on one person gets a 3 s wide
+  about every 25 s.
+- **Check the result, don't assume.** Each reframed clip reports `framing`
+  (`turnCount`, `wideMs`, `people: [{side: left|middle|right, ms, turns}]`,
+  `mostPeople`), the full `turns` map (`[{startMs, endMs, seat, seats}]`, seat
+  0 = leftmost person of that shot, null = wide) and `warnings` (only one
+  person found, one person never framed, mostly wide, unreadable frames).
+- **Fix the framing by hand with `--turns`** (needs `--clipId`, clip source
+  ms): `--turns='[{"startMs":0,"endMs":42000,"seat":0},{"startMs":42000,"endMs":61000,"seat":"right"},{"startMs":61000,"endMs":64000,"seat":"wide"}]'`.
+  seat = person from the left (0, 1, ...; -1 or "right" = rightmost; "left" =
+  0), null / "wide" = a wide; time the list leaves out plays wide. Faces are
+  still tracked, so every punch-in follows its person. Start from the `turns`
+  the last run returned and edit only what's wrong (verify speaker turns
+  against the transcript first).
+- **Long clips are fine**: progress is reported by frames analysed and
+  job.cancel stops the pass without saving anything.

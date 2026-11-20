@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.328.0 -->
+<!-- version: 3.330.0 -->
 
 # PandaStudio
 
@@ -587,7 +587,11 @@ recipes, for a custom style no recipe covers:
 **Same shape, follow the speaker (16:9 in 16:9):** `project.auto-reframe` also works
 when the footage already has the video's shape (a 16:9 wide of two hosts in a
 16:9 video): it punches in on whoever is talking inside the frame and shows the
-whole frame when it's unclear. It is the way to get face-tracked or
+whole frame when it's unclear, with an occasional wide on long turns and a wide
+for rapid back-and-forth. ASYNC (`{ jobId }` → `job.wait`); read each clip's
+`framing`, `turns` and `warnings` in the result, and correct who is framed when
+with `--clipId --turns='[{startMs,endMs,seat}]'` (seat 0 = leftmost, "right",
+"wide"): see reference/shorts.md. It is the way to get face-tracked or
 active-speaker zooms on the MAIN video; `project.center-camera-on-face` is only
 for a separate camera card or podcast tiles. No speaker IDs needed.
 
@@ -2620,7 +2624,10 @@ find-replace punctuation out of the transcript for this.
 
 `caption.toggle`, `caption.set-template`, `caption.set-style` (`positionY` is %
 from the top, `wordsPerLine`, `uppercase`, font, `highlightMode`, emphasis look,
-`boxRotation`), `caption.mark-emphasis` (which words are the KEY words),
+`boxRotation`; a vertical video shows 2-word pages, 4 for stacked styles, until
+you set `wordsPerLine` with `caption.set-style`, then that many words per page,
+long pages wrapping onto more lines: 2.1.77+; `caption.set-look` and recipes keep
+the 2-word default), `caption.mark-emphasis` (which words are the KEY words),
 `caption.move` (a span),
 `project.hide-captions` / `show-captions`; `llm.generate-title`, `llm.generate-description`, `llm.generate-timestamps` and
 `llm.generate-caption` (an Instagram Reel caption) on the local LLM
