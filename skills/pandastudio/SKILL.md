@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.330.0 -->
+<!-- version: 3.336.0 -->
 
 # PandaStudio
 
@@ -459,6 +459,60 @@ A take interrupted by a crash, force-quit or power loss is kept:
 one into a project (tell the user any `warnings`).
 Full detail: [`reference/recording.md`](reference/recording.md).
 
+## Product demos with nobody at the mouse (`recording.browser-demo`, 2.1.78+)
+
+"Make a tutorial of my app's signup flow", "record a demo of our dashboard",
+"walk through creating an invoice": you drive PandaStudio's own offscreen
+browser with typed steps and it records the result. Real clicks, hover states
+and typing; the cursor glides between targets; frames are recorded at a
+steady rate (1280×720 page at 1.5x = a 1920×1080 video by default), and every
+cursor move and click is saved as cursor telemetry, so the project gets the
+same auto-zooms on clicks and drawn, smoothed cursor as a person's
+recording. No Screen Recording permission, and the user's screen isn't
+touched (they can keep working).
+
+1. `recording.browser-inspect --url=<start page>` → headings, buttons, links,
+   fields (with labels) and a screenshot. Inspect later screens by passing the
+   steps that reach them. Write steps against what's really there.
+2. Signed-in areas: the user signs in themselves first:
+   `recording.browser-sign-in --url=<their sign-in page>` opens a window on
+   the demo browser's session; they sign in and close it; it's kept.
+   NEVER type a password, one-time code or card number: those fields are
+   refused (step fails with "that's a password field"). A signup demo stops
+   before the password, or the user fills it in a sign-in window beforehand.
+3. `recording.browser-demo --url=… --steps='[…]' --rehearse=true` → job.wait.
+   Every step ok? Then the same call without rehearse records it (job.wait;
+   ~the flow's length plus a few seconds). A failed step returns `ok: false`,
+   `failedStep.error` + `suggestions` (texts the page offers) and
+   `failureScreenshot`: fix that step, rehearse again.
+4. The job returns `projectId`, `screenPath` and `script` (each step's `say`
+   line with its `atMs`). Then edit as usual: narrate the lines
+   (`media.generate-narration`, placed at their atMs), apply a recipe that
+   fits a product walkthrough, export.
+
+Steps (JSON array, 1-80): `goto {url}`, `click {text|selector, nth?}`,
+`hover {text|selector}`, `type {value, into|text|selector, submit?}` (types
+into the focused field when no target), `press {key}` (Enter, Tab, Escape,
+Backspace, Space, arrows), `select {into, option}` (native dropdowns),
+`scroll {by: px (+ down) | to: text | selector}`, `wait {ms | for: text |
+selector}`, `pause {ms}`. Any step takes `say` (narration for that moment)
+and `holdMs` (pause after; defaults ~0.5-0.9 s so viewers can follow). `text`
+is what the viewer sees: a button label, link text, a field's label or
+placeholder; exact matches win, `nth` picks among several. Pacing: one idea
+per step, `say` lines short enough to fit the time until the next step (add a
+`pause` when a line needs longer). Use `width`/`height` for a different page
+size (e.g. 1440×900) and `scale` 1-2 for the video's pixel density.
+
+Example:
+```
+pandastudio recording.browser-demo --url=https://app.example.com --steps='[
+ {"action":"click","text":"Start free trial","say":"Start from the homepage."},
+ {"action":"type","into":"Work email","value":"jane@example.com","say":"Enter your work email"},
+ {"action":"select","into":"Team size","option":"2-10"},
+ {"action":"click","text":"Continue","say":"and continue."},
+ {"action":"wait","for":"Welcome"}]'
+```
+
 ## Video ideas: what to film next (`ideas.*`)
 
 "What should I film next?", "find video ideas", "what's working in my niche",
@@ -466,7 +520,26 @@ Full detail: [`reference/recording.md`](reference/recording.md).
 evidence; you do the thinking and write the ideas. An outlier is a video that
 beat its OWN channel's median views (10x = ten times that channel's normal),
 so its topic, angle or packaging is proven demand beyond that channel's
-audience. Public YouTube data through the app's yt-dlp: no account, no quota.
+audience. Every outlier comes with a `why` line: what set it apart from the
+same creator's other uploads (shared / saved / commented on more per view,
+shorter or longer than usual, a hook they rarely use, a new hashtag angle,
+fresh and still climbing), or "the topic itself pulled" when nothing about the
+format stands out. Cite it; don't invent your own reason.
+
+Networks (`ideas.sources` says what's readable now):
+- YouTube: search, channels, videos, transcripts. Public data through the
+  app's yt-dlp: no account, no quota.
+- TikTok (PandaStudio 2.1.78+): creator profiles only (views, likes, comments,
+  shares, saves). TikTok can't be searched logged out, so name the creators:
+  `ideas.research --creators='["tiktok:@name","https://www.tiktok.com/@other"]'`,
+  `ideas.channel --channel=tiktok:@name`, `ideas.track --channel=tiktok:@name`.
+- Instagram (PandaStudio 2.1.78+): creator profiles, only after the USER signs
+  in to Instagram inside PandaStudio. `ideas.instagram-sign-in` opens
+  Instagram's own sign-in page for them; never type their credentials. Then
+  `instagram:@name` works like TikTok. `ideas.instagram-sign-out` clears it.
+- A research can mix them: `--query` / `--seedChannel` for YouTube plus
+  `--creators` for TikTok / Instagram. Creators that couldn't be read (private,
+  not signed in) are listed in `stats.unreadCreators`; tell the user.
 
 Which tool answers which question:
 
@@ -481,6 +554,7 @@ Which tool answers which question:
 | Why did it work? | `ideas.transcript --video` (hook, structure) + `ideas.video --video --comments=100` (what viewers ask for) | 10-20 s each |
 | What do people search for? | `ideas.keywords --seed` then `ideas.demand --keywords='["a","b"]'` | 1 s, then ~30 s per 10 |
 | What's new with the competitors? | `ideas.competitors` (tracked list, remembered) / `ideas.track --channel` / `ideas.scan` | scan ~5-10 s per 5 channels |
+| What's working on TikTok / Instagram? | `ideas.research --creators='[...]'` (or `ideas.channel --channel=tiktok:@name`) | ~5-10 s per creator |
 
 Channels take a handle, a channel URL or a UC… id. On the CLI a value starting
 with @ means "read this file", so give handles without it (`JeffSu`) or as
@@ -502,6 +576,38 @@ How to use them well:
 - Once the user picks one: script it with them, then record (`recording.*`) or
   build it in a project as usual.
 - `ideas.cancel` stops a research; `ideas.delete` forgets one (confirm first). Saved research is deleted after 30 days, and competitor scan results are cleared after 30 days (the channels stay tracked; `ideas.scan` refreshes them).
+
+## The weekly content board (`board.*`, 2.1.78+)
+
+"Plan my week", "what should I post this week", "fill next week's board" →
+Home > This week is one board running ideas → make it → the week's slots →
+approve → post. You fill and drive it; the user approves.
+
+- `board.get [--week=YYYY-MM-DD]`: the week's days and the ideas tray. Each
+  card has a `stage` (idea, making, ready, approved, posted, failed) and
+  `missing` (what it needs before the user can approve: a finished export, a
+  day and time in the future, accounts, a caption).
+- Ideas: research first (`ideas.research`, YouTube topics plus TikTok /
+  Instagram creators), then `board.add --researchId --outlierId --title
+  --angle --hook` for the 3-5 strongest: your own title (never a copied one);
+  the outlier and its why line come along as the card's source. Spread them
+  over the week with `--date` / `--time` (one per day suits most creators;
+  post times the user's audience is awake, default 09:00 or 18:00).
+- Make it: `board.make --cardId` creates the card's project (or links one
+  with `--projectId`). Then record (`recording.*`, `recording.browser-demo`
+  for product demos) or edit as usual. When that project is exported, the
+  export attaches to the card by itself; or set one with
+  `board.update --cardId --exportId`.
+- Posting: `board.update --cardId --networks='["youtube","tiktok"]'`
+  (or `--channelIds` from `social.channels`) `--caption="…"`. Then tell the
+  user it's ready to approve on the board. Approve is theirs: no verb posts a
+  card. Social networks are then scheduled on PandaQueue for the slot (they
+  post even if the computer is off); YouTube goes out from PandaStudio at the
+  slot time (if the app was closed then, as soon as it opens).
+- A weekly routine template `plan-next-week` (Sunday 18:00) does the ideas
+  part on its own: `routine.templates`, then offer it.
+- `board.remove --cardId` takes a card off (confirm first; project and export
+  stay). A queued post can't be removed until it has gone out.
 
 ## Clips from a long video (`clips.make`)
 
@@ -859,7 +965,15 @@ cards waiting for the host). Act through these verbs:
 ## Publishing (YouTube + social)
 
 YouTube `privacyStatus` defaults to `unlisted`: never public without the
-user's explicit say. Publishing has daily limits (all installs share one
+user's explicit say. Chapters: every export long enough for them gets
+chapters after export (`generatedTimestamps`; names from the local Titles
+model, or each chapter's opening words without it), and
+`export.publish-youtube` adds them to the end of the description (`--chapters=false`
+to skip; skipped anyway when the description already has a 0:00 line or they
+aren't valid YouTube chapters: 3 or more, first 0:00, each 10 s or longer).
+`llm.generate-timestamps` without the model returns `labelsFrom:
+"openingWords"` and `chapters[]` (each chapter's text): write a 2-5 word label
+per chapter yourself, then save them with `export.update` (`generatedTimestamps`). Publishing has daily limits (all installs share one
 YouTube API quota): an error with `details.code` `daily_limit` or
 `youtube_quota_exceeded` carries `details.resetsAt`; tell the user when it
 resets and never retry before then. Instagram, TikTok, Facebook, LinkedIn and X go through
@@ -1332,6 +1446,10 @@ and the doc named in the row.
 | Restyle or retime a region already placed | `project.update-region`, `project.set-animation`, `project.set-keyframes` | `project.save` with the whole project JSON |
 | Privacy on a person who moves | `project.add-spotlight --kind=blur` + `project.track-focus-face --regionId` | a static blur box |
 | Blur / spotlight on something else that moves (a window, a card, a scrolling email) | `project.add-spotlight` around it at the frame it shows, then `project.track-region --regionId --atMs=<that frame>` | hand-made keyframes |
+| Point at a button, field or menu item in a screen recording (a click, a step, a setting) | `project.add-annotation --type=callout --callout=circle\|arrow\|click\|badge\|highlight` 200-400 ms before the moment, `--exit=fade`; detail: native-motion.md "Animated callouts" | a still arrow (`type=figure`); a motion graphic for a simple pointer |
+| A callout, emoji or label must stay on something that moves (a scrolling page, a dragged card, a moving product) | place it on the thing, then `project.pin-to-motion --regionType=annotation\|overlay --regionId --atMs=<that frame>` | hand-made keyframes |
+| A badge that pulses, an arrow that bobs, a sticker that floats | 2-3 keyframes + `project.set-behaviors --loop=pingpong`, or `--wiggle='{"amount":0.3}'` | many hand-made keyframes |
+| An impact, a cut with energy, a handheld feel, a glitchy tech beat, sunlight | `project.add-adjustment` with `shake` (keyframe `amount` down for a hit), `glitch` (0.2-1 s burst), `lightRays` + `raysOrigin` | a stock FX overlay video for the same thing |
 | Handheld or walking camera footage that visibly shakes (vlog, event, a product held in the hand, a bumped tripod) | `project.stabilize-clip --clipId [--strength=light\|standard\|strong]` then `job.wait`; read `shake.level`, `reductionPct`, `zoomPct`. `limitedPct` high = `--strength=strong` | a screen recording (refused), a tripod talking head (already steady: it would only crop), rolling-shutter wobble or motion blur (not corrected) |
 | Presenter filmed on green (main video or camera tile) | `project.set-clip-chroma-key --target=screen\|camera` (on an overlay: `set-overlay-chroma-key`) | `add-background-effect` (AI matte for real rooms) |
 | Messy real room behind the presenter | `project.add-background-effect --mode=blur\|image` | chroma key |
@@ -2132,7 +2250,10 @@ the rights to use (their own uploads, Creative Commons, public domain, licensed
 footage); if it's unclear, ask them first. "Make a short from this video" =
 download (just the part you need with startMs/endMs), `project.new
 --withMedia=<path>`, then the usual transcribe + Shorts flow. Detail:
-media-generation.md "Downloading online video".
+media-generation.md "Downloading online video". A link the user pastes into
+the editor (outside a text box) opens the same download with "Add as" Clip,
+B-roll at the playhead or Audio; a link pasted into your chat is just text, so
+run `media.download-url` yourself with the placement they asked for.
 
 ## Faceless videos — image-driven, voiceover-led
 
@@ -2562,8 +2683,16 @@ WHEN: "Which tool for which moment" above. HOW:
   --holdMs`, `project.add-reverse`.
 - **Looks:** `project.add-adjustment` / `update-adjustment` (exposure, contrast,
   saturation, temperature, tint, blur, vignette, grain, glow,
-  chromaticAberration, smooth (touch up), LUT `look`, `correction`, `--clipId [--layer=camera]`,
+  chromaticAberration, smooth (touch up), sharpen, posterize, glitch, lightRays
+  (+ `raysOrigin`), shake, LUT `look`, `correction`, `--clipId [--layer=camera]`,
   keyframes, fades); clip grades and adjustment layers are one effect library.
+- **Callouts:** `project.add-annotation --type=callout --callout=<shape|object>`
+  (arrow, curved-arrow, circle, box, underline, highlight, badge, click; draw-on,
+  hand style); restyle with `update-region --callout`.
+- **Behaviours:** `project.set-behaviors --regionType=annotation|overlay|motion
+  --loop=repeat|pingpong --wiggle='{"amount","speed","properties"}'`.
+- **Follow motion:** `project.pin-to-motion --regionType=annotation|overlay
+  --regionId [--atMs --target --followScale | --clear=true]`.
   `--blendMode` on overlays, FX and adjustments.
 - **Text behind you:** `project.add-title-behind --text --atMs [--style=3d|bold|serif
   --durationMs --accentColor --position=auto|top|center --animation --behind=false]`,
@@ -2661,6 +2790,7 @@ pandastudio transcript.import --id=$ID --as=translation --language=fr --file=/ab
 pandastudio export.subtitles --id=$ID --languages=all --format=both --grouping=lines --outputPath=/abs/folder
 pandastudio export.start --id=$ID --captionLanguages=de,es       # one video per language: name.de.mp4, name.es.mp4
 pandastudio export.start --id=$ID --subtitles=srt                # one video + a .srt per language beside it
+pandastudio export.start --id=$ID --captions=false               # this export without the burned-in captions (project unchanged)
 ```
 
 Rules:
@@ -2866,7 +2996,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   set-participant-offset, set-podcast-source-crop, list-podcast-screen-shares
   (visual-edits.md, shorts.md, motion-templates.md)
 - **project**, regions — add-trim, close-gap, set-overlay-lane, add-zoom, add-speed, add-speed-ramp,
-  add-freeze-frame, add-reverse, add-annotation, add-emoji, add-fx,
+  add-freeze-frame, add-reverse, add-annotation (text / figure / callout), add-emoji, add-fx,
   add-transition, add-motion-graphic, add-designed-segment, add-lower-third,
   add-spotlight, update-spotlight, remove-spotlight, add-background-effect,
   add-caption-region [hide-captions], remove-caption-region [show-captions],
@@ -2877,7 +3007,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   set-overlay-crop, set-overlay-backdrop-blur, set-overlay-chroma-key, remove-overlay-background,
   set-clip-chroma-key (visual-edits.md, fx-transitions.md, motion-templates.md)
 - **project**, native motion and looks (2.0) — add-motion, set-keyframes,
-  add-keyframe, remove-keyframe, convert-to-keyframes, set-animation,
+  add-keyframe, remove-keyframe, convert-to-keyframes, set-animation, set-behaviors, pin-to-motion,
   set-overlay-mask, track-focus-face, add-adjustment, update-adjustment,
   set-clip-color, set-clip-lut, add-3d-captions (native-motion.md,
   audio-color-music.md, 3d-captions.md)

@@ -148,3 +148,26 @@ aspect with zero padding; cursor positions are relative to the area and clicks
 outside it are ignored. Native capture must be available for area recording;
 an encoder/permission failure returns an error instead of recording the full
 screen. Existing whole-screen browser fallback is unchanged.
+
+
+## Browser demos (`recording.browser-*`, PandaStudio 2.1.78+)
+
+The agent's own offscreen browser, recorded: see the SKILL.md section
+"Product demos with nobody at the mouse" for the workflow. Details:
+
+- The demo browser is Chromium in its own session (`persist:browser-demo`),
+  apart from the user's browsers. `recording.browser-sign-in` opens a visible
+  window on that session for the user; `recording.browser-sign-out` clears it.
+- Input is real (DevTools protocol mouse, wheel and key events), so hover
+  styles, focus rings, client validation and keyboard handlers run. Native
+  `<select>` popups can't be drawn offscreen: `select` sets the choice and the
+  page sees input/change events. Custom dropdowns: `click` them, then `click`
+  the option.
+- The video has no system cursor; the editor draws it from the sidecar
+  (`<video>.cursor.json`, the same format as screen recordings) and places
+  auto-zooms on the clicks when the project first opens.
+- A page that keeps loading forever is waited on for 15 s per navigation,
+  then the demo goes on. `wait --for=<text>` is the reliable way to wait for
+  a screen.
+- Refused: http(s) only; URLs with credentials; typing into password,
+  one-time-code and payment card fields.

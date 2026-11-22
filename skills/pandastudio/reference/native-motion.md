@@ -129,6 +129,84 @@ pandastudio project.set-keyframes --id=$ID --target=overlay --regionId=overlay-3
 - A keyframed overlay can still be dragged in the editor (it moves the resting
   position) but not resized; `project.set-keyframes ... --keyframes='[]'` clears it.
 
+## Animated callouts (tutorial marks)
+
+`project.add-annotation --type=callout` draws a mark that animates on, in the
+annotation's box (x / y / width / height in frame %):
+
+| Shape | What it draws |
+|---|---|
+| `arrow` | a straight arrow from `from` to `to` (box fractions; default bottom-left to top-right); the head lands last |
+| `curved-arrow` | the same, bowed sideways by `bend` (-1..1) |
+| `circle` | an oval traced around the box (`style: "hand"` overshoots like a marker ring; the default) |
+| `box` | a rounded rectangle traced around the box |
+| `underline` | a line drawn left to right along the bottom of the box |
+| `highlight` | a translucent yellow highlighter swipe across the box (put it over text) |
+| `badge` | a filled circle with `label` (a number or up to 12 characters) that pops in |
+| `click` | ripples spreading from the box centre; repeats every `drawOnMs` |
+
+```bash
+# Ring the button the user is about to click, 300 ms before the click
+pandastudio project.add-annotation --id=$ID --type=callout --callout=circle \
+  --startMs=4200 --endMs=6500 --x=33 --y=46 --width=8 --height=7 --exit=fade --json
+# Step numbers on a setup screen
+pandastudio project.add-annotation --id=$ID --type=callout \
+  --callout='{"shape":"badge","label":"2","color":"#2563EB"}' \
+  --startMs=9000 --endMs=12000 --x=61 --y=40 --width=3 --height=5 --json
+# A curved arrow from the empty space to the menu item it points at
+pandastudio project.add-annotation --id=$ID --type=callout \
+  --callout='{"shape":"curved-arrow","from":{"x":0,"y":1},"to":{"x":1,"y":0},"bend":-0.4}' \
+  --startMs=15000 --endMs=17500 --x=55 --y=20 --width=14 --height=16 --json
+# Restyle later (merged over the current callout; a new shape keeps colour and width)
+pandastudio project.update-region --id=$ID --regionType=annotation --regionId=ann-3 \
+  --callout='{"shape":"box","style":"clean"}' --json
+```
+
+Fields: `color` (default red `#FF4D4F`; highlighter yellow), `strokeWidth`
+(px at 1080p, 1..40, default 8), `drawOnMs` (0..5000, default 500; 0 = appears
+at once), `style` (`clean` | `hand`), `from` / `to`, `bend`, `label`,
+`textColor`, `shadow` (default true). Callouts take `--enter` / `--exit`,
+keyframes, loop / wiggle and Follow motion like any annotation.
+
+**On screen recordings:** put a `click` callout or a ring on every important
+click (from the cursor telemetry / the transcript), a `highlight` on text the
+voice reads out, and `badge` numbers on multi-step setups. Keep ONE mark on
+screen at a time, appearing 200-400 ms before the moment it points at.
+
+## Loop and wiggle (behaviours)
+
+`project.set-behaviors --regionType=annotation|overlay|motion --regionId`
+animates a layer without more keyframes:
+
+- `--loop=repeat|pingpong|none` replays the layer's keyframes (2+ needed) for
+  the rest of the layer: a pulsing badge (scale 1 to 1.15, pingpong), a bobbing
+  arrow (y keyframes), a swinging sign (rotation).
+- `--wiggle='{"amount":0.3,"speed":2,"properties":["position","rotation"]}'`
+  adds smooth, repeatable random drift on top of everything (keyframes, enter /
+  exit): a hand-held float on a sticker, a nervous jitter (rotation, speed 8),
+  a breathing scale. `amount` 1 = 3% of the frame, 8 degrees or 10% scale;
+  `seed` gives a different drift. null or amount 0 clears it.
+- On `motion` (a main-video motion region, screen target) it wiggles or loops
+  the whole picture. For shaking EVERYTHING (an impact, a handheld feel), use an
+  adjustment layer's `shake` instead.
+
+## Follow motion (pin a layer to tracked movement)
+
+`project.pin-to-motion --regionType=annotation|overlay --regionId [--atMs]
+[--target='{"x","y","width","height"}'] [--followScale=true]` keeps a callout,
+text, emoji, image or graphic on something that moves in the video: a circle
+on a button while the page scrolls, an arrow on a dragged card, a label on a
+product. The target (frame %, default the layer's own box; for an arrow, the
+box around what it points at) is tracked forward and backward from `atMs`
+through the layer's span and stored in video space; every frame places the
+layer on it as the frame is now, so zooms, camera moves and layout changes made
+before OR after pinning keep it on its target, and a zoom grows it with the
+picture (about the tracked point, so a badge beside a button stays beside it).
+`followScale` also follows the tracked thing's own size. The layer's own
+keyframes, loop / wiggle and enter / exit apply on top. Slow (decodes frames). Where the content is lost the layer
+holds; read `lostForwardAtMs` / `lostBackwardAtMs` and tell the user.
+`--clear=true` unpins. Draw the target tightly around something with texture.
+
 ## Enter / exit transitions (annotations, emoji, lower thirds, overlays)
 
 Every annotation (text, image, arrow) and every media overlay (image, video,
@@ -438,6 +516,12 @@ pandastudio project.update-adjustment --id=$ID --regionId=adj-1 --contrast=0.3 -
 | `grain` | animated film grain, 0..1 | 0 |
 | `glow` | bloom around bright areas, 0..1 | 0 |
 | `chromaticAberration` | red / blue split, px at 1080p, 0..20 | 0 |
+| `smooth` | touch up: edge-preserving skin smoothing, 0..1 | 0 |
+| `sharpen` | crisper detail (unsharp mask), 0..1 | 0 |
+| `posterize` | fewer colour steps, 0..1 (1 = 4 levels per channel: a print / cel look) | 0 |
+| `glitch` | digital glitch, animated: bands jump sideways, colours split; 0..1 | 0 |
+| `lightRays` | rays streaming from the bright areas, 0..1; aim with `raysOrigin {x, y}` (fractions of the layer, default 0.5, 0.2; -0.5..1.5 aims from off frame) | 0 |
+| `shake` | handheld camera shake with motion blur, animated, 0..1 (0.15-0.3 subtle handheld, 0.6+ an impact) | 0 |
 
 - At least one effect must be set; unknown fields and out-of-range values are
   rejected with this list. 0 or null in `update-adjustment` removes an effect.
@@ -450,6 +534,30 @@ pandastudio project.update-adjustment --id=$ID --regionId=adj-1 --contrast=0.3 -
   effects rendered the same way. Keep using `set-clip-color` / `set-clip-lut`
   for a clip's static base grade; use an adjustment layer when the look must
   change over time or cover only part of the timeline.
+
+### Stylize: glitch, light rays, shake, sharpen, posterize
+
+```bash
+# A 0.4 s glitch burst on a cut (a transition feel without a transition)
+pandastudio project.add-adjustment --id=$ID --atMs=11800 --durationMs=400 --glitch=0.7 --json
+# Sunlight from the window at the top left, easing in
+pandastudio project.add-adjustment --id=$ID --atMs=0 --durationMs=8000 --lightRays=0.6 \
+  --raysOrigin='{"x":0.15,"y":0.05}' --fadeInMs=800 --json
+# An impact: shake 0.8 that dies away in 600 ms (keyframe the amount)
+pandastudio project.add-adjustment --id=$ID --atMs=24000 --durationMs=600 --shake=0.8 \
+  --keyframes='[{"timeMs":0,"amount":1},{"timeMs":600,"amount":0,"easing":"ease-out"}]' --json
+# Subtle handheld feel on a static talking-head clip only
+pandastudio project.add-adjustment --id=$ID --clipId=clip-2 --shake=0.2 --json
+```
+
+- `shake` runs FIRST in the stack, so grain and glitch stay put on the screen
+  while the picture moves. On the whole frame it overscans just enough that no
+  edge shows; on one clip's layer (`--clipId`) the layer moves as a card.
+- `glitch` jumps 12 times a second; keep bursts short (0.2-1 s). For a
+  whole-video look, combine `posterize` with `grain` instead.
+- `lightRays` needs bright areas to work with (a window, a lamp, sky, a white
+  UI); on a dark frame it does little. Pair with a slight `exposure` drop.
+- Every one of these is keyframable and stacks with blend modes.
 
 ### Looks, correction, one clip only, keyframes
 
