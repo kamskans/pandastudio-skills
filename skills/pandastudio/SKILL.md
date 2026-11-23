@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.336.0 -->
+<!-- version: 3.337.0 -->
 
 # PandaStudio
 
@@ -477,6 +477,12 @@ touched (they can keep working).
 2. Signed-in areas: the user signs in themselves first:
    `recording.browser-sign-in --url=<their sign-in page>` opens a window on
    the demo browser's session; they sign in and close it; it's kept.
+   Every inspect, rehearsal and recording starts from that session as the
+   user left it, and nothing a run does carries over (2.1.79+): a step that
+   dismisses a cookie banner in the rehearsal works again in the recording,
+   and a re-record starts from the same page. Anything the user wants
+   remembered (accepted cookies, a picked workspace) goes in the sign-in
+   window.
    NEVER type a password, one-time code or card number: those fields are
    refused (step fails with "that's a password field"). A signup demo stops
    before the password, or the user fills it in a sign-in window beforehand.
