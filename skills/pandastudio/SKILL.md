@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.337.0 -->
+<!-- version: 3.338.0 -->
 
 # PandaStudio
 
@@ -656,9 +656,21 @@ transcribing, `transcription.etaMs` is the time left). Then:
   unreadable, transcription_failed, speech_model_missing); tell the user the
   `error` text, fix the cause, then `clips.retry --id` (reuses the import and
   transcript, keeps finished clips).
-- `usedModel:false` = the local AI model isn't downloaded, so moments came
-  from the transcript alone; tell the user Settings → Titles model gives better
-  picks and titles.
+- moments are picked by the AI the user connected for the agent (a
+  subscription sign-in, an API key, or their Claude Code / Codex: `pickedWith:"agent"`, `aiModel` names it); the
+  small local model only when none is connected or it doesn't answer
+  (`pickedWith:"local"`). `usedModel:false` = neither answered, so moments
+  came from the transcript alone; tell the user to connect their AI in
+  Settings → AI sign-in (or download the local model in Settings → Titles
+  model) for better picks and titles.
+- every clip is checked to make sense to someone who hasn't seen the rest of
+  the video. A moment that leans on something said earlier (opens on "this"
+  without saying what, answers an earlier question) gets that earlier sentence
+  stitched in front: `parts` lists what plays, in order, and `addedContext`
+  counts the stitched sentences; the clip's project has the gaps cut.
+  `standsAlone:false` = it may still need context (kept only because too few
+  others passed): say so when you show it. Fillers and repeated takes inside
+  each clip are cut too.
 In chat apps that show MCP views (Claude, ChatGPT), `clips_get` / `clips_make`
 also show the set as cards with Open, Export and Remove, following a running
 set until it's ready. The user's clicks there arrive as context ("the user
@@ -674,7 +686,14 @@ the same flow.
 Discover shots (`export.generate-shots`), fork one project per shot
 (`project.fork-from-shot`), then edit it as a Short. No export yet? Pass the
 project instead: `export.generate-shots --projectId=$ID`, then
-`project.fork-from-shot --projectId=$ID --shotId=…`. Details:
+`project.fork-from-shot --projectId=$ID --shotId=…`. Shots read the whole
+video and are checked to stand alone: one that leans on an earlier line
+comes back stitched (`parts`, `addedContext`), and the fork keeps the parts.
+Read each shot's words before offering it; if one still needs context, fork
+your own parts: `project.fork-from-shot --projectId=$ID
+--sourceParts='[{"startMs":12000,"endMs":17500},{"startMs":301000,"endMs":338000}]'
+--title=…` (source ms from transcript words, in the order said; the gaps are
+cut). Details:
 [`reference/shorts.md`](reference/shorts.md). "Convert this long video to a
 Short" is this path, never `project.set-aspect-ratio` on the whole long
 video (only a clip already under about 90 s goes vertical in place). Its
@@ -1348,7 +1367,8 @@ Word and filler cuts now land on measured audio pauses. Fillers reported as `ski
    user when you can't tell which take is better.
    **Tighter talk** (long talking head / podcast, the user asks to "edit for
    clarity" or cut the rambling): `transcript.edit-for-clarity` proposes
-   cuts with before/after (rules + the user's local model, job when it runs;
+   cuts with before/after (rules + the AI the user connected, else the local
+   model; a job when a model runs;
    add your own picks with `--cuts` for restatements), show them,
    then `transcript.apply-clarity --proposalIds` on the ones the user accepts
    (transcript-editing.md).

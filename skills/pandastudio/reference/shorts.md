@@ -8,7 +8,18 @@ The shorts pipeline is two-step: **discover** the moments worth clipping, then *
 
 ### Step 1 — Discover shots in an exported video
 
-The AI Shorts generator suggests 3–5 self-contained `[startMs, endMs]` segments scored 1–10, the same as the Exports library's **Generate Shorts** button. Pass the export id: it writes the shots onto that entry under `generatedShots` (replacing any previous set) and also returns them, best score first. MCP: `export_generate_shots { id }`.
+The AI Shorts generator suggests self-contained shots scored 1–10 (about one per 3 minutes of video, 3 to 15), the same picking as Make clips and the Exports library's **Generate Shorts** button, done by the AI the user connected for the agent (a subscription sign-in, an API key, or their Claude Code / Codex; the result's `pickedWith: "agent"` and `model` say which), with the small local model only as the fallback when none is connected or it doesn't answer (`pickedWith: "local"`). It reads the WHOLE video in windows, starts and ends every shot on a sentence, and checks each one makes sense to a viewer who hasn't seen the rest: a shot that leans on something said earlier (opens on "this" without saying what, answers a question asked a minute before) gets that earlier sentence stitched in front, so a shot can have several `parts` (`addedContext` counts the stitched sentences); a tail that runs into the next point is dropped. `standsAlone: false` marks one that may still need context (kept only because too few others passed). `length`: short (15–30 s), medium (30–60 s, default) or long (60–90 s). Pass the export id: it writes the shots onto that entry under `generatedShots` (replacing any previous set) and also returns them, best score first. MCP: `export_generate_shots { id }`.
+
+### Stitch your own parts
+
+You are the user's AI too: read each shot's words on their own. When one still needs context the generator didn't add, fork it with the parts yourself: the setup sentence first, then the moment, in the order they were said (a fork cuts the source, it can't reorder it):
+
+```bash
+pandastudio project.fork-from-shot --projectId="$ID" --title="Warmup gets you blocked" \
+  --sourceParts='[{"startMs":12000,"endMs":17500},{"startMs":301000,"endMs":338000}]' --json
+```
+
+Take the times from `transcript.get` words (the first word's `startMs`, the last word's `endMs`, source time). Keep the stitched setup to one or two sentences, and the whole Short within its length.
 
 ```bash
 # Pick an export to mine for shorts

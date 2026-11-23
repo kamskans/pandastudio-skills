@@ -123,7 +123,7 @@ it up", "cut the rambling"). Run it after `remove-fillers` and `find-issues`;
 it skips words already cut.
 
 ```
-pandastudio transcript.edit-for-clarity --id <projectId>            # rules + local model (job when the model runs)
+pandastudio transcript.edit-for-clarity --id <projectId>            # rules + the connected AI, else the local model (a job when a model runs)
 pandastudio transcript.edit-for-clarity --id <projectId> --engine=rules   # instant, no model
 pandastudio transcript.edit-for-clarity --id <projectId> --kinds=filler-phrase,repeat
 pandastudio transcript.edit-for-clarity --id <projectId> --cuts='[{"wordIds":["w12","w13","w14"],"kind":"restatement","reason":"repeats the line before"}]'
