@@ -224,6 +224,14 @@ Duration suffix optional (`crossfade 0.4s`). A transition extends the outgoing f
 starts never move. The result lists `frames[{id, startMs}]`: that is where each voiceover goes.
 Read `warnings`: a frame whose timeline wasn't registered renders static.
 
+Each frame renders in the film the way it renders alone in `motion.screenshot`. Its ids, CSS
+selectors, SVG `url(#id)` references, GSAP targets and timeline key are scoped to that frame, and so
+are the local `.js` and `.css` files it loads (from `assets`, or next to its `htmlPath`). Frames can
+reuse the same ids (`#title`, `#grad`) and share one script file: there is no need to namespace ids
+per frame. A frame's scripts run together, so a helper file's functions are visible to the frame's
+own `<script>`. Files an `htmlPath` frame references relative to its own folder (images, fonts)
+are picked up too.
+
 Verify the film: `motion.verify-frames --videoPath=<outputPath> --timestamps=[...]` at each frame's
 middle and through two or three transitions.
 

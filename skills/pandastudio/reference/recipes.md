@@ -118,7 +118,15 @@ content (their words, people, logos, topic). When the edit is done,
 fix visible differences in the look before reporting done. A recipe saved with
 `recipe.save` can carry its own `lookFrames` (`[{ src: absolute image path,
 shows, atMs? }]`, up to 8): the store keeps a copy, and `.pandarecipe` exports
-embed them. Without `lookFrames`, `recipe.save` takes three stills of the edit it
+embed them. Stills from a prepared reference study (`opening.jpg`,
+`overview-NNN.jpg`, `ending.jpg`, or the `referenceFrame` stills
+`reference.compare` returns) are accepted here and ONLY here: they are the
+comparison target, never media. The recipe marks them `fromReference: true`,
+its copies stay guarded like the reference (any other verb refuses them with
+`REFERENCE_MEDIA`), and `recipe.export` leaves them out of the shared file (its
+result has a `note` saying how many stayed on this computer). Reference paths
+anywhere else in the recipe (style images, wallpaper, previews, field
+defaults) are still refused. Without `lookFrames`, `recipe.save` takes three stills of the edit it
 was saved from (20%, 50%, 80% of the edited length; `--id` = that project,
 default the one open in the editor; `--stills=false` skips it). They are the
 recipe's cover on Home and the look the next run matches, so save from the
@@ -152,7 +160,7 @@ When the user runs a recipe from the app, the in-app agent receives the same `ru
 ## Saving and sharing
 
 - **"Save this as a recipe" / "remember this style"** after an edit came out right → `recipe.save --recipe='<json>'`. A recipe that builds on pictures can declare an images blank: `{ "key": "images", "label": "Your own images", "type": "images", "optional": true, "maxCount": 12 }` and use `{{images}}` in the prompt (the app shows a file picker and which image connector would generate them otherwise). Turn video-specific values (language, colors, product name, topic) into blanks with sensible defaults; put everything that defines the look in `style` (the full caption look with every value you set, the speaker background, framing, the B-roll rule and the title fonts and colours), not only in the prompt; write 3 to 6 checklist items a frame can confirm. Set `format` to `short` for vertical output and `long` otherwise (it's inferred from `aspectRatio` when omitted).
-- `recipe.export --id=<id>` writes a `.pandarecipe` file (no project data or footage). `recipe.import --file=<path>` adds one. Users can do both from the app: Import sits at the top of the Recipes tab, and Export (plus Delete, for their own) sits in a recipe's detail view.
+- `recipe.export --id=<id>` writes a `.pandarecipe` file (no project data or footage; look frames taken from a reference video stay on this computer). `recipe.import --file=<path>` adds one. Users can do both from the app: Import sits at the top of the Recipes tab, and Export (plus Delete, for their own) sits in a recipe's detail view.
 - `recipe.delete --id=<id>` removes a saved recipe; starters can't be deleted.
 
 ## Caveats

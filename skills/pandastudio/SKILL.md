@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.345.0 -->
+<!-- version: 3.346.0 -->
 
 # PandaStudio
 
@@ -2804,7 +2804,7 @@ style (`set-style`, `set-wallpaper`), annotations, aspect ratio, face centring
 overrides (`set-clip-layout`, `set-clip-style`), per-section layouts
 (`add-clip-transform-region`), podcasts (`add-podcast-clip`,
 `auto-sync-podcast`, `follow-speaker` to cut to whoever talks, sync with `set-webcam-offset` / `set-participant-offset`), overlay
-crop / glass (`set-overlay-crop`, `set-overlay-backdrop-blur`), focus regions,
+crop / flip / glass (`set-overlay-crop`, `set-overlay-flip`, `set-overlay-backdrop-blur`), focus regions,
 speaker background, green screen, frame checks and reset:
 [`reference/visual-edits.md`](reference/visual-edits.md).
 
@@ -3189,7 +3189,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   add-bleep, update-bleep, remove-bleep,
   update-region, remove-region,
   duplicate-region, set-region-sound, set-graphic-sound, update-motion-graphic,
-  set-overlay-crop, set-overlay-backdrop-blur, set-overlay-chroma-key, remove-overlay-background,
+  set-overlay-crop, set-overlay-flip, set-overlay-backdrop-blur, set-overlay-chroma-key, remove-overlay-background,
   set-clip-chroma-key (visual-edits.md, fx-transitions.md, motion-templates.md)
 - **project**, native motion and looks (2.0) — add-motion, set-keyframes,
   add-keyframe, remove-keyframe, convert-to-keyframes, set-animation, set-behaviors, pin-to-motion,
@@ -3328,7 +3328,7 @@ next to one another and dissolve their junction. See reference/fx-transitions.md
 
 ### Cutout camera
 
-Cutout and Speaker remove/image automatically bake the whole source in the background, including on project open. `project.read` reports `clipStates[].matte.main/camera` (none / baking with percent / ready). Use `matte.status --id=PROJECT --clip=CLIP [--source=camera|main]` to inspect (it also reports `engine`: vision or rvm, and any `fallbackReason`), or `matte.bake --id=PROJECT --clip=CLIP [--engine=auto|vision|rvm] [--quality=accurate|balanced]` to trigger; await its jobId with `job.wait`, cancel with `job.cancel`. On macOS 12+ the default engine is Apple Vision accurate (about 1 s per video-second); elsewhere, or if Vision fails, RVM bakes at reduced resolution (about 1 to 1.5 s per video-second). Only pass `--engine`/`--quality` when the user asks: an explicit choice becomes that source's matte and rebakes if it differs (`--quality=balanced` is ~3x faster, softer edges). Completed prefixes are usable; uncovered frames keep the exact live-matte preparing behaviour. Completed bakes survive restart; interrupted bakes restart on demand.
+Cutout and Speaker remove/image automatically bake the whole source in the background, including on project open. `project.read` reports `clipStates[].matte.main/camera` (none / baking with percent / ready). Use `matte.status --id=PROJECT --clip=CLIP [--source=camera|main]` to inspect (it also reports `engine`: vision or rvm, and any `fallbackReason`), or `matte.bake --id=PROJECT --clip=CLIP [--engine=auto|vision|rvm] [--quality=accurate|balanced]` to trigger; await its jobId with `job.wait`, cancel with `job.cancel`. On macOS 12+ the default engine is Apple Vision accurate (about 1 s per video-second); elsewhere, or if Vision fails, RVM bakes at reduced resolution (about 1 to 1.5 s per video-second). Only pass `--engine`/`--quality` when the user asks: an explicit choice becomes that source's matte and rebakes if it differs (`--quality=balanced` is ~3x faster, softer edges). Completed prefixes are usable; uncovered frames keep the exact live-matte preparing behaviour. Completed bakes survive restart; interrupted bakes restart on demand. A very long source (roughly an hour or more of camera footage) can be too big for the 5 GB matte cache: the bake stops early with error code `MATTE_TOO_LONG` (job `errorDetails`, or `matte.status` `errorCode` and `error`) and is not retried automatically. Nothing is broken and there is nothing to fix: Speaker background and Cutout keep working, with the preview and the export matting each frame live (slower). Only `matte.export-cutout` and `project.add-3d-captions` need a prepared matte; tell the user they need a shorter recording for those.
 
 ### Person cutout for other tools
 

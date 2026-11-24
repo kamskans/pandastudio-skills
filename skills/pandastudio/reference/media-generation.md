@@ -53,6 +53,16 @@ pandastudio media.generate-narration \
   `[whispers]`), `gemini-flash-tts` (30 voices, multilingual; `--style` sets the
   tone), `minimax-turbo` (fast; `--style` maps to an emotion, `--speed` 0.5-2).
   Local Kokoro is English-only and ignores `--language`/inline tags.
+- **Long scripts: pass the whole script.** Each cloud model caps one request
+  (ElevenLabs: 5,000 characters on the connector or `elevenlabs-v3`, 10,000
+  with a saved key; Gemini 4,000 bytes; MiniMax 5,000; `voice-clone` about
+  400, since one Chatterbox take stops near 40 s). A longer script is split at
+  paragraph, then sentence breaks, spoken in parts with the same voice,
+  settings and seed (ElevenLabs is also told the text around each part so the
+  delivery carries on), and joined into ONE file with natural pauses, levelled
+  like any take. The result's `parts` says how many requests it took (cost
+  scales with characters either way). Don't split the script yourself: one
+  file keeps one overlay and one transcript timing.
 - **Names and brands in narration.** The local Kokoro voice spells any word it doesn't know letter by letter. It now says joined words made of words it knows as separate words (`PandaStudio` -> "Panda Studio", `writepanda` -> "write panda"), and leaves short acronyms (AI, URL) spelled. For a name or word that can't be split, pass `--pronunciations='{"Kamal":"Ka mal"}'` (whole-word, case-insensitive, applied for every engine). Listen back to the first line before generating a long script.
 - **Canonical promo loop:** write the script → `media.generate-narration` →
   `project.add-audio` at `startMs` with the returned `durationMs` → time your
