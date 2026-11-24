@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.346.0 -->
+<!-- version: 3.347.0 -->
 
 # PandaStudio
 
@@ -495,6 +495,24 @@ touched (they can keep working).
    line with its `atMs`). Then edit as usual: narrate the lines
    (`media.generate-narration`, placed at their atMs), apply a recipe that
    fits a product walkthrough, export.
+
+**Paced to a voice (2.1.83+, CLI / MCP 1.317.0+).** For a narrated demo (a
+VSL, a voiced walkthrough) record the voice FIRST and let the page follow it:
+write the steps with their `say` lines (in order, those lines ARE the script),
+voice the whole script as one take (`media.generate-narration --text=<all say
+lines joined>`), then `recording.browser-demo … --voice='{"path":"<abs path>"}'`
+(`kind`: `narration` = a generated take, the default; `recording` = the user's
+own take, transcribed; `camera: true` when that take is a video of them).
+Each voiced step then starts when its first word is spoken (a scroll ~0.6 s
+earlier so the section has arrived), unvoiced steps run right after the step
+before, the recording holds until the voice ends, and the voice lands on the
+project at 1 s with its words in the transcript. The result's `voice` lists
+`unvoiced` steps (the take never reached their line) and `lateSteps` (started
+>400 ms late: shorten the step before, or put slow unvoiced steps like a
+cookie banner first). Never cut such a project (fillers, silences, retakes):
+the page would drift off its words. Fix misheard names with
+`transcript.find-replace` (it changes words, not timing; it reaches narration
+words since 2.1.83).
 
 Steps (JSON array, 1-80): `goto {url}`, `click {text|selector, nth?}`,
 `hover {text|selector}`, `type {value, into|text|selector, submit?}` (types
@@ -1256,6 +1274,22 @@ Using one is the style flow, not a prose prompt:
 - The user's OWN recipes (source user: saved, imported, learned from a
   reference) keep the prose flow below. A saved or imported copy of a starter
   drops `stylePack`.
+- A pack whose `cutRule.cut` is false (the `vsl` pack, 2.1.83+) is never
+  tightened: `style.tighten` skips fillers and silences; its footage is paced
+  to its voice. A look key with `custom: "color"` (vsl's `accent`) takes any
+  `#RRGGBB`: set it to the brand's colour from `workspace.capture-brand`; its
+  choices are only suggestions.
+- **Landing page VSL** (recipe `landing-page-vsl`, pack `vsl`, 2.1.83+): a
+  video sales letter from a URL, no footage. Follow the pack's STYLE.md
+  "Before you plan": `recording.browser-inspect` the page (scroll steps to see
+  every section) and `workspace.capture-brand`; write a five-part script
+  (hook, problem, solution, proof, offer + CTA, ~150 words a minute) where
+  every claim, number and quote is ON the page (list each with its page text;
+  leave a part out rather than invent it); get the user's OK; voice it once;
+  `recording.browser-demo --voice` with one step per beat (dismiss a cookie
+  banner with a first unvoiced step, choosing the privacy-preserving button);
+  then `style.apply --pack=vsl`, `style.guide`, `style.write-plan` with
+  `look.accent` = the brand colour, check frames, export.
 - `style.apply --look='{"mode":"numbers"}'` chooses a look variant directly
   (keys and choices from `style.guide` manifest.look); `style.guide` returns
   the chosen `look` and the plan must use it.
