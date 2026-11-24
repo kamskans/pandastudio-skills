@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.347.0 -->
+<!-- version: 3.348.0 -->
 
 # PandaStudio
 
@@ -1154,8 +1154,12 @@ itself and frames its panel from the whole recording):
    `style.write-plan --plan=…` until `ok` (fix each error's path / fix) →
    `style.stills` and LOOK at every sheet against the pack's checklist
    (legibility, nothing over the face, text matching the words, no empty
-   stage, cards that act the sentence out) → revise → stills again. Evidence:
-   `style.capture` (a real page, phrases to mark in `find`) and `style.logo`.
+   stage, cards that act the sentence out) → revise → stills again. Evidence
+   comes BEFORE the plan, not after the render: `style.capture` (a real page,
+   phrases to mark in `find`), `style.logo`, and the user's own pictures (or
+   generated ones only with their OK) are gathered first so the plan can
+   place them. In a written plan (`plan.propose`) that is its own step, with
+   `needsApproval` when it generates or asks, placed before the style step.
    Never invent a statistic, quote, screenshot or product UI with made-up data.
    Without eyes, or for one click: `style.plan [--note]` (job) lets the user's
    connected AI write and validate it (`no_connected_ai` → ask them to connect
@@ -1677,7 +1681,7 @@ and the doc named in the row.
 | Music / SFX / voice too loud or quiet as a group | `project.set-audio-buses --music=-3 --sfx=2` | changing every track's volume one by one |
 | Product demo / launch audio | sound effects timed to clicks, typing and scene changes (audio-color-music.md "Sound design") | a song under everything |
 | A still image (photo, screenshot, generated beat) | Ken Burns image clip: `media.image-to-video --id` (no move: `project.add-clip --media=<img>`) | a flat held still |
-| A picture of what's being said, cut in over the speaker for a beat (talking-head edits) | B-roll, as the LAST step and only after asking (see "B-roll beats"): you pick the lines → `project.check-broll --moments` → ask → `project.add-broll --imagePath --wordId` | generating or inventing images the user didn't agree to |
+| A picture of what's being said, cut in over the speaker for a beat (talking-head edits) | B-roll, as the LAST step of an edit with no style and only after asking (see "B-roll beats"; with a style pack or recipe the pictures go to the plan BEFORE the style instead): you pick the lines → `project.check-broll --moments` → ask → `project.add-broll --imagePath --wordId` | generating or inventing images the user didn't agree to |
 | Emphasis on one frame ("look at this", the turn of a story) | `project.add-freeze-frame --holdMs=1000–2000` (+ adjustment layer and a slow push over the hold for a record-scratch beat) | a long zoom |
 | Playful rewind ("wait, go back") | `project.add-reverse` over 1–3 s, audio muted | reversing speech you need |
 | Keyword on the stressed word, a number, a key term, the hero line, an end card | native motion element (`project.add-motion-element --wordId`, or the whole pass with `project.style-edit`) | an HTML render for plain words; words in a script the engine fonts can't draw |
@@ -2333,7 +2337,14 @@ places its default sound (`--sound=none` to skip). Add them after the cutting
 passes (no anchor). `project.add-fx` overlays only on explicit request. Detail:
 [`reference/fx-transitions.md`](reference/fx-transitions.md).
 
-## B-roll beats — the last step, and always ask
+## B-roll beats — the last step of an edit with no style, and always ask
+
+**With a style (a style pack or a recipe), pictures come first, not last:**
+the style places them while it plans, so gather them before `style.plan` /
+`style.write-plan` (or fill the recipe's images blanks before
+`recipe.render`) and never add B-roll beats to a styled project afterwards.
+In a written plan that is a step before the style step. Everything below is
+for a plain edit with no style.
 
 A B-roll beat is a picture of what's being said, cut in over the speaker for
 about 2 s: the image with a slow push, a camera-shutter click, and a flash /
