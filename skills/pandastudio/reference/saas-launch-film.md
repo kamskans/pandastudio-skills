@@ -114,6 +114,10 @@ Two sources, often mixed in one film:
   `.lf-lights`), bubbles, pills, buttons, toasts and a dock.
 - Put the window in a **world** element and move a **camera** over it. Measure
   positions in window coordinates; frame shots with `LF.frame(cx, cy, zoom)`.
+  `LF.frame`, `LF.camera` and the other kit helpers take the composition's
+  own size from the root's data-width / data-height (`LF.size()`; 2.1.83+), so
+  a 1:1 or 9:16 scene centres correctly. Older apps assumed 1920x1080: pass
+  the size there (`LF.frame(cx, cy, s, 1080, 1080)`, `{ width, height }`).
 - Trace real screens for layout (sidebar widths, card sizes, font sizes), then
   fill with scenario content. Avatars: `media.generate-image --aspectRatio=1:1`
   headshots, or initials.
