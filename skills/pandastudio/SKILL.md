@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.338.0 -->
+<!-- version: 3.345.0 -->
 
 # PandaStudio
 
@@ -1102,11 +1102,168 @@ replies). That is the feedback loop:
 `share_resolve_comment`, `share_delete_comment`. Shapes:
 reference/commands.md "share.*".
 
+## Style packs — the default for a Short of one person to camera
+
+PandaStudio 2.1.81 and later. A style pack is a measured short-form editing
+style (Ribbon Depth, Editorial Proof, Ember Brief, Night Class, Prop Room;
+Open Canvas and Seamline in beta): a rulebook with numbers (`styleMd`), a
+manifest of the ONLY layouts / elements / params / beats a plan may use, and a
+renderer that draws every frame identically in preview and export. A plan
+gives almost every sentence a scene: a graphic over the speaker panel, a
+graphic full frame, or the speaker full height, with graphics that act the
+words out on the word they depict, captions, framing and a music bed. The pack
+draws ALL of it: never add captions, zooms, B-roll, music or motion elements
+to a styled project.
+
+**When.** Every new Short (9:16, 25-90 s) of one person speaking to camera,
+unless the user named a recipe or a creator style. Other formats and footage
+use a native pack that fits (below) or a recipe. `recipe.pick` lists packs
+first for camera Shorts (`kind: "style-pack"`).
+
+**The flow** (a landscape long-form source is cut to the moment first with
+`export.generate-shots` + `project.fork-from-shot`; the pack crops to 9:16
+itself and frames its panel from the whole recording):
+
+1. `style.list` → choose the pack whose `bestFor` matches what is said. Tell the
+   user which and why in one line; name one alternative.
+2. `style.apply --pack=<id>` → `cutRule`, then `style.tighten` (job): fillers out,
+   pauses to the pack's rule, Enhance voice. Retakes still need judgement:
+   `transcript.find-issues` + `transcript.delete-words` (keep the last take).
+3. `style.prepare` (job, ~2 min for 40 s): plate, framing, speaker cut-out,
+   packed preview. Re-run after ANY edit change: plans anchor to word indexes.
+4. Plan. With eyes (you can view images): `style.guide` → read ALL of
+   `styleMd`, the manifest and an example → write the edit document →
+   `style.write-plan --plan=…` until `ok` (fix each error's path / fix) →
+   `style.stills` and LOOK at every sheet against the pack's checklist
+   (legibility, nothing over the face, text matching the words, no empty
+   stage, cards that act the sentence out) → revise → stills again. Evidence:
+   `style.capture` (a real page, phrases to mark in `find`) and `style.logo`.
+   Never invent a statistic, quote, screenshot or product UI with made-up data.
+   Without eyes, or for one click: `style.plan [--note]` (job) lets the user's
+   connected AI write and validate it (`no_connected_ai` → ask them to connect
+   one in Settings → AI).
+5. `style.review` → give the user the address and two lines: watch each scene,
+   switch options, note what should change, lock what's right. `style.sync`
+   reads their decisions: revise noted scenes (`style.write-plan`, or
+   `style.plan --revise=true`), never touch locked ones.
+6. `style.render` (job) → the finished video in My Exports (`--draft=true` for a
+   quick half-size preview first). Check it (`export.verify` or frames) before
+   telling the user.
+
+`style.pick --scene --option|--locked|--note` changes one scene; `style.clear`
+removes the style. Each video gets its own plan: reuse the pack's grammar,
+never the last plan's content.
+
+### Native packs (`kind: "native"`)
+
+PandaStudio 2.1.81 and later. Some packs are native (e.g. `hype`, which
+replaces the impact-hype-short recipe): the same contract (rulebook,
+manifest, the same edit document with scenes, 2-4 options, picks and beats on
+word indexes), but their elements are PandaStudio's own (slams, headlines,
+counts, lists, end cards and every other motion element, zooms, B-roll from
+given pictures, caption template + emphasis, the composed score) and the plan
+is COMPILED into ordinary timeline edits the user can change. A native pack
+has its own `aspect` (9:16, 16:9 or 1:1) and `footage` (camera, screen,
+camera+screen, podcast, none): choose one that fits the project.
+`recipe.pick` lists the native packs that fit and drops the recipes they
+retire (`replaces`).
+
+What differs from the flow above:
+- No `style.prepare` (it returns at once): after `style.apply` and the
+  cutRule tightening, go to `style.guide`. Its `words` are the edited
+  timeline's spoken words; fix misheard words in the transcript FIRST
+  (`transcript.find-replace`): native captions are the transcript, so
+  `captions.fixes` / `captions.breaks` are refused.
+- Every beat's `at` is a word index (no times): it becomes a word-anchored
+  edit that follows later trims. Image params are full paths of pictures the
+  user gave or agreed to generate.
+- `style.write-plan` validates and, when clean, compiles the plan into the
+  project in one undoable step: a clip-transform section per layout (hard cut),
+  an opaque backdrop behind graphic areas (speaker in a bottom / top panel, or
+  hidden for a full-frame graphic), word-anchored motion elements, zooms,
+  B-roll, caption hides and emphasis, the pack's captions / grade / aspect,
+  then its composed score. Everything it adds is tagged `origin:
+  "style-pack:<id>"`; a rewrite or a pick replaces only that, never the
+  user's own edits (a compiled item the user changed becomes theirs, and a
+  setting they changed stays theirs). Read `compileWarnings`.
+- Framing: a camera take whose shape differs from the pack (a 16:9 recording
+  in a 9:16 pack) is cover-cropped onto the speaker by the compile, then
+  `framingJobId` (a style job) runs `project.auto-reframe` so the crop follows
+  the face; `job.wait` it before checking frames. The pack owns that framing
+  like its aspect: `style.clear` removes it, a reframe by the user is kept.
+  Do not run project.auto-reframe or set-shorts-layout yourself.
+- A native pack can carry variants as look choices (`plan.look`: e.g. hype
+  mode hype / one-liner / numbers, warm-story variant, paper variant): a
+  choice switches captions template, grade, music, backdrops and even layout
+  backgrounds, so pick the one STYLE.md maps to the recording. Packs may also
+  have scene transitions (an option's `transition`, `null` = a cut),
+  elements that span scenes (an `end` beat on a later scene's word, or a
+  frame / film grain that runs the whole edit: place those once), layouts
+  limited to some footage, a cut-out or blurred speaker background per layout,
+  B-roll held for a whole scene, zooms aimed with x / y, keyword `accent`
+  words and the workspace's brand logo. On a podcast, `style.guide` words
+  carry `speaker`.
+- A layout that moves the speaker aside for a graphic (panel, full-frame
+  graphic, corner card, shrunk speaker) starts when its first graphic lands
+  and holds it to the scene's end; one with nothing in it is refused (never
+  an empty stage). Layouts may move or hide the captions themselves.
+  `framingJobId` (write-plan) also measures black bars baked into a recording,
+  frames them out, and bakes the person matte a cut-out or blurred background
+  needs; job.wait it before checking frames. A "match" panel look takes its
+  colours from the footage.
+- Check your picks with `project.render-frame` / `project.render-sheet`
+  (`style.stills`, `style.capture` and `style.logo` are Motus-only).
+- Review is the editor: the Style panel lists every scene with its options
+  (pick, lock, note), and each pick recompiles the timeline at once.
+  `style.review` returns `inEditor: true` and the picks; `style.pick
+  --option` does the same as the panel (`recompiled: false` = the edit
+  changed since the plan: re-plan).
+- `style.render` is the normal export (export.start: trial rules, My Exports;
+  `--draft=true` = draft quality, `--quality` passes through), after
+  re-composing the score if scenes changed.
+- If the edit changes after planning (a trim, a restored word), the compiled
+  edits follow their words, but the plan is stale: re-plan before picking
+  again.
+
 ## Recipes — every edit style lives in a recipe
 
 A recipe is a proven edit style with blanks, a fixed look and a checklist. The
 recipe catalog is the source of truth for styles: this skill never lists them,
 so it can't fall out of date.
+
+**Starter recipes open their style pack** (PandaStudio 2.1.81 and later, CLI /
+MCP 1.314.0+). Every starter recipe is now the storefront of a native style
+pack's look: `recipe.get` shows `stylePack: { id, look, note?, fields }`
+(e.g. hard-truth-one-liner-short = `hype` with `look.mode: "one-liner"`).
+Using one is the style flow, not a prose prompt:
+- `recipe.apply-style --id --projectId` runs `style.apply --pack=<id>
+  --look=<the recipe's look + what its blanks set>` and returns `stylePack {
+  id, name, look, note?, images?, needsMaterial }` + `cutRule`.
+- `recipe.render --id --values` returns `prompt` = the style flow steps
+  (tighten with `cutRule`, then `style.guide` + `style.write-plan`, or
+  `style.plan --note=<stylePack.note> --images=<stylePack.images>`), plus
+  `stylePack` and `cutRule`. Follow it; never add captions, zooms, B-roll,
+  music or graphics yourself (the pack draws them).
+- Only the blanks in `stylePack.fields` still apply: a colour blank sets the
+  pack's look (the nearest colour the pack offers), a choice maps to a look
+  choice, text becomes direction for the plan, images become the pictures the
+  plan may use. Others are ignored (reported in `warnings`).
+- `needsMaterial: true` (a faceless video, a launch film, an ad with no footage
+  yet): make the narration and pictures the pack's STYLE.md "Before you plan"
+  asks for first; the plan anchors to the narration's words.
+- `recipe.look-frames` still returns the look's stills (compare your frames
+  with them), plus `stylePack`.
+- The user's OWN recipes (source user: saved, imported, learned from a
+  reference) keep the prose flow below. A saved or imported copy of a starter
+  drops `stylePack`.
+- `style.apply --look='{"mode":"numbers"}'` chooses a look variant directly
+  (keys and choices from `style.guide` manifest.look); `style.guide` returns
+  the chosen `look` and the plan must use it.
+
+In the app, a starter recipe card (Home, the Recipes tab) shows only the
+blanks its pack uses; Run applies the pack in the recipe's look, tightens the
+pauses and plans the scenes in the Style panel, where the user picks, locks
+and notes them.
 
 **Pick the style.** The user's named style, recipe or creator, or a saved
 memory, wins. Otherwise, for any "edit my video" / "make this a Short" /
@@ -1171,7 +1328,9 @@ YouTube / TikTok / Instagram / X link with "do this with my footage": the
 user wants THEIR video edited like the reference. (In the app: Home → Start
 from a proven edit → "Don't see your style?".) If the named video is one of
 the curated creator references (`reference.gallery`), run its `recipeId` with
-`recipe.render` instead: it is already a recipe. CLI / MCP 1.265.0+.
+`recipe.render` instead: it is already a recipe (a starter, so it opens its
+style pack; `reference.render --mode=recipe` then returns the style flow with
+a compare step instead of the rebuild loop). CLI / MCP 1.265.0+.
 
 1. `reference.prepare --url=<link>` (or `--file=/abs.mp4|.mov|.webm`, or
    `--galleryId` from `reference.gallery`) → `{ jobId }`; `job.wait` →

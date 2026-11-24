@@ -8,6 +8,17 @@ A recipe is an edit that worked, saved so it can be run again on new footage:
 
 Recipes are grouped by **format**: `short` (vertical Shorts / Reels / TikTok) and `long` (YouTube videos, product demos, courses, explainers). Starter recipes ship with the app; users can save their own per workspace. In the app, users find them in three places: the **Start from a recipe** row on the home screen (pick a recipe, then record, import or choose a project; the editor opens with that recipe ready), the suggestions in an empty AI chat, and the **Recipes** tab of the AI agent panel, where they fill the blanks and press **Run on this project**. After an edit, the chat offers **Save this edit as a recipe**, which asks you to run `recipe.save`.
 
+## Starter recipes open a style pack
+
+Every starter recipe names the native style pack that replaced it and the look
+variant that reproduces it (`stylePack: { id, look, note?, fields }` on
+`recipe.get`). `recipe.apply-style` then chooses that pack in that look
+(`style.apply --pack --look`), and `recipe.render` returns the style flow
+(cut rule, then `style.guide` + `style.write-plan` or `style.plan`) instead of
+a prose prompt. Only the blanks in `stylePack.fields` apply. The user's own
+recipes (saved, imported, learned) keep the prose flow described below.
+PandaStudio 2.1.81 and later.
+
 ## Which recipes exist, and which to use
 
 The catalog is live and changes without an app update, so this doc doesn't
