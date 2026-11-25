@@ -16,7 +16,12 @@ pandastudio job.wait --id=$JOB --timeoutMs=900000 --json
 One chain does everything: noise removal, coughs and bumps out of pauses,
 mouth-click repair, broadcast tone match, boom control, level riding, de-esser,
 quieter pauses, -16 LUFS / -1 dBTP. Very quiet speech is lifted by the input
-normalize and the leveller (there is no separate boost step any more).
+normalize and the leveller (there is no separate boost step any more). The final
+limiter never takes more than 4 dB off a peak (6 dB on Strong; 2.1.84+): a
+quiet take with loud peaks (a live-music clip, a shouted word) lands under -16
+LUFS instead of being squashed into crackle, and the export's own loudness
+step finishes the level. A user who hears crackle from an older enhance: run
+Enhance voice again after updating.
 
 | Option | Use it when |
 |---|---|
