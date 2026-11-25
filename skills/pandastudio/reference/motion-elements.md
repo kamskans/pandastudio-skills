@@ -133,8 +133,8 @@ Errors name the field and what it accepts, e.g. `element 1: endCard content is
 | `highlight` | `{ text }` | 2.5 s | none | the phrase with a marker drawn under it as it is said |
 | `endCard` | `{ lines: [a, b] }` | 5 s | bell | the two-line takeaway at the end, with a timer bar |
 | `progress` | `{ label?, fromMs?, toMs? }` (edited ms; default its own span) | 10 s | none | a chapter / countdown bar |
-| `iconPop` | `{ emoji }` or `{ icon }` | 1.5 s | pop | an icon burst: check, cross, plus, arrow-up, arrow-down, clock, star, heart, fire, bolt, bulb, warning, dollar, percent, question, exclamation (emoji map onto these) |
-| `frame` | `{ look: viewfinder \| selection \| corners, label? }` | 4 s | none | a frame around the speaker: `viewfinder` = camera-viewfinder overlay on the whole frame (corner brackets, blinking REC or `label`, running timecode, exposure readouts, battery); `selection` = a design-tool selection box around the speaker (handles, `label` name tag, W × H size pill; accent defaults to design-tool blue); `corners` = accent corner brackets around the speaker |
+| `iconPop` | `{ emoji }` or `{ icon }` | 1.5 s | pop | an icon burst: check, cross, plus, arrow-up, arrow-down, clock, star, heart, fire, bolt, bulb, warning, dollar, percent, question, exclamation (emoji map onto these). `look: "prop"` draws it as a hero object instead: large (a custom zone's `w` sets its width, default 60% of a vertical frame), no disc or rays, complete on its first frame with a soft floor shadow and a slow push-in, no exit (end it on a hard cut); any colour emoji makes a drawn prop (✉️ 🧊 🔒 🚪 🗑️ 🖨️), bundled icons draw in the accent |
+| `frame` | `{ look: viewfinder \| selection \| corners \| pointer, label? }` | 4 s | none | a frame around the speaker: `viewfinder` = camera-viewfinder overlay on the whole frame (corner brackets, blinking REC or `label`, running timecode, exposure readouts, battery); `selection` = a design-tool selection box around the speaker (handles, `label` name tag, W × H size pill; accent defaults to design-tool blue); `corners` = accent corner brackets around the speaker; `pointer` = a small box on content (a phrase on a screen capture: thin accent outline, faint tint, corner handles, drawn on left to right), placed with a `{ x, y, w, h }` zone (`h` sets the box height) |
 | `sticker` | `{ image: transparent PNG path or "@speaker", label?, twin? }` | 2.5 s | pop | `image: "@speaker"` = the speaker cut out of her own live shot (head and shoulders, needs the person matte); `twin: true` = a mirrored pair in the two lower corners (twin stickers). A cut-out image as a die-cut sticker: a white border that follows the image's own outline, a soft shadow, a tilted pop and a gentle float; `label` adds a strip of black label tape under it. Make the image with `media.generate-image --transparent=true` (Replicate or Higgsfield connector), or use the user's own PNG; without a connector ask the user for images |
 | `ticker` | `{ text, label?, speed? }`: one story per line (up to 2000 characters), `label` = the box on the left ("BREAKING", "LIVE"), `speed` px/s at 1080p (40-600, default 160) | 12 s | none | a news ticker: a band at the bottom (or `zone: "top"`) with the stories scrolling across in a loop. Band height follows `style.size`; `zone: { x, y, w }` sets its length and position |
 | `credits` | `{ title?, entries }`: `entries` = `[{ role?, name }]` or strings `"Role: Name"` (up to 200) | 15 s | none | rolling credits: the title, then each role (small, the secondary line) above its name, rolling up through the frame over the element's length (lengthen it for a slower roll) |
@@ -162,6 +162,33 @@ slot; fewer images than slots repeat in turn.
 | `productCard` | `{ title, subtitle?, price?, image? (default "@speaker"), button? ("Add to cart"), done? ("Added") }` | 4 s | front | add to cart: a shop card slides up below the face; its button is tapped at 45% (press, ripple) and flips to "Added ✓". Only for a product or offer the speaker names |
 | `scrollList` | `{ title?, items: (string \| { title, subtitle?, image? })[] (up to 30), look?: playlist \| feed }` | 4 s | front | scroll overlay: a phone app list on a frosted dark panel down the side away from her face, scrolling steadily up (square artwork for a playlist, round avatars for a feed) |
 | `splitScreen` | `{ panels?: 2 \| 3, images?, zooms? (1-4 each, default 1, 1.35, 1.75) }` | 3 s | front | three scenes: the frame splits into stacked panels (side by side on 16:9), each her shot at its own zoom (wide, medium, close) or a given picture; panels slide in from alternating sides |
+| `field` | `{ pattern: grid \| dots \| wave \| floor, color?, glow?, ink?, inkOpacity?, spacing?, size?, driftX?, driftY?, major?, rulers?, waveY?, waveAmp?, wavePeriodS?, vignette?, image? }` | 6 s | front | moving background drawn by the engine (preview = export): `grid` a drafting sheet drifting by (driftX, driftY) px/s (-15 = up; every `major`th line heavier, `rulers` adds ruler ticks and construction circles), `dots` a drifting dot grid, `wave` a still dot lattice whose dots exist only below a travelling wave line (faint just under it, full again deeper), `floor` a perspective dot floor running toward you (`image` underneath: a lit ground). Box = its `{ x, y, w, h }` zone, else the whole frame; phase follows the edit's clock so it never jumps at a cut; no fade (it cuts with its scene). `layer: "background"` puts it under the speaker over the canvas (a ground she stands on wherever she is placed). Draws under everything on its pass; put `zIndex: -3500` to sit under pictures too |
+| `link` | `{ nodes: [{ label?, icon?, image?, x?, y?, atMs? }] (1-8), lines?: [{ from, to, atMs?, style?: solid \| dotted \| dashed, curve? }], sends?: [{ line, atMs, back? }], flow?, layout?: row \| column \| chain \| hub \| free, drawMs? }` | 4 s | front | things and the lines between them: tiles (picture, icon or initials) with names, each line drawing from its first node to its second in 0.4 s with an accent dot on the tip, sends running a dot along a line and lighting the node it reaches, `flow` keeping dots travelling. `chain` = a process (each line draws as the next step lands), `hub` = many sources in a row feeding node 0 below. x / y are fractions of its box |
+| `cursor` | `{ look?: arrow \| hand \| dot, moves: [{ x, y, atMs, action?: move \| click \| drag \| hover }], from?, carry?: { w, h, image?, label? }, on? }` | 3 s | front | a pointer acting on what is on screen: glides to each point on its time (ms from the start), presses with an accent ripple on `click`, carries `carry` (a selection-framed box) from the previous point on `drag`, settles on `hover`. `dot` = a translucent tap dot. With `on` (a picture overlay id or a sticker element id) the points are fractions of that picture and follow it; else of the frame |
+| `mark` | `{ look: highlight \| outline \| box \| underline \| strike \| circle, box: { x, y, w, h }, on?, drawMs? }` | 2 s | front | a mark on part of a picture: a marker sweep, a rounded outline, a selection box with handles growing left to right, an underline, a strike, a hand-drawn circle. With `on` the box is in fractions of that picture (as in the file, top-left origin) and follows its crop, position, enter animation, tilt and fade; it hides while the picture is off screen |
+| `ribbon` | `{ form?: spiral \| sweep \| halo \| arc \| beam \| none, veil? (0-0.9), spheres? }` | 4 s | behind | glass ribbon: a luminous 3D glass band (translucent colour `style.accent`, bright rims `style.highlight`) drawn on with a glowing leading edge, then turning slowly: `spiral` coils around her (a hook), `sweep` is one diagonal beam, `halo` a tilted ring round the head, `arc` a thin arch overhead, `beam` a hairline arc of light (put it `front` over a full-frame field for an empty stage), `none` no band (the room grade and spheres alone, for speaker scenes between ribbon moments). `veil` darkens the room behind her toward a deep tint with a warm glow behind the head (her cut-out stays bright: it needs the person matte); `spheres` floats lit glass spheres around her. It draws under the other elements on its layer, so cards and words behind her sit on top of it. Spiral and sweep fade out below the chest, clear of hands and mics |
+| `prop` | `{ name \| svg \| src, size?: s \| m \| l, tone?: light \| dark \| field, flat?, push?, beats?: [{ at, do, part, ... }] }` | 3 s | front | a drawn hero object whose named parts act the sentence out (the Prop Room pack's props): one of 22 bundled props (`envelope`, `printer`, `tank`, `cloche`, `cassette`, `train`, `gate`, `clock`, `iceberg`, `door`, `bulb`, `battery`, `folder`, `funnel`, `magnet`, `trophy`, `rocket`, `laptop`, `phone`, `padlock`, `shredder`, `gauge`; parts and the beats that suit each in electron/assets/props/README.md) or your own SVG drawn to electron/assets/props/STANDARD.md (`src`: an .svg path, read into the project; it is checked: viewBox from 0 0, parts as `<g id>` with no transform). On screen whole on its first frame (arrives from 0.85, then a slow push-in on 2 of 3), a soft warm shadow (`tone` dark: black, field: faint), centred in its box at 0.68 of the box width. Beats at ms from the start, about 12 frames each, no overshoot: `show` (how pop \| slide \| grow \| land \| fade), `hide` (fade \| pop \| away), `move` (dx, dy, rotate, scale, sx, sy about the part's data-pivot; ease out \| inOut \| slow), `fill` (to 0-1: a level rises or drains), `draw` (strokes draw on; ease sweep for a wedge), `spin` (until a `stop: true` spin), `swap` (to another part), `recolor` (color), `pulse` (a ring), `badge` (kind check \| cross \| text, text, big, on a part's corner). In a style pack the beats land on words |
+
+### Data, comparison and device graphics
+
+Every list here lands item by item on the words that say it: give
+`cueWordIds` (one transcript word id per item, spoken order; up to one per
+item, the rest are paced) or `content.cues` (ms offsets from the start).
+`panel` (chart, table, compare, diagram) sets the surface: `none` (straight
+on the frame), `solid` (a graphite card in `style.surface`) or `glass`
+(frosted over the picture). Text and numbers come from the speech or the
+user's own pictures; never invent a figure, a result row or a screenshot.
+
+| type | content | default length | use it for |
+|---|---|---|---|
+| `chart` | `{ kind?: line \| bars \| tiers \| meter, title?, points: ({ label?, value, display? } \| number)[] (2-12), prefix?, suffix?, max?, limit?, highlight?, xLabel?, yLabel?, panel? }` | 4.5 s | numbers that move: `line` draws a smooth curve point by point (soft area, dots popping, the lit point glowing); `bars` grow from the axis, the lit one in the accent, values counting up; `tiers` are benchmark bars of falling width (white, grey, accent) with a small label over each and `display` typed in ("Above 1.5%"); `meter` is value bars on a card filling to value / max as the number counts, red at `limit` |
+| `table` | `{ look?: grid \| prices \| ranks, title?, columns?, rows: ({ cells, mine? } \| string[] \| "a \| b")[] (1-8), total?, climb?, panel? }` | 5 s | `grid`: a card with its title on an accent bar, rules, heavy row headers and each row's cells typed in on its word; `prices`: one strip per row, the price right, `"~$49~ $19"` strikes the old price with a red marker, `total` lands last in an accent tile; `ranks`: numbered rows, the `mine` row lit and, with `climb`, rising to the top on the last cue while the others step down. `~struck~` works in any cell |
+| `compare` | `{ look?: panels \| faceoff \| wipe \| swap, title?, left, right (each { label?, text?, image?, icon?, value?, color? }), winner?, flow?, token?: people \| dots \| coins, full?, panel? }`, cues `[left, right, verdict]` | 4.5 s | two sides of a claim: `panels` slide in from either side under label tabs (`value` fills a bar; on glass they tilt toward each other); `faceoff` flies two discs in from beyond the edges to meet with a "vs", then on the verdict a stream of people (dots, coins) pours from the `flow` side into the other, which swells, or the `winner` grows with a ring and a check; `wipe` fills the card with the before side and a handle wipes the after side over it to the middle (`full`: all the way on the verdict; else the before side greys with a cross); `swap` strikes the old pill and raises the new one in the accent |
+| `device` | `{ look?: phone \| laptop \| browser \| window \| code \| terminal \| player, image?, title?, lines?, tracks?, scroll?, spot?: { x, y, r? }, zoom? }` | 4.5 s | a capture inside the thing it came from: a phone (metal rim, island), a laptop, a browser (`title` = the url) or a window; a tall capture `scroll`s; `spot` dims the screen around a circle from its cue and `zoom` pushes the camera into it. `code` types `lines` in an editor (line numbers, colouring, caret), `terminal` types `"$ "` commands and shows the output lines; `player` plays the picture with a progress bar, or with no picture shows waveform `tracks` lighting as the playhead crosses |
+| `document` | `{ look?: doc \| pages, title?, sections?: ({ label, lines?, text? } \| string)[] (1-5), pages?, images?, glow? }` | 4.5 s | `doc`: a script card (italic serif heading, sections on a dotted connector, placeholder lines); each section lights in the accent on its cue and its `text` types in; `pages`: a grid of pages (the user's page pictures, else plain placeholder pages) rising in, on a frosted panel with `glow` |
+| `diagram` | `{ look?: hub \| satellites \| flow \| link \| route, title?, center?, nodes: ({ label, icon?, image? } \| string)[] (1-8; link 2), panel? }` | 5 s | how things connect: `hub` tiles round a hub disc with connectors drawing out; `satellites` pills slowly orbiting a glowing hub (far ones behind it); `flow` a chain where every step waits greyed and lights on its word, packets running along drawn links; `link` two tiles, a line drawing between them and a check; `route` stops along a dashed route over a map grid with a token travelling to each |
+| `card` | `{ look?: glass \| solid \| light, title, accent?, text?, icon?, rows?: ({ text, icon? } \| string)[] (up to 5), glint? }` | 4.5 s | an information card: a title with its `accent` words in heavy italic, an icon tile popping on the corner, rows sliding in and checking off (the latest lit in the accent); the card grows to fit each row as it lands; `glint` runs a spark round the glass rim |
+| `assistant` | `{ look?: answer \| search \| chat, app?, prompt?, rows?: ({ text?, sub?, mark?: check \| strike \| lit \| ad } \| string)[] (up to 8), messages?: ({ text, from?: me \| them } \| string)[], light? }` | 5 s | someone asking an app: `answer` types the prompt, rings the field, pulses thinking dots, then the rows land (checked, struck, lit, sponsored; a row with no text is a grey placeholder); `search` is a search bar and result rows; `chat` bubbles land on their words (typing dots before theirs) and the thread scrolls |
 
 Layers: `around` is for `orbit` and `polaroids` (their default); pin either
 to `front` or `behind` to draw every card on one side. `neon`, `bloom`,
@@ -216,7 +243,7 @@ short arrow can show for exactly 0.5 s.
 
 ## Style
 
-`style: { family, accent, highlight, text, surface, font, size, outline, opacity, secondary }`,
+`style: { family, accent, highlight, text, surface, font, size, outline, opacity, secondary, faces, lineFit }`,
 every field optional. Defaults come from the workspace brand kit (`workspace.get-brand`):
 accent = brand primary, highlight = brand accent (else gold), fonts from the
 brand when the engine has them (else the family's bundled face).
@@ -244,7 +271,41 @@ balanced breaks (never a lone word on the last strip); longer ones use three.
 
 `size`: xs | s | m | l | xl. `outline: true` gives slam / behind an outline
 look. `font`: any bundled face (Inter, Poppins, JetBrains Mono, Playfair
-Display, Bebas Neue, Anton, Great Vibes) or a font the user imported.
+Display, Bebas Neue, Anton, Great Vibes, Archivo, Archivo Expanded, DM Sans,
+Monocraft, Instrument Serif, EB Garamond, PT Serif, Caveat Brush) or a font the
+user imported.
+
+### Rich text: one line, several faces (2.1.82+)
+
+The text of `keyword`, `chip`, `highlight` and `lowerThird` (title and
+subtitle) can set single words in their own face, so a heavy sans headline
+carries an italic serif accent word ("the RISK of *trust*"):
+
+- `*words*`: the "em" face, by default the italic serif (Instrument Serif,
+  a touch larger).
+- `{name:words}`: a named face. Built-ins: `serif`, `garamond` (EB Garamond
+  italic 700), `playfair` (Playfair Display italic), `script` (Caveat Brush),
+  `mono`, `light` (300), `regular` (400), `heavy` (900), `italic`, `accent`
+  (accent colour), `highlight`.
+- `style.faces` defines or overrides faces: `{ "em": { "font": "EB Garamond",
+  "italic": true, "weight": 700, "scale": 1.13, "color": "accent" },
+  "of": { "font": "Instrument Serif", "italic": true, "scale": 0.6 } }`.
+  Fields: `font`, `weight` (100-900), `italic`, `color` (a colour or
+  `accent` / `highlight` / `text`), `scale` (0.3-3, shares the baseline),
+  `letterSpacing` (em), `baselineShift` (em, + = down).
+- A face covers whole words; `\*` and `\{` are literal. The engine shapes each
+  word in its face, so wrapping, centring and plates use the real widths and
+  preview = export.
+
+`style.lineFit: "width"` (keyword) sets every line of a stacked headline to
+the same width, short lines bigger (lines balanced, or break them with `\n`);
+`"line"` sets the whole text on one line fitted to the width (a big word). `content.motion:
+"slide"` (keyword) slides each line in from off frame, alternating sides
+(`slideFrom`: the first line's side, default `left`), decelerating hard, and
+on out the way it came, instead of the word-by-word rise. `style.shadow:
+false` sets the text flat (no drop shadow); `style.weight` (100-900) sets the
+main text's weight over the family's; `style.stack: true` (keyword) breaks
+each paragraph into a balanced stack of lines (two for 2-4 words).
 `text`: the main text colour (it also wins over a lower third's plate ink).
 `opacity`: the main text (0-1).
 

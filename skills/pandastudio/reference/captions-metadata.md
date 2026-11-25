@@ -98,6 +98,24 @@ pandastudio caption.mark-emphasis --id=$ID --wordIds='["w12","w40"]'
 pandastudio caption.mark-emphasis --id=$ID --wordIds='["w7"]' --emphasis=false
 ```
 
+**Emphasis kinds** (2.1.82+): each kind of key word can have its own look
+(numbers in the sans, brand names in the accent, concepts in the italic serif).
+`caption.set-style --emphasisKinds='{"number":{"fontFamily":"Inter","fontWeight":800},
+"brand":{"color":"#8846FA"},"concept":{"italic":true,"fontFamily":"Instrument Serif"}}'`
+(fields: color, backgroundColor, scale, italic, fontFamily, fontWeight, textShadow;
+unset fields inherit the shared emphasis look). Words get a kind with
+`caption.mark-emphasis --wordIds='["w12"]' --kind=brand`; detection marks
+number / currency / percent words `number` by itself.
+
+**Shadow and plate:** `--textShadow="0px 3px 1px rgba(0,0,0,0.95)"` is a hard
+drop shadow (`none` removes the template's); `--backgroundColor` with
+`--padding="28px"` and `--borderRadius="13px"` sizes the plate behind the words.
+
+**A look per scene:** `caption.move --atMs --durationMs --style='{"color":"#131416",
+"textShadow":"none"}'` restyles the captions for that span (no positionY = they
+stay put): dark text over a light graphic, a plate over busy footage. Style
+packs do this per layout.
+
 How key words are picked: `project.speech-map` measured from each clip's audio
 (loudness, attack, a pause before, a drawn-out word, strong words; works in any
 language), at caption density (`minGapMs` 1200, `everyMs` 2500); the words of
