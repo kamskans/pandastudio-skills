@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.353.0 -->
+<!-- version: 3.354.0 -->
 
 # PandaStudio
 
@@ -1173,7 +1173,19 @@ aspect and frames the speaker itself):
    `needsApproval` when it generates or asks, placed before the style step.
    Never invent a statistic, quote, screenshot or product UI with made-up data.
 5. Plan. With eyes (you can view images): write the edit document →
-   `style.write-plan --plan=…` until `ok` (fix each error's path / fix). A
+   `style.write-plan --plan=…` until `ok` (fix each error's path / fix).
+   Show the plan taking shape while you decide it: every 3-4 scenes, call
+   `style.draft-scenes --scenes='[…]'` with ONLY that new batch, before
+   `style.write-plan` (app 2.1.84 and later; skip it on an older app). Each
+   scene is a plan scene (`{ id, words: [first, last], pick, options }`) or a
+   light one (`{ "words": [0, 18], "label": "Headline card: AI reads your
+   email", "kind": "headline" }`); the editor's timeline shows faint,
+   labelled blocks at those words' times ("Planning style: 5 scenes so far").
+   It is a preview only: never written to the project, undo or the export.
+   A scene replaces the blocks it overlaps (`--replace=true` swaps them all,
+   `--clear=true` removes them). `style.write-plan` shows the whole plan the
+   same way and the compiled edit replaces the blocks; `style.plan` shows its
+   own as the connected AI writes. A
    clean plan is compiled in one undoable step: a layout section per scene
    (hard cuts), backdrops behind graphic areas, word-anchored motion elements,
    zooms, B-roll, caption hides and emphasis, the pack's captions / grade /
