@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.352.0 -->
+<!-- version: 3.353.0 -->
 
 # PandaStudio
 
@@ -2862,7 +2862,10 @@ Zooms (incl. follow-cursor), cuts (`project.add-trim`), speed regions, crop
 style (`set-style`, `set-wallpaper`), annotations, aspect ratio, face centring
 (`set-focal-point`, `center-camera-on-face`), camera tile
 (`set-webcam-layout`, `set-webcam-style`, `set-clip-webcam`), per-clip
-overrides (`set-clip-layout`, `set-clip-style`), per-section layouts
+overrides (`set-clip-layout`, `set-clip-style`; on a podcast clip with a screen
+share, `set-clip-style --screenShareCameraSide=left|right` moves the camera
+column to that side of the shared screen, default right, and
+`--screenShareCameraSize=0..100` sizes it), per-section layouts
 (`add-clip-transform-region`), podcasts (`add-podcast-clip`,
 `auto-sync-podcast`, `follow-speaker` to cut to whoever talks, sync with `set-webcam-offset` / `set-participant-offset`), overlay
 crop / flip / glass (`set-overlay-crop`, `set-overlay-flip`, `set-overlay-backdrop-blur`), focus regions,

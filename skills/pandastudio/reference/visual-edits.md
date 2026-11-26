@@ -269,7 +269,7 @@ pandastudio project.list-podcast-screen-shares --id=$ID --json
 # podcast-grid [subset or everyone], podcast-screen-share [share + people].
 # Screen-share composition: the shared screen is shown WHOLE at its own aspect
 # (never cropped), the cameras sit beside it (16:9 canvas, a column on the
-# right) or under it (9:16, a row), each tile between 3:4 and 16:9 and centred
+# right by default) or under it (9:16, a row), each tile between 3:4 and 16:9 and centred
 # on the person's face, with a margin so the background shows even at padding
 # 0. More padding (set-style / set-clip-style) shrinks it further. Camera size
 # is the user's to choose: set-clip-style --screenShareCameraSize=0..100
@@ -277,6 +277,14 @@ pandastudio project.list-podcast-screen-shares --id=$ID --json
 # widen from 3:4 toward 16:9). Editor: Video tab > Layout > Camera size.
 # borderRadius 0 gives the screen square corners.
 pandastudio project.set-clip-style --id=$ID --clipId=clip-1 --screenShareCameraSize=75
+# Camera side: --screenShareCameraSide=left puts the camera column on the LEFT
+# of the shared screen (the screen moves right), e.g. a reaction video where
+# the creator wants to sit left of the YouTube clip. "right" (or null) is the
+# default. Only the side-by-side arrangement (landscape canvases) has a side;
+# on 9:16 the cameras stay under the screen. Per clip, one undo step, honored
+# in preview + export, and the share-start transition animates toward it.
+# Editor: Video tab > Layout > Camera side (Left / Right).
+pandastudio project.set-clip-style --id=$ID --clipId=clip-1 --screenShareCameraSide=left
 # Use project.add-clip-transform-region with
 # --participants='["host","guest-2"]' and --transitionMs=320.
 
