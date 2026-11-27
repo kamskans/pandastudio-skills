@@ -138,6 +138,12 @@ screenshot before `text` is drawn on it):
   "camera": { "keys": [ { "t": 0, "pos": [0, 13, 24.5], "look": [0, 4, 0] }, { "t": 5, "pos": [1, 12, 22.5], "look": [0.2, 4.2, 0] } ] } }
 ```
 
+A shot can float its 3D on a designed background instead of a ground:
+`backdrop: "linear-gradient(180deg,#e7faf0,#c9efdc 52%,#f5fffa)"` (no ground,
+no fog): the launch-film look of app windows (`card` screens with
+`bodyColor: "#17171c"`) turning slowly in space with a big word above them.
+`ground: false` drops just the ground.
+
 The camera cuts between shots and eases between a shot's keys: a slow drift
 of 1-2 units sideways and a little closer per shot reads as alive. The ground
 takes the shot's background unless `ground` is set. A first shot on a strong
