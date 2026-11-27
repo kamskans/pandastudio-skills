@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.358.0 -->
+<!-- version: 3.359.0 -->
 
 # PandaStudio
 
@@ -160,8 +160,8 @@ transcript_extra, export, podcast, recording, ideas, reference, library.
 through `pandastudio_call` loads its group too. If your client doesn't refresh
 its tool list, `tools_load` returns the schemas: call those through
 `pandastudio_call`. The CLI (`pandastudio verb.noun`) always has every verb.
-Claude Code, which loads tool schemas on demand itself, sees every tool;
-`PANDASTUDIO_MCP_TOOLS=all` does the same for any client.
+This holds for Claude Code too. `PANDASTUDIO_MCP_TOOLS=all` lists every tool
+at once for any client (it costs tokens at every fresh start).
 
 ### Work in few, big steps
 
