@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.354.0 -->
+<!-- version: 3.356.0 -->
 
 # PandaStudio
 
@@ -850,7 +850,16 @@ recording. Order:
    A screen share only goes on air when its owner is on stage.
    Black bars on the host's camera (a capture dongle's letterbox) or a
    too-wide shot: `podcast.set-camera-zoom --trimBars=true` (then `--zoom`
-   to tighten); it works live and the edit gets the same crop.
+   to tighten); it works live and the edit gets the same crop. A mirrored
+   or upside-down host camera: `podcast.set-camera-flip --horizontal=true`
+   (mirror) / `--vertical=true` (upside down) / `--reset=true`; live, saved
+   per camera, and the take's edit flips the host's track the same way.
+   What was on air while recording (lower thirds, banners, the ticker,
+   comments shown, the intro / outro) lands on the episode's timeline with
+   the take: native lowerThird / chip / ticker elements (origin
+   `podcast-live`) and the intro / outro as a full-frame video overlay with
+   its sound, at the moments they were shown. Edit or remove them like any
+   other element; don't add them again.
    `live-status` separates `state` (the destination accepts our stream) from
    `audience` (YouTube says viewers see it); report both honestly.
    A YouTube destination saved with a stream key (no connected account)
@@ -1379,7 +1388,11 @@ a compare step instead of the rebuild loop). CLI / MCP 1.265.0+.
    clearest at), slots (≤5: footage first, then logo / screen / product /
    text) }. In-app it runs on the user's own model as a job; from an external
    client you can look at the overview sheets yourself and pass
-   `--analysis='{…}'` instead.
+   `--analysis='{…}'` instead. A job result with `analysisFailed: true` (and
+   `analysisError`, `warning`) means the model run failed: `analysis` then
+   holds only the default slots and no rebuild list. Tell the user why, and
+   either fix the model and run it again or pass your own `--analysis`; never
+   build from the default as if it were the analysis.
 3. Ask the user for the slots (their footage is required; the rest they give,
    type, or leave to you), then `reference.render --id --slots='{"footage":
    {"mode":"files","paths":["/abs/take.mp4"]}, "cta": {"mode":"text","text":"…"},
@@ -1544,7 +1557,7 @@ recipe runs (no candidate fits, or the user asked for a plain clean-up).
 When the user asks to **edit / polish / clean up** without naming an
 operation, run this in order:
 
-Word and filler cuts now land on measured audio pauses. Fillers reported as `skipped` ("no pause around it") are intentionally kept. Results include `snapped` edge counts and `warnings`; `--snapToAudio=false` restores legacy timing. Silence cuts keep a 50 ms hold after measured decay.
+Word and filler cuts land on the quietest point between the cut words and their neighbours: a measured pause, or (fillers run into the next word in natural speech) the dip in level between them, never inside a neighbouring word. A join that isn't in a pause gets a short equal-power fade in export (`faded` counts them). `transcript.remove-fillers` cuts every filler by default: one fused to a word (no dip at all, common in fast speech) is cut at the transcript's word boundary with the same fade. Only `--force=false` keeps those and lists them in `kept[]` (`{ wordIds, text, reason: "joined to the next word", code: "fused", side }`); use it when the user asked for a cautious pass. Results include `snapped` edge counts and `warnings`; `--snapToAudio=false` restores legacy timing. Silence cuts keep a 50 ms hold after measured decay.
 
 1. **Transcribe** clips where `clipStates[i].transcribed === false` (`transcript.transcribe`).
 2. **Remove fillers + immediate repeats** (`transcript.remove-fillers`; safe
@@ -2116,7 +2129,10 @@ give you.
   --horizontal --vertical` (both = turned 180 degrees, e.g. a monitor mounted
   upside down; `--horizontal` alone = mirrored). It corrects the source: crop,
   cursor and zoom positions read the flipped picture. Both `false` removes it.
-  The camera tile's own mirror is `set-webcam-style --mirror`.
+  The camera tile's own mirror is `set-webcam-style --mirror`. A podcast
+  clip: `--speaker=guest-2` flips that person's tile (the main source is the
+  clip's own flip); a take recorded with the studio's mirror / flip arrives
+  flipped already.
 - **Cursor (screen recordings):** `project.set-style --cursorScale
   --cursorHideIdle --cursorHideDuringZoom --cursorStyle=classic|modern|bold|soft`
   (modern: clean dark arrow, white outline; bold: high contrast for busy or
@@ -3236,7 +3252,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
   get-brand, set-brand, capture-brand, get-project-defaults,
   set-project-defaults (projects-and-transcription.md)
 - **podcast**, live host — open-host, status, start-recording, stop-recording,
-  start-screen-share, stop-screen-share, set-camera-zoom, open-in-editor, found-recordings,
+  start-screen-share, stop-screen-share, set-camera-zoom, set-camera-flip, open-in-editor, found-recordings,
   add-found-recordings (commands.md)
 - **podcast**, live streaming — live-destinations, add-destination,
   remove-destination, check-upload, go-live, stop-live, live-status, set-scene,

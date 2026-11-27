@@ -50,7 +50,11 @@ pandastudio transcript.get --id=$ID --format=words --json | jq '.data.words[0:20
 
 # 3a. AUTO: drop every "um" / "uh" + immediate repeats
 pandastudio transcript.remove-fillers --id=$ID --json
-# → { removedCount, fillersRemoved, repeatsRemoved, trimsAdded }
+# → { removedCount, fillersRemoved, repeatsRemoved, trimsAdded, faded,
+#     kept: [{ wordIds, text, reason: "joined to the next word", code: "fused", side }] }
+# Every filler is cut by default; one with no dip in level between it and the
+# word it runs into is cut at the word boundary (faded in export).
+# --force=false keeps those instead and lists them in kept[].
 
 # 3b. Remove silences (default 600ms = the UI button; leading/trailing/between-word)
 #     Omit --thresholdMs to use the default; only pass it to override.

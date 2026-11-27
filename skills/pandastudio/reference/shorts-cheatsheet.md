@@ -152,7 +152,9 @@ Auto-detect filler words across the merged transcript and translate them into tr
 ```
 ps_ transcript.remove-fillers 
 ```
-Optional: `--id=<string>` `--path=<string>` `--aggressive=<boolean>` `--includeRepeats=<boolean>` `--expectedRevision=<number>`
+Optional: `--id=<string>` `--path=<string>` `--aggressive=<boolean>` `--includeRepeats=<boolean>` `--force=<boolean>` `--expectedRevision=<number>`
+
+Every filler is cut by default; one fused to a word (no dip to cut at) is cut at the word boundary with a short fade. `--force=false` keeps those in `kept[]`.
 
 ### `project.apply-edit-plan`
 Apply a whole editing plan in ONE call: a JSON array of timeline ops applied atomically (single read → all ops → single save; any invalid op aborts the batch with nothing written). Supported ops: {op:'add-trim',startMs,endMs} · {op:'add-zoom',atMs,durationMs,depth?,focusX?,focusY?,soundUrl?,anchorSourceMs?} · {op:'add-speed',startMs,endMs,speed}. This replaces 20+ sequential add-* round-trips when executing a beat map — ALWAYS prefer it for bulk edits.
