@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.359.0 -->
+<!-- version: 3.360.0 -->
 
 # PandaStudio
 
@@ -121,6 +121,11 @@ fall back to cutting by transcript gaps.
 >   [`reference/whiteboard-style.md`](reference/whiteboard-style.md). Templates
 >   as the backbone of Mode B only for a deliberately quick draft or when the
 >   user asks for speed (say so, offer the custom version).
+> - **3D product promos** (the clay pop-up-book / diorama look with the
+>   product's screen standing in the world, a cursor clicking, worlds popping
+>   in and out): `motion.render-scene` from a JSON scene and the user's
+>   screenshots, checked with `motion.scene-stills`; kinds and starter scenes
+>   in `motion.scene-kit`. Load [`reference/scene3d.md`](reference/scene3d.md).
 > - **Faceless videos are Mode B but IMAGE-driven**: one generated image per
 >   beat + Ken Burns + voiceover, never text scenes. See "Faceless videos".
 > - **A whole short video from one brief** (channel intro, episode open):
@@ -3413,6 +3418,7 @@ Every verb, by family (`<family>.<verb>`; aliases in brackets). Arg schemas:
 - [`reference/launch-video.md`](reference/launch-video.md) — launch and promo films with the HyperFrames craft, catalog and `motion.render-film`.
 - [`reference/saas-launch-film.md`](reference/saas-launch-film.md) — the launch-film recipe and the `lf-kit.js` kit with a snippet per primitive.
 - [`reference/whiteboard-style.md`](reference/whiteboard-style.md) — the whiteboard / hand-drawn explainer design system.
+- [`reference/scene3d.md`](reference/scene3d.md) — 3D scenes (`motion.render-scene`): pop-up worlds, product screens with cursor and overlays, camera shots, headlines.
 - [`reference/house-style.md`](reference/house-style.md) — neutral design tracks when the brand kit is partial.
 - [`reference/video-authoring.md`](reference/video-authoring.md) — 9:16 camera-only, 9:16 screen + PiP, 16:9 side-overlay authoring modes, safe zones, audio sync, frame verification.
 - [`reference/shorts.md`](reference/shorts.md) — export → vertical clips, the 9:16 playbook, 9:16 layouts, auto-reframe, batch.
