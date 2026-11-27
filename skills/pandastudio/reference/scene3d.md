@@ -149,6 +149,56 @@ of 1-2 units sideways and a little closer per shot reads as alive. The ground
 takes the shot's background unless `ground` is set. A first shot on a strong
 brand colour, then a light studio grey (#efeeee), is the house look.
 
+## The film finish (look.post)
+
+Launch films need it: `look: { post: { motionBlur: 0.6, samples: 5, bloom: { strength: 0.7 }, grain: 0.035, vignette: 0.3 } }`.
+- **Motion blur**: several moments inside each frame's shutter, only when something
+  moves (the camera, an object arriving or leaving, keys), so holds stay fast.
+  Fast camera moves and things flying in (`enter: { style: "fly", from, roll }`) are
+  what make it feel filmed.
+- **Depth of field**: a shot's `dof: { aperture: 0.15-0.3, focus }` (focus: a point,
+  an object id or a distance; default the camera's look point; a camera key's
+  `focus` moves it). Keep it subtle on screens people must read.
+- **Bloom**: only what is brighter than white glows: 3D type with `glow` 2+,
+  emissive props. Screens stay under it.
+- **Grain and vignette**: a film finish; 0 turns them off.
+
+## A camera that never cuts
+
+`camera.smooth: true` (or a shot's `camera.smooth`) passes the camera through
+every key without stopping: one flight through the set, banking with `roll`,
+focus following `focus`. Plan one smooth flight per world (the studio opening),
+then cut to the next world. Push the camera into a screen at the end of a
+world (keys ending close to the screen) and cut to the next shot on the same
+picture: a transition through the screen.
+
+## Real product footage on screens
+
+`content: [{ video: "/abs/recording.mp4", mediaStart: 12, from, to }]` plays a
+recording on a screen, frame-accurate in the render. Use PandaStudio's own
+recordings of the product doing the work (the agent editing, a result
+appearing): a working UI beats a screenshot every time. Stills
+(`motion.scene-stills`) show the frame of each moment automatically.
+`popouts: [{ rect, from, depth, scale }]` lifts parts of the screen (a panel, a
+button) toward the viewer. A screen key with `size` reshapes it (a prompt box
+growing into the window that shows the result) without squashing the picture.
+
+## Type that lives in the scene
+
+`kind: "text3d"`: crisp type standing in the world, so objects pass in front of
+and behind it; `glow: 2.4` blooms it, `animate: rise | type | fade | roll`
+(`items` + `every` for a rolling list), keys move it (a word sliding between a
+window and its pop-outs). Headlines in `texts` add `animate: mask` (words rise
+out of their slot), `scale` (a punch-in from blur), `type`, `roll` with
+`items`, `slide: { from, to }` (travels across the frame), and
+`layer: "behind"` (under the 3D).
+
+## Moving light
+
+A backdrop shot takes `lights: [{ color, x, y, size, opacity, keys }]`: soft
+glows (in % of the frame) that drift over the gradient, so a flat background
+breathes.
+
 ## Texts and the end card
 
 `texts: [{ text: "Any subject*.*", from: 0, to: 5, position: "top", color: "#fff", size: 112 }]`:
