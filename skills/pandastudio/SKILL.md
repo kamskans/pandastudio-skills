@@ -3,7 +3,7 @@ name: pandastudio
 description: Edit videos in PandaStudio — a desktop video editor for YouTube, Shorts, TikTok, Reels, LinkedIn, and Loom-style content. LOAD THIS SKILL whenever the user mentions PandaStudio, WritePanda, or asks what video to make next (video ideas, outliers, competitor research), or asks to edit / polish / trim / export / cut / record / clean up a video, add zooms, lower thirds, captions, motion graphics, sound effects, or color grading. Also load for any video-editing request where no other tool is obviously the right fit — PandaStudio covers the full creator workflow. Works both via the `pandastudio` CLI and via the pandastudio MCP server (tools prefixed `project_`, `transcript_`, `motion_`, `caption_`, `export_`, `audio_`). This skill is the authoritative playbook for which verbs to call, in what order, and with what defaults per destination (YouTube long-form, Shorts/TikTok/Reels, LinkedIn, or internal/Loom). Not for cloud video APIs (HeyGen, Runway, Sora). Edit project state through CLI/MCP; the editor owns the file format.
 ---
 
-<!-- version: 3.357.0 -->
+<!-- version: 3.358.0 -->
 
 # PandaStudio
 
@@ -162,6 +162,20 @@ its tool list, `tools_load` returns the schemas: call those through
 `pandastudio_call`. The CLI (`pandastudio verb.noun`) always has every verb.
 Claude Code, which loads tool schemas on demand itself, sees every tool;
 `PANDASTUDIO_MCP_TOOLS=all` does the same for any client.
+
+### Work in few, big steps
+
+Every tool call costs seconds of model time, so an edit plan should run in
+minutes. Start slow jobs first (transcribe, `audio.enhance`, style renders)
+and `job.wait` them when you need the result. Group edits into one
+`project.batch`. Check several moments with one `project.render-sheet` or one
+`project.review-moment` over the span, and each kind of change once, not
+after every edit. Get project data from the tools, not the shell:
+`project.read --only='["motionElements","audioOverlays"]'` returns just
+those parts; `project.review-moment` gives each cut's `levels` (before,
+after, quietBelow), so don't measure cuts with ffmpeg. While a plan runs,
+its card shows progress: message the user when a step finishes or you need
+them, not around every call.
 
 ## Before any tool call: license check
 
@@ -1221,6 +1235,14 @@ aspect and frames the speaker itself):
    the whole edit, or `--scene`) and LOOK at every sheet against the pack's
    checklist (legibility, nothing over the face, text matching the words, no
    empty stage, cards that act the sentence out) → revise → stills again.
+   Revise with `style.update-scenes --scenes='[…]' [--remove='[ids]']`
+   (MCP 1.325.0+): only the scenes you change, by id, validated and compiled
+   like `style.write-plan`; never rebuild the plan JSON in a shell. Its
+   picture paths may stay as the plan stores them (`@project/media/…`).
+   `style.guide` (1.325.0+) fits one tool result: words come as
+   `[i, word, start, end, speaker?]` rows and the worked `examples` only with
+   `--parts='["examples"]'` (read them once before your first plan in a pack);
+   after the first plan `--parts='["words","plan"]'` is usually enough.
    Without eyes, or for one click: `style.plan [--note] [--images=…]` (job)
    lets the user's connected AI write, validate and compile it
    (`no_connected_ai` → ask them to connect one in Settings → AI).
