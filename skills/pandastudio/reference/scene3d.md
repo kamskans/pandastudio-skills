@@ -163,6 +163,27 @@ Launch films need it: `look: { post: { motionBlur: 0.6, samples: 5, bloom: { str
   emissive props. Screens stay under it.
 - **Grain and vignette**: a film finish; 0 turns them off.
 
+## Camera rigs: moves instead of keys
+
+A shot's `camera.rig` describes the move and the subject; the rig measures
+the subject at every frame (so it follows things that move):
+
+```json
+{ "id": "hero", "from": 0, "to": 3, "camera": { "rig": { "preset": "hero-orbit", "target": "lap" } } }
+```
+
+Presets (distances in units of the target's size): `hero-orbit` (a 45 degree
+sweep round it), `slow-push` (a slow push in), `crane-up` (rises over it),
+`dolly-left` / `dolly-right` (tracks past it), `reveal` (starts close on
+`target`, ends wide on `wide`), `screen-dive` (flies into a screen and ends
+where the screen exactly fills the frame: cut there to the full-screen
+recording). Or write one: `{ type: orbit | pushIn | dolly | crane | reveal | into,
+target, from, to, radius, height, distance, travel, azimuth (0 = from the
+front), elevation, ease, fov: [from, to], roll: [from, to] }`. A preset's own
+fields can be overridden (`"azimuth": 25`). Save a move you like with
+`motion.scene-camera` (`action: "save"`, a name, the rig without its target)
+and use it by name in any scene. Keys still work for anything a rig can't do.
+
 ## A camera that never cuts
 
 `camera.smooth: true` (or a shot's `camera.smooth`) passes the camera through
@@ -296,6 +317,14 @@ words rise in one by one; `*…*` takes the accent colour (default #ff5a1f, the
 full stop is the classic use). `position: bottom` when the screen sits high.
 The end card is `overlays: [{ html, from, to, fade }]` over everything: the
 brand's real logo (an `<img>` with an absolute path) and CTA. No scripts.
+
+## The live 3D view in the editor
+
+When the user selects a 3D scene graphic on the timeline, Edit graphic shows
+the scene running live in draft (raster, fast) at the playhead, the same
+checks the stills return for that moment, and a button that renders the
+final (path-traced) look of that frame. Point users there to scrub and look;
+edits still go through the scene file and motion.render-scene.
 
 ## Checks before the render
 
