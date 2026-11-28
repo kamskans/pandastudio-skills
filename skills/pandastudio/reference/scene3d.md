@@ -242,6 +242,28 @@ Textured ones use a real CC0 texture set at its real size. Your own:
 `{ "textures": "polyhaven:<texture id>", "tile": 1.2 }` (find ids with
 `motion.scene-library` `type: "textures"`).
 
+**Things falling into place.** Any object takes `drop`: it starts above where
+it rests and falls, bounces and settles on whatever is in place by then
+(real physics, baked when the scene loads, so every frame is the same on
+every render):
+
+```json
+{ "kind": "notebook", "id": "notebook", "at": [-0.36, 0.76, 0.1], "drop": { "at": 2.2, "from": 0.35, "spin": [25, 40, 10], "bounce": 0.2 } }
+```
+
+`from` is the height above its `at` (or an `[x, y, z]` offset), `spin` turns
+it at the start (degrees), `push` / `twist` throw it (m/s, degrees/s),
+`bounce` and `friction` 0-1. It lands near its `at`, not exactly on it:
+check with stills. Stagger drops (a few tenths of a second apart) and don't
+drop two things onto the same spot. Whatever it lands on must be in place by
+the time the last thing drops.
+
+**Particles.** `{ kind: "particles", type: "dust", at, area: [w, h, d], count }`:
+`dust` drifting in the light (by a window), `bokeh` (out-of-focus lights;
+with `dof`), `sparks` and `confetti` bursting from `at` at `burst` seconds
+(`floor` is where confetti lands), `snow`. Sizes are real (confetti 1.2 cm,
+dust 1.5 mm): set `size` larger for a wide shot.
+
 **4. Light like an interior photographer.** `look.environment: { hdri: "polyhaven:art_studio", intensity }`
 (about 1.3 in a closed room, 0.5 in an open set), a warm sun
 `look.key: 5, keyColor: "#ffd6a8", keyDir: [1, 0.75, 0.55]` (points toward
