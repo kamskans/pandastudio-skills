@@ -247,11 +247,28 @@ with `open`. Parts take `materials` / `colors`: walls (plaster), floor
 bookcase full of books), `books` (a row, or `flat: true` a stack), `monitor`
 (or a screen of kind `monitor` to show the product on it), `keyboard`,
 `mouse`, `mug` (with coffee), `notebook`, `pen`, `penCup`, `stickyNotes`,
-`rug`, plus boxes for desks, risers and shelves (`material: "oak"`). Real
+`rug`, plus boxes for desks, risers and shelves (`material: "oak"`).
+Furniture, generated from parts (metres, standing on y 0, facing +z with its
+back toward -z; parts take `materials` / `colors` like the room):
+`sofa` (width 2.0, cushions 3, `lived` 0-1 for sat-in cushions; parts fabric,
+cushions, legs), `armchair` (0.88 wide), `cushion` (stands up: lean it on a
+sofa's back cushions with `rot: [-15, 10, 0]` and `at` y about seat + 0.13),
+`throw` (a blanket over an arm: `at` the arm's middle, `height` the arm's top,
+0.62 for a default sofa whose left arm's middle is at x = -(width / 2 - 0.08)
+from the sofa), `coffeeTable` (`round: true` for a disc, `shelf`),
+`diningTable` (1.8 x 0.9), `chair` (put it at a table's edge facing the
+table), `lamp` (floor, or `type: "table"`; the shade glows and a warm light
+sits at the bulb, `light: 0` turns it off), `plant` (`type: "leafy"` with
+`leaves`, `stems`, `droop`, or `"snake"`), `pictureFrame` (`texture: { image }`
+for the picture; raise it with `at` to hang it, back at z 0 against the wall)
+and `curtain` (pleated on a rail at `height`, `fullness`, `wind`; set it just
+inside the wall beside a window with `rot` so it faces the room). Fabrics
+(linen, velvet) take the object's colour. Real
 models from the CC0 library: `motion.scene-library` with `query: "desk lamp"`
 returns refs and real sizes; use `{ kind: "model", src: "polyhaven:desk_lamp_arm_01", at, rot }`
-(it comes in at its real size; `fit` rescales). Plants, lamps, vases, frames,
-cameras and furniture are there; computer gear is generated. A model's own
+(it comes in at its real size; `fit` rescales). Vases, cameras, sculptures
+and particular designs (a specific armchair, a desk lamp) are there; use the
+generated furniture when you need a size or colour of your own. A model's own
 picture or display shows a scene screen: `screens: { "<material name>": "<screen id>" }`
 with a `textureOnly: true` screen.
 
@@ -296,7 +313,9 @@ patch on the wall and desk), `look.exposure` 1.4-1.7, `look.contrast` 1.1-1.15.
 **5. Dress it densely.** Rooms read real because of clutter: a
 monitor on a riser, keyboard and mouse, a notebook and pen, sticky notes, a
 pen cup, a mug, books (on a shelf and stacked), plants, a lamp, a framed
-print, a rug. An empty desk reads as a render.
+print, a rug; in a living room a sofa with cushions and a throw, a coffee
+table with a mug, a curtain by the window, a lit floor lamp. An empty room
+reads as a render.
 
 - Quality: `look.path: { samples: 16, moments: 4, bounces: 4, denoise: true }`
   are the defaults (the denoiser smooths the light and keeps textures and
