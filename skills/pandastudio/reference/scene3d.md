@@ -67,7 +67,9 @@ story: one `sheet` that leaves with `exit: { style: "unfold" }` while a
 `boat` arrives with `enter: { style: "unfold" }`, a paper `plane` flying
 across between worlds (`keys` from one side to the other with a little roll),
 each shape carrying its own screen (`parent: "<shape id>"`).
-Characters: `mascot` (round, eyes, cheeks, waving arm, `hat`). Primitives:
+Characters: `mascot` (round, eyes, cheeks, waving arm, `hat`; `speech` opens
+its mouth with a voice) and `character` (a rigged model that acts and talks,
+see "Characters that act and talk"). Primitives:
 `box`, `sphere`, `capsule`, `cylinder`, `cone`, `torus`, `star`, `plane`.
 Build anything else from primitives in a `group` with `children` (a fox: a
 capsule body, a 4-sided cone head and ears, a cone tail).
@@ -317,6 +319,46 @@ print, a rug. An empty desk reads as a render.
   render offline works with what is already cached.
 - A path-traced render uses the computer's GPU; it is slow on a machine
   without one.
+
+## Characters that act and talk
+
+A `character` is a rigged .glb (a skeleton with animation clips): the
+built-in `"robot"` (a cartoon robot, 1.2 m) or the user's own model
+(absolute path; Mixamo, Ready Player Me and VRoid exports work). Read what
+it can do first: `motion.scene-character { src }` returns its clips (name,
+seconds), shape keys and how it talks. Names are checked when the scene
+renders, with the closest match suggested.
+
+```json
+{ "kind": "character", "id": "bot", "src": "robot", "at": [0, 0, 0],
+  "clips": [ { "clip": "Idle", "at": 0 }, { "clip": "Wave", "at": 0.3, "loop": false },
+             { "clip": "Idle", "at": 2 }, { "clip": "ThumbsUp", "at": 5.5, "loop": false } ],
+  "look": "camera",
+  "speech": { "audio": "/abs/voice.wav", "at": 1.0 },
+  "expressions": [ { "name": "Surprised", "at": 4.6, "until": 5.4, "amount": 0.8 } ] }
+```
+
+- `clips`: one plays at a time from its `at` until the next one (or `until`),
+  crossfading over `fade` (0.3 s). `loop: false` holds the last pose (a wave,
+  a thumbs up); Idle between actions keeps it alive. Before the first clip:
+  its first frame. Clips play in place: move the character with `keys`
+  (Walking while `keys` carry it across), turn it with `rot`. It faces +z.
+- `look`: `"camera"` or a point turns the head toward it (up to 70 degrees
+  from where the body faces), `{ at, from, to, amount }` for part of the scene.
+- `speech`: the mouth follows the voice (measured from the audio, 60 times a
+  second): a mouth shape key (jawOpen, mouthOpen, viseme_aa) or a jaw bone;
+  the robot has neither, so it nods with the beats of the voice. `at` is when
+  the voice starts in the scene. The scene's video has no sound of its own:
+  pass the same audio to `motion.render-scene`'s `audioPath` (with silence
+  before `at`), or place the voice on the timeline at the graphic's start + `at`.
+  Narrate with `media.generate-narration` and use its file.
+- `expressions`: the model's shape keys over time (the robot: Angry,
+  Surprised, Sad).
+- Path-traced shots render posed characters too (soft shadows, motion blur
+  on fast arms). A character with a clip playing is always "moving", so its
+  frames don't average between frames; use enough `look.path.samples`.
+- Credit for the robot: RobotExpressive by Tomás Laulhé (Quaternius),
+  modified by Don McCurdy, CC0.
 
 ## Texts and the end card
 
