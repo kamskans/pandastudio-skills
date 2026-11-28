@@ -301,10 +301,18 @@ print, a rug. An empty desk reads as a render.
   screen text sharp). Raise samples only for glass close-ups.
 - 3D type (`text3d`) glows as a light in the room; keep it off bright screens
   (green type over a white UI is unreadable) and clear of props in front.
-- Cost: a path-traced 1080p frame takes about 5 s on an Apple silicon GPU, so
-  8 s of video is about 20-25 minutes. Check framing with `motion.scene-stills`
-  first (they path-trace too), render once. Keep path-traced shots to the
-  moments that need them (the opening) and raster the rest.
+- Cost: measure it. `motion.render-scene` with `estimate: true` times two real
+  frames on this computer and returns `estimatedMinutes` without rendering;
+  tell the user before anything over a few minutes. Measured: about 7 s a
+  1080p frame on Apple silicon (8 s of video, about 25 minutes), about 45 s
+  on Intel laptop graphics under Windows (8 s, about 3 hours: there, render
+  at 1280x720 and `look.path.samples` 8, or keep path tracing to a short
+  opening). Check framing with `motion.scene-stills` first (they path-trace
+  too), render once. Keep path-traced shots to the moments that need them
+  (the opening) and raster the rest.
+- Holds are cheap: when nothing changes from one frame to the next, the
+  render averages them (`look.path.temporal`, on), so a still moment gets
+  cleaner and steadier the longer it lasts.
 - Library assets download on first use (a few MB each) and are cached; a
   render offline works with what is already cached.
 - A path-traced render uses the computer's GPU; it is slow on a machine
