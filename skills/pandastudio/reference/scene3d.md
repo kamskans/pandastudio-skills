@@ -255,7 +255,8 @@ cushions, legs), `armchair` (0.88 wide), `cushion` (stands up: lean it on a
 sofa's back cushions with `rot: [-15, 10, 0]` and `at` y about seat + 0.13),
 `throw` (a blanket over an arm: `at` the arm's middle, `height` the arm's top,
 0.62 for a default sofa whose left arm's middle is at x = -(width / 2 - 0.08)
-from the sofa), `coffeeTable` (`round: true` for a disc, `shelf`),
+from the sofa, with `outside: "-x"` there so the long end hangs down the
+outer face), `coffeeTable` (`round: true` for a disc, `shelf`),
 `diningTable` (1.8 x 0.9), `chair` (put it at a table's edge facing the
 table), `lamp` (floor, or `type: "table"`; the shade glows and a warm light
 sits at the bulb, `light: 0` turns it off), `plant` (`type: "leafy"` with
@@ -263,7 +264,29 @@ sits at the bulb, `light: 0` turns it off), `plant` (`type: "leafy"` with
 for the picture; raise it with `at` to hang it, back at z 0 against the wall)
 and `curtain` (pleated on a rail at `height`, `fullness`, `wind`; set it just
 inside the wall beside a window with `rot` so it faces the room). Fabrics
-(linen, velvet) take the object's colour. Real
+(linen, velvet) take the object's colour.
+
+**Cloth is simulated.** `curtain`, `throw` and `cloth` are real cloth (a
+particle grid with stretch, shear and bending, gravity, friction and
+collisions with every surface near it), baked when the scene loads (about a
+second each; frames read the result, so stills, renders and seeks agree):
+- The curtain hangs from its rail and settles against the floor and the
+  window; `wind` (0-1) blows it on screen in gusts.
+- The throw falls into its folds over the arm's real shape and stays (it
+  grips like wool).
+- `cloth` is a sheet: flat (`at` above a table, a bed or a sofa: it settles
+  over it, a tablecloth or a blanket), hanging (`hang: true` or `pin: "top"` /
+  `"corners"` / `[[u, v]]`: a banner, a flag, a sheet on a line), falling on
+  screen (`fall: { at, from }`: a dust sheet landing on furniture, a cloth
+  revealing or covering something) or blowing (`wind`, metres a second).
+- `fabric`: silk (light, slides, billows), cotton, linen, wool, denim (stiff,
+  holds). It changes how it folds, not its look: the look is `materials` /
+  `colors`.
+- Limits: cloth doesn't collide with itself (long cloth piling on the floor
+  can crumple: keep hems off the floor) or with other cloth, and things that
+  drop (`drop`) don't land on it. `sim: false` on a curtain or throw draws
+  the folds instead (instant).
+Real
 models from the CC0 library: `motion.scene-library` with `query: "desk lamp"`
 returns refs and real sizes; use `{ kind: "model", src: "polyhaven:desk_lamp_arm_01", at, rot }`
 (it comes in at its real size; `fit` rescales). Vases, cameras, sculptures
