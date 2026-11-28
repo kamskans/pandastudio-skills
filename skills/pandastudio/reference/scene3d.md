@@ -557,7 +557,7 @@ renders, with the closest match suggested.
 
 ## Render farm (the user's own GPUs)
 
-- Setup: the user pastes their Runpod key in Settings → Integrations → Runpod
+- Setup: the user pastes their Runpod key in Settings → Connectors → Runpod
   (checked with Runpod, stored encrypted; the row shows the balance). Never
   ask for a key in chat: send them there. `motion.render-farm` says whether it
   is set up (`configured`, `setup` steps when not) and `check: true` returns
