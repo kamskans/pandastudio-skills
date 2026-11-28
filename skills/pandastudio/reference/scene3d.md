@@ -282,9 +282,10 @@ second each; frames read the result, so stills, renders and seeks agree):
 - `fabric`: silk (light, slides, billows), cotton, linen, wool, denim (stiff,
   holds). It changes how it folds, not its look: the look is `materials` /
   `colors`.
-- Limits: cloth doesn't collide with itself (long cloth piling on the floor
-  can crumple: keep hems off the floor) or with other cloth, and things that
-  drop (`drop`) don't land on it. `sim: false` on a curtain or throw draws
+- Cloth collides with itself (folds stack, a long hem pools on the floor
+  in broad folds); `selfCollide: false` loads faster. Cloth doesn't collide
+  with other cloth, and things that drop (`drop`) don't land on it. Each
+  simulated cloth adds about 1-3 s to loading (more with wind). `sim: false` on a curtain or throw draws
   the folds instead (instant).
 Real
 models from the CC0 library: `motion.scene-library` with `query: "desk lamp"`
@@ -295,40 +296,43 @@ generated furniture when you need a size or colour of your own. A model's own
 picture or display shows a scene screen: `screens: { "<material name>": "<screen id>" }`
 with a `textureOnly: true` screen.
 
-**3. Surfaces.** `material` names a preset: oak, walnut, tableWood,
-woodFloor, parquet, laminate, plaster (painted: takes the object's colour),
-concrete, paintedBrick, marble, terrazzo, granite, linen, denim, velvet,
-leather, aluminium, steel, chrome, gold, brass, copper, blackMetal, plastic,
-glossPlastic, rubber, ceramic, glass, frostedGlass, paperMatte, screenGlass.
-Textured ones use a real CC0 texture set at its real size. Your own:
-`materials: { "deskTop": { "preset": "oak", "roughness": 0.4 } }` or
-`{ "textures": "polyhaven:<texture id>", "tile": 1.2 }` (find ids with
-`motion.scene-library` `type: "textures"`).
+**3. Surfaces.** `material` names one of 140 presets (`motion.scene-kit`
+lists them all with what each is). Families: woods (oak, walnut, pine,
+cherry, maple, bamboo, plywood, planks, bark...), stone, brick, tiles and
+ground (marble, terrazzo, slateTiles, cobblestone, brick, whiteBrick,
+floorTiles, marbleMosaic, asphalt, sand, gravel, snow, mud, forestFloor...),
+metals by their real reflectance (gold, silver, copper, brass, bronze,
+titanium, iron, nickel, platinum, roseGold, brushedSteel, anodized,
+rustyMetal, corrugatedIron...), paints (carPaint with flakes, pearlPaint,
+satinPaint, lacquer), glass, gems and liquids (tintedGlass, crystal,
+diamond, ruby, sapphire, emerald, ice, water, honey, coffee, milk), soft
+bodies (wax, soap, jade, skin, leaf, porcelain, clay), plastics, fabrics and
+leathers (linen, velvet, woolBoucle, knit, tweed, suede, blackLeather...),
+and special ones (soapFilm, holographic, oilSlick, neon, led, mirror).
+Presets "in the object's colour" take `color`.
 
-**Things falling into place.** Any object takes `drop`: it starts above where
-it rests and falls, bounces and settles on whatever is in place by then
-(real physics, baked when the scene loads, so every frame is the same on
-every render):
+Your own material in `materials: { "<name>": { preset?, color, roughness,
+metalness, clearcoat, transmission, ior, ... } }`, with:
+- `attenuationColor` + `attenuationDistance` (light absorbed inside glass,
+  liquid, gems: shorter = deeper colour; keep it near the object's size).
+- `iridescence` 0-1 (+ `iridescenceIOR`, `iridescenceThickness` [nm, nm]):
+  soap bubbles, oil, beetles. `flakes` 0-1: car paint. `brushed` 0-1 +
+  `brushDir`: brushed metal. `translucency` 0-1: leaves, lampshades, paper.
+  `subsurface` 0-1 + `subsurfaceColor` + `subsurfaceRadius`: wax, jade,
+  soap, skin (an approximation: no true scattering).
+- Age: `wear` (edges rubbed bright, `wearColor`), `dirt` (crevices and low
+  down, `dirtColor`), `dust` (on what faces up), `scratches`, `streaks`
+  (running down), each 0-1. Worn things read real; a new prop reads CG.
+- `displacement: { pattern, height, scale }` moves the surface for real
+  (silhouettes change, shadows fall in the grooves): noise, bricks, tiles,
+  waves, hammered, cobbles, ridges, or texture (the Poly Haven set's own
+  height map). height in metres (0.002-0.02 for most), scale the size of
+  one cell.
+- `animate: { type, color, strength, speed, from, to }`: pulse, blink, sweep
+  (a band of light crossing), flow (moving energy, lava), edges (glowing
+  edges, Tron-style).
+- `opacity` 0-1 for see-through without refraction.
 
-```json
-{ "kind": "notebook", "id": "notebook", "at": [-0.36, 0.76, 0.1], "drop": { "at": 2.2, "from": 0.35, "spin": [25, 40, 10], "bounce": 0.2 } }
-```
-
-`from` is the height above its `at` (or an `[x, y, z]` offset), `spin` turns
-it at the start (degrees), `push` / `twist` throw it (m/s, degrees/s),
-`bounce` and `friction` 0-1. It lands near its `at`, not exactly on it:
-check with stills. Stagger drops (a few tenths of a second apart) and don't
-drop two things onto the same spot. Whatever it lands on must be in place by
-the time the last thing drops.
-
-**Particles.** `{ kind: "particles", type: "dust", at, area: [w, h, d], count }`:
-`dust` drifting in the light (by a window), `bokeh` (out-of-focus lights;
-with `dof`), `sparks` and `confetti` bursting from `at` at `burst` seconds
-(`floor` is where confetti lands), `snow`. Sizes are real (confetti 1.2 cm,
-dust 1.5 mm): set `size` larger for a wide shot.
-
-**4. Light like an interior photographer.** `look.environment: { hdri: "polyhaven:art_studio", intensity }`
-(about 1.3 in a closed room, 0.5 in an open set), a warm sun
 `look.key: 5, keyColor: "#ffd6a8", keyDir: [1, 0.75, 0.55]` (points toward
 the sun: put the window on that side and it falls through as a window-shaped
 patch on the wall and desk), `look.exposure` 1.4-1.7, `look.contrast` 1.1-1.15.
@@ -361,6 +365,121 @@ reads as a render.
   render offline works with what is already cached.
 - A path-traced render uses the computer's GPU; it is slow on a machine
   without one.
+
+## Lights
+
+`look.key` is the sun; place every other light in `lights`:
+
+```json
+"lights": [
+  { "type": "point", "at": [-1.6, 1.45, -2.2], "lumens": 800, "kelvin": 2700 },
+  { "type": "spot", "at": [1.5, 2.6, -1.6], "target": "shelf", "lumens": 600, "kelvin": 3000, "angle": 30, "penumbra": 0.5, "radius": 0.03, "ies": "downlight" },
+  { "type": "area", "at": [0.6, 2.65, 1.6], "target": [0.6, 0, 1.6], "size": [0.6, 0.6], "lumens": 1500, "kelvin": 3500, "visible": true }
+]
+```
+
+- Types: point (a bare bulb; hard shadows), spot (a cone: `angle` is half
+  of it, `penumbra` its soft edge, `radius` the bulb for soft shadows, `ies`
+  its beam: downlight, narrow, wallwash, rings, flood, spot or a real .ies
+  file), area (a panel or softbox `size [w, h]`, `circular` for a disc; the
+  softest light), sun (`dir`).
+- Colour: `kelvin` (candle 1900, bulb 2700, halogen 3200, daylight 5600,
+  overcast 6500) or `color`. Strength: `lumens` (a 60 W bulb is 800, a
+  ceiling panel 2000-4000), `watts` (incandescent equivalent) or `intensity`.
+- `target` aims a spot or panel at a point or an object id. `visible: true`
+  draws the panel or bulb. `flicker` 0-1 (candles, fire). `keys`
+  `[{ t, intensity (a multiplier), kelvin, at, target }]` dims, warms or
+  moves it; `show { from, to }` switches it.
+- `highlight: { on: "<id>" or [x,y,z], distance }` puts the light where its
+  reflection lands on that spot as the camera sees it: the glint on a phone.
+- `studio: { preset, target }` lights a subject in one line: three-point,
+  portrait, product (top softbox + two strips: clean product reflections),
+  softbox, rim, night (warm downlight + cool fill).
+- A night interior: `look.key: 0`, `look.environment.intensity` about 0.03,
+  then lamps; the furniture `lamp` has its own bulb light (`light: 0` turns
+  it off when you place your own). In the fast look shadows come from the
+  first four lights; path traced, every light shadows and bounces.
+
+## Motion beyond keys
+
+Every object can also take:
+- `path: { points: [[x,y,z], ...], from, to, ease, loop, orient (true: faces
+  along it), bank, closed }`: it travels a smooth curve (a paper plane, a
+  drone, a car round a bend).
+- `parent: "<id>"`: it rides on that object (its `at` becomes relative to
+  it); `parentKeep: true` keeps where it stands when it attaches. A phone on
+  a tray that slides in, a ball on a moving cart.
+- `expr: { "at.y": "0.25+0.15*abs(sin(t*4))", "rot.y": "t*90", scale:
+  "1+0.1*a" }`: a formula per channel, every frame. Names: `t` the object's
+  clock, `T` scene time, `v` the channel's own value (from keys), `a` its
+  audio level, `i` its index, `d` the duration, `pi`. Functions: sin, cos,
+  tan, abs, min, max, floor, ceil, round, sqrt, pow, exp, log, sign, fract,
+  clamp, mix, step, smoothstep, noise, saw, tri, square, ease. Checked
+  before rendering.
+- `react: [{ audio: "/abs/music.wav", band: all|bass|mid|treble, to:
+  scale|at.x|at.y|at.z|rot.x|rot.y|rot.z|glow, amount, at }]`: moves with the
+  music (a speaker pumping on the kick, a logo glowing on the beat);
+  `glowColor` for glow. Lights take `react` too (their strength).
+- `clock: { speed, offset, from, loop: [a, b], hold: [a, b] }`: the
+  object's own time for its keys, path, spin, float and expressions (a loop
+  that repeats, a freeze, a slow-motion beat).
+
+## Modelling your own shapes (`mesh`)
+
+When no kit piece or library model fits, model it: `{ "kind": "mesh",
+"material": "ceramic", "ops": [ ... ] }`. Each op makes a solid or changes
+the shape so far; solids take their own `at` / `rot` / `scale`; the result
+sits on y 0 (`base: false` keeps it where the ops put it).
+
+```json
+{ "kind": "mesh", "material": "ceramic", "color": "#e9e2d6", "ops": [
+  { "op": "cylinder", "radius": 0.12, "height": 0.26 },
+  { "op": "subtract", "with": [{ "op": "cylinder", "radius": 0.105, "height": 0.26, "at": [0, 0.02, 0] }] },
+  { "op": "union", "with": [{ "op": "torus", "radius": 0.07, "tube": 0.018, "at": [0.13, 0, 0], "rot": [0, 0, -90], "arc": 180 }] } ],
+  "decals": [{ "image": "/abs/logo.png", "at": [0, 0.15, 0.12], "from": [0, 0, 1], "size": 0.12 }] }
+```
+
+- Solids: box (`round` bevels every edge), sphere, icosphere, cylinder,
+  cone, torus (`arc`), capsule, plane, disc, ring, `extrude` (a 2D shape:
+  star, polygon, heart, gear, rect with `round`, circle, or your own
+  `[[x, y]...]`, with `holes`, `depth`, `bevel`), `lathe` (a profile
+  `[[radius, y]...]` turned round y: vases, bottles, glasses, lamps; smoothed
+  into a curve), `sweep` (a tube or profile along a path: cables, handles,
+  rails).
+- Booleans: `union`, `subtract`, `intersect` `{ with: [ops] }`.
+- Copies: `array` (`count`, `offset`, `rotate`, `scale` each step: stairs,
+  fence posts, a spiral), `radial` (round an axis: petals, spokes),
+  `mirror`, `scatter` (`count` copies of `of` over the surface: rocks, rivets,
+  berries).
+- Shape: `subdivide` (`levels`, smoothed), `smooth`, `twist`, `bend`,
+  `taper`, `noise` (organic wobble), `inflate`, `solidify` (thickness for a
+  sheet), `transform`. `smoothShading: true` for organic shapes.
+- `decals` on any object print a picture onto its surface: `at` in the
+  object's own frame, `from` the direction it projects from, `size`, `rot`.
+  Labels, stickers, logos, stains.
+
+## Air, smoke, fire, liquids and sand
+
+- `look.haze: { density 0.1-0.5, color, shafts true }` puts light in the air:
+  the sun through each window becomes a visible shaft, every spot light a
+  beam, and the room softens with distance. Path traced, haze defaults to 96
+  samples a pixel (it is slower: estimate first). Darker scenes show it best
+  (`look.exposure` 0.7-0.9, low ambient).
+- `smoke` at a point: puffs rising, spreading and drifting with `wind`
+  (`rate`, `life`, `rise`, `spread`, `size`, `color`, `opacity`, `start`,
+  `stop`). Steam from a mug: size 0.04, rise 0.12, spread 0.06, colour
+  #ffffff, opacity 0.25.
+- `fire`: flame tongues, a hot core and a flickering warm light with moving
+  shadows. A candle: size 0.03, intensity 2 (on a `cylinder` of `wax`). A
+  fireplace: size 0.4.
+- `pour`: a stream from `from` (relative to its `at`) with `velocity`, from
+  `start` to `stop`, thinning as it falls; it spreads a puddle, fills a
+  container (`into: { radius, height, base }`) or, with `type: "sand"`,
+  falls as grains and builds a pile at the angle of repose. `material`:
+  water, honey, milk, coffee, oliveOil, sand. Put a glass (`cylinder` in
+  `glass`) where it lands to pour a drink.
+- `water`: a pool, lake or sea surface with moving waves (`size`, `waves`
+  height, `wavelength`, `speed`).
 
 ## Characters that act and talk
 
@@ -401,6 +520,40 @@ renders, with the closest match suggested.
   frames don't average between frames; use enough `look.path.samples`.
 - Credit for the robot: RobotExpressive by Tomás Laulhé (Quaternius),
   modified by Don McCurdy, CC0.
+
+## Camera moves from a reference, and Blender files
+
+- `motion.scene-camera-from-video { video, from, to, mode, name }` measures
+  a shot you like (its pan, tilt, roll and push or zoom) and returns a rig
+  `{ type: "track", track, mode }`. Use it as a shot's `camera.rig` with
+  `target`, `distance`, `azimuth`, `elevation` (and `strength` to exaggerate
+  or calm it). It follows how the picture moves: a locked-off shot of people
+  walking gives little.
+- A `model` or `character` `src` can be a `.blend`: the user's own Blender
+  (free, blender.org) converts it to glTF once. Without Blender the scene
+  says so; ask the user to install it or to export a .glb.
+
+## Render extras
+
+- Denoising: path-traced shots use the AI denoiser (Intel Open Image Denoise
+  on the GPU, about 0.4-1.7 s a 1080p frame on Apple silicon) where WebGPU
+  runs, and the classic one elsewhere. `look.path.denoise: "classic"` or
+  `false` (then raise samples) to choose.
+- `look.path.caustics: true`: light focused through glass and water and off
+  mirrors onto surfaces (no firefly clamp, 8 bounces, 128 samples: slow).
+  Caustics come only from area lights, the sun and the environment, never
+  from point or spot lights (they are points, nothing can be traced back to
+  them through glass): light a glass product with a small `area` light.
+- Solid glass, gems and liquids path trace clear (a patched path tracer: the
+  bend where light leaves the glass is approximate).
+- `motion.render-scene` `passes`: extra videos for compositing, `depth`,
+  `normal`, `albedo`, `id`, `matte:<id>` (needs the object's id),
+  `light:<group>` (`sun`, `env` or a `lights[].group`).
+- `look.lightMix: { warm: 1.4, sun: 0.6, env: 0.5 }` rebalances light groups
+  without moving a light.
+- Light linking (path traced): `lights[].only: [ids]` lights just those
+  objects, `exclude: [ids]` everything else; up to 20 linked lights. The fast
+  look ignores linking.
 
 ## Texts and the end card
 
