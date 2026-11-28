@@ -555,6 +555,25 @@ renders, with the closest match suggested.
   objects, `exclude: [ids]` everything else; up to 20 linked lights. The fast
   look ignores linking.
 
+## Render farm (the user's own GPUs)
+
+- `motion.render-farm { apiKey }` saves the user's Runpod key (encrypted).
+- `motion.render-scene { ..., farm: { gpus: 4, gpu: "NVIDIA GeForce RTX 4090" } }`
+  returns a quote and rents nothing: the GPU (the asked one if Runpod has one
+  free, else the next in-stock render GPU, said in `substitute`), `gpuId`,
+  price an hour, estimated minutes and cost, and the account balance (with a
+  `warning` when it may not cover the render). Tell the user the price; only
+  with their yes call again with the same farm plus
+  `gpu: quote.gpuId, maxPricePerHour: quote.pricePerHour, confirm: true`.
+  If that GPU sells out meanwhile, pods start on another in-stock render GPU
+  priced at or under `maxPricePerHour`, never above. The render splits across
+  the GPUs, the pieces are joined, and the pods are always deleted. The price
+  is charged to the user's Runpod account; `cloud: "COMMUNITY"` is cheaper
+  and less reliable than the default `SECURE`.
+- The key comes from console.runpod.io > Settings > API Keys (Read/Write).
+- `farm: { endpoint, token }` renders on a worker the user runs themselves
+  (the scripts/render-farm image on any NVIDIA machine): no quote needed.
+
 ## Texts and the end card
 
 `texts: [{ text: "Any subject*.*", from: 0, to: 5, position: "top", color: "#fff", size: 112 }]`:
