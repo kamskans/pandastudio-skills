@@ -280,6 +280,15 @@ brand's real logo (an `<img>` with an absolute path) and CTA. No scripts.
 - `motion.scene-stills` at every shot's middle and every click: the screen
   readable (at least 55% of the frame wide), headlines clear of the screen,
   nothing important cut by the frame edge, the cursor on the control it clicks.
+- Fix every entry in the stills' `hints` before rendering. They are measured,
+  not guessed: a screen or 3D type hidden behind something nearer (and what
+  hides it), screens and type out of shot or cut by the frame edge, props
+  floating above or sunk into what they stand on (with the height to fix),
+  a key light from behind the camera (flat light), and the picture itself:
+  clipped white, crushed black, too dark or washed out, fireflies. Give the
+  things that matter an `id` so the hints name them. `critique[].objects`
+  has each object's share of the frame (`visible`) and how much of it is
+  hidden.
 - Each tick has a `to`; each content item's `from`/`to` matches the shots.
 - Images exist (the render lists missing ones in `details.errors`).
 - Pacing: a world every 4-5 s, one interaction per world, the card never
