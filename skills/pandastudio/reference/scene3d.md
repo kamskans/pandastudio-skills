@@ -199,6 +199,74 @@ A backdrop shot takes `lights: [{ color, x, y, size, opacity, keys }]`: soft
 glows (in % of the frame) that drift over the gradient, so a flat background
 breathes.
 
+## Photoreal: path-traced rooms with real models
+
+For the "real room" look (a sunlit desk, a laptop flying in, glowing type in
+the air), a shot takes `render: "path"`: real light transport (soft shadows,
+light bouncing off the walls, glass you see through) instead of the clay
+raster. Work in metres (a desk top at y 0.76).
+
+**1. The room.** One object builds it from its floor plan:
+
+```json
+{ "kind": "room", "plan": [[-1.6,-1.2],[2.6,-1.2],[2.6,2.8],[-1.6,2.8]], "height": 2.6, "open": [2],
+  "openings": [{ "wall": 1, "at": 1.0, "width": 1.3, "height": 1.5, "sill": 0.85, "mullions": [2, 3] }],
+  "colors": { "walls": "#e9b9ae", "ceiling": "#f3e6e0" } }
+```
+
+Wall `i` runs from corner `i` to `i + 1`; `at` is metres from its first
+corner to the opening's middle. Windows get a frame, bars, glass and a sill;
+`kind: "door"` cuts a doorway. Leave the wall the camera looks through out
+with `open`. Parts take `materials` / `colors`: walls (plaster), floor
+(woodFloor), ceiling, frames, skirting, glass, sills.
+
+**2. The things in it.** Generated (any size, any colour): `shelf` (a
+bookcase full of books), `books` (a row, or `flat: true` a stack), `monitor`
+(or a screen of kind `monitor` to show the product on it), `keyboard`,
+`mouse`, `mug` (with coffee), `notebook`, `pen`, `penCup`, `stickyNotes`,
+`rug`, plus boxes for desks, risers and shelves (`material: "oak"`). Real
+models from the CC0 library: `motion.scene-library` with `query: "desk lamp"`
+returns refs and real sizes; use `{ kind: "model", src: "polyhaven:desk_lamp_arm_01", at, rot }`
+(it comes in at its real size; `fit` rescales). Plants, lamps, vases, frames,
+cameras and furniture are there; computer gear is generated. A model's own
+picture or display shows a scene screen: `screens: { "<material name>": "<screen id>" }`
+with a `textureOnly: true` screen.
+
+**3. Surfaces.** `material` names a preset: oak, walnut, tableWood,
+woodFloor, parquet, laminate, plaster (painted: takes the object's colour),
+concrete, paintedBrick, marble, terrazzo, granite, linen, denim, velvet,
+leather, aluminium, steel, chrome, gold, brass, copper, blackMetal, plastic,
+glossPlastic, rubber, ceramic, glass, frostedGlass, paperMatte, screenGlass.
+Textured ones use a real CC0 texture set at its real size. Your own:
+`materials: { "deskTop": { "preset": "oak", "roughness": 0.4 } }` or
+`{ "textures": "polyhaven:<texture id>", "tile": 1.2 }` (find ids with
+`motion.scene-library` `type: "textures"`).
+
+**4. Light like an interior photographer.** `look.environment: { hdri: "polyhaven:art_studio", intensity }`
+(about 1.3 in a closed room, 0.5 in an open set), a warm sun
+`look.key: 5, keyColor: "#ffd6a8", keyDir: [1, 0.75, 0.55]` (points toward
+the sun: put the window on that side and it falls through as a window-shaped
+patch on the wall and desk), `look.exposure` 1.4-1.7, `look.contrast` 1.1-1.15.
+
+**5. Dress it densely.** Rooms read real because of clutter: a
+monitor on a riser, keyboard and mouse, a notebook and pen, sticky notes, a
+pen cup, a mug, books (on a shelf and stacked), plants, a lamp, a framed
+print, a rug. An empty desk reads as a render.
+
+- Quality: `look.path: { samples: 16, moments: 4, bounces: 4, denoise: true }`
+  are the defaults (the denoiser smooths the light and keeps textures and
+  screen text sharp). Raise samples only for glass close-ups.
+- 3D type (`text3d`) glows as a light in the room; keep it off bright screens
+  (green type over a white UI is unreadable) and clear of props in front.
+- Cost: a path-traced 1080p frame takes about 5 s on an Apple silicon GPU, so
+  8 s of video is about 20-25 minutes. Check framing with `motion.scene-stills`
+  first (they path-trace too), render once. Keep path-traced shots to the
+  moments that need them (the opening) and raster the rest.
+- Library assets download on first use (a few MB each) and are cached; a
+  render offline works with what is already cached.
+- A path-traced render uses the computer's GPU; it is slow on a machine
+  without one.
+
 ## Texts and the end card
 
 `texts: [{ text: "Any subject*.*", from: 0, to: 5, position: "top", color: "#fff", size: 112 }]`:
