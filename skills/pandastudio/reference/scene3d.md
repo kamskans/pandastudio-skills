@@ -557,7 +557,11 @@ renders, with the closest match suggested.
 
 ## Render farm (the user's own GPUs)
 
-- `motion.render-farm { apiKey }` saves the user's Runpod key (encrypted).
+- Setup: the user pastes their Runpod key in Settings → Integrations → Runpod
+  (checked with Runpod, stored encrypted; the row shows the balance). Never
+  ask for a key in chat: send them there. `motion.render-farm` says whether it
+  is set up (`configured`, `setup` steps when not) and `check: true` returns
+  the balance; its `apiKey` arg is for scripts and CLI setups only.
 - `motion.render-scene { ..., farm: { gpus: 4, gpu: "NVIDIA GeForce RTX 4090" } }`
   returns a quote and rents nothing: the GPU (the asked one if Runpod has one
   free, else the next in-stock render GPU, said in `substitute`), `gpuId`,
@@ -570,7 +574,8 @@ renders, with the closest match suggested.
   the GPUs, the pieces are joined, and the pods are always deleted. The price
   is charged to the user's Runpod account; `cloud: "COMMUNITY"` is cheaper
   and less reliable than the default `SECURE`.
-- The key comes from console.runpod.io > Settings > API Keys (Read/Write).
+- The key comes from the Runpod console: Settings > API Keys (Read/Write), with
+  credit added under Billing.
 - `farm: { endpoint, token }` renders on a worker the user runs themselves
   (the scripts/render-farm image on any NVIDIA machine): no quote needed.
 
